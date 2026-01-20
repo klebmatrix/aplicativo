@@ -8,9 +8,6 @@ from flask_cors import CORS
 app = Flask(__name__)
 CORS(app)
 
-# --- SEGURANÇA MÁXIMA ---
-# O código agora busca OBRIGATORIAMENTE do Render. 
-# Se não estiver lá, ele usa um valor vazio para ninguém conseguir adivinhar.
 ADMIN_KEY = os.environ.get('ADMIN_KEY')
 
 def get_db_connection():
@@ -19,132 +16,118 @@ def get_db_connection():
         url = url.replace("postgres://", "postgresql://", 1)
     return psycopg2.connect(url, sslmode='require')
 
-def init_db():
+# --- REPARO E ATUALIZAÇÃO DO BANCO ---
+def repair_db():
     try:
-        conn = get_db_connection()
-        cur = conn.cursor()
-        # Garante que a estrutura do banco suporte a contabilização
+        conn = get_db_connection(); cur = conn.cursor()
         cur.execute("""
             CREATE TABLE IF NOT EXISTS clientes (
                 id SERIAL PRIMARY KEY, 
                 nome_empresa TEXT, 
                 pin_hash TEXT UNIQUE, 
                 acessos INTEGER DEFAULT 0, 
-                ultimo_acesso TIMESTAMP
+                limite INTEGER DEFAULT 10,
+                historico_chaves TEXT[] DEFAULT '{}'
             )
         """)
-        conn.commit()
-        cur.close(); conn.close()
-    except Exception as e:
-        print(f"Erro ao iniciar banco: {e}")
+        conn.commit(); cur.close(); conn.close()
+    except: pass
 
-init_db()
+repair_db()
 
-# --- HTML E INTERFACE ---
 HTML_SISTEMA = """
 <!DOCTYPE html>
 <html lang="pt-br">
-<head>
-    <meta charset="UTF-8">
-    <title>KLEBMATRIX | Controle Total</title>
-    <style>
-        body { background: #0b1120; color: white; font-family: sans-serif; display: flex; justify-content: center; padding-top: 30px; margin: 0; }
-        .container { background: #1e293b; padding: 25px; border-radius: 15px; width: 650px; border: 1px solid #334155; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
-        input { width: 80%; padding: 12px; margin: 5px 0; background: #0f172a; border: 1px solid #334155; color: white; border-radius: 8px; font-size: 1rem; }
-        button { padding: 12px 25px; background: #0284c7; border: none; color: white; font-weight: bold; cursor: pointer; border-radius: 8px; margin-top: 10px; transition: 0.3s; }
-        button:hover { background: #0ea5e9; }
-        table { width: 100%; margin-top: 25px; border-collapse: collapse; font-size: 14px; }
-        th, td { border: 1px solid #334155; padding: 12px; text-align: left; }
-        th { background: #0f172a; color: #38bdf8; }
-        .badge { background: #064e3b; color: #22c55e; padding: 3px 8px; border-radius: 5px; font-weight: bold; }
-    </style>
-</head>
+<head><meta charset="UTF-8"><title>KLEBMATRIX | Controle</title>
+<style>
+    body { background: #0b1120; color: white; font-family: sans-serif; display: flex; justify-content: center; padding-top: 20px; }
+    .container { background: #1e293b; padding: 25px; border-radius: 15px; width: 800px; border: 1px solid #334155; }
+    input, select { padding: 10px; margin: 5px; background: #0f172a; border: 1px solid #334155; color: white; border-radius: 5px; }
+    button { padding: 10px 20px; background: #0284c7; border: none; color: white; font-weight: bold; cursor: pointer; border-radius: 5px; }
+    .card { background: #0f172a; padding: 15px; border-radius: 10px; margin-top: 10px; border-left: 5px solid #38bdf8; }
+    table { width: 100%; margin-top: 20px; border-collapse: collapse; font-size: 13px; }
+    th, td { border: 1px solid #334155; padding: 10px; text-align: left; }
+    .critico { color: #ef4444; }
+    .sucesso { color: #22c55e; }
+</style></head>
 <body>
     <div class="container">
         {% if tipo == 'admin' %}
-            <h2 style="color: #38bdf8;">📊 RELATÓRIO DE GESTÃO</h2>
-            <div style="margin-bottom: 20px;">
-                <input type="password" id="mestre" placeholder="Chave Mestre do Render">
-                <button onclick="listar()" style="background: #38bdf8; color: #082f49;">VERIFICAR ACESSOS</button>
+            <h2>🛠 GESTÃO DE CRÉDITOS</h2>
+            <input type="password" id="mestre" placeholder="Chave Mestre">
+            <button onclick="listar()">LISTAR CLIENTES</button>
+            <hr style="border-color:#334155">
+            <div style="background:#0f172a; padding:15px; border-radius:10px;">
+                <input type="text" id="n" placeholder="Empresa">
+                <input type="text" id="p" placeholder="PIN">
+                <input type="number" id="l" placeholder="Qtd Chaves" value="10" style="width:80px">
+                <button onclick="cadastrar()" style="background:#22c55e">CADASTRAR</button>
             </div>
-            
-            <div style="background:#0f172a; padding:15px; border-radius:10px; border: 1px solid #1e293b;">
-                <h4 style="margin-top:0">Novo Cliente</h4>
-                <input type="text" id="nome" placeholder="Nome da Empresa">
-                <input type="text" id="pin" placeholder="PIN (6 dígitos)">
-                <button onclick="cadastrar()" style="background:#22c55e">ATIVAR CLIENTE</button>
-            </div>
-
             <table>
-                <thead>
-                    <tr><th>Empresa</th><th>PIN</th><th>Acessos</th><th>Último Uso</th></tr>
-                </thead>
+                <thead><tr><th>Empresa</th><th>PIN</th><th>Uso/Limite</th><th>Ação</th></tr></thead>
                 <tbody id="lista"></tbody>
             </table>
         {% else %}
-            <div style="width:350px; margin:auto; text-align:center;">
-                <h1 style="color: #38bdf8; margin-bottom:40px;">KLEBMATRIX</h1>
-                <input type="password" id="pin_acesso" placeholder="DIGITE SEU PIN">
-                <button onclick="acessar()" style="width:100%">GERAR CHAVE</button>
-                <div id="status" style="margin-top:30px; font-weight:bold;"></div>
+            <div style="max-width:400px; margin:auto; text-align:center;">
+                <h1 style="color: #38bdf8;">KLEBMATRIX</h1>
+                <input type="password" id="pin_acesso" placeholder="DIGITE SEU PIN" style="width:90%; font-size:1.2rem;">
+                <button onclick="acessar()" style="width:98%; margin-top:15px;">ENTRAR NO PAINEL</button>
+                <div id="status"></div>
             </div>
         {% endif %}
     </div>
-
     <script>
         async function cadastrar() {
             const res = await fetch('/admin/cadastrar', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({
-                    key: document.getElementById('mestre').value,
-                    n: document.getElementById('nome').value,
-                    p: document.getElementById('pin').value
-                })
+                body: JSON.stringify({key: document.getElementById('mestre').value, n: document.getElementById('n').value, p: document.getElementById('p').value, l: document.getElementById('l').value})
             });
-            const d = await res.json();
-            alert(d.msg || d.erro);
-            listar();
+            const d = await res.json(); alert(d.msg || d.erro); listar();
         }
-
         async function listar() {
             const k = document.getElementById('mestre').value;
             const res = await fetch('/admin/listar?key=' + k);
-            if (res.status === 403) { alert("Chave Mestre Inválida!"); return; }
             const dados = await res.json();
             const corpo = document.getElementById('lista');
             corpo.innerHTML = "";
             dados.forEach(c => {
-                corpo.innerHTML += `<tr>
-                    <td>${c.n}</td>
-                    <td><code>${c.p}</code></td>
-                    <td><span class="badge">${c.qtd}</span></td>
-                    <td>${c.data || '---'}</td>
-                </tr>`;
+                corpo.innerHTML += `<tr><td>${c.n}</td><td>${c.p}</td><td>${c.qtd}/${c.limite}</td><td><button style="background:#ef4444" onclick="apagar('${c.p}')">DEL</button></td></tr>`;
             });
         }
-
+        async function apagar(pin) {
+            if(!confirm("Excluir?")) return;
+            await fetch('/admin/deletar', {method: 'DELETE', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({key: document.getElementById('mestre').value, pin: pin})});
+            listar();
+        }
         async function acessar() {
-            const p = document.getElementById('pin_acesso').value;
-            const s = document.getElementById('status');
-            s.innerHTML = "Validando...";
+            const pin = document.getElementById('pin_acesso').value;
             const res = await fetch('/v1/quantum-key', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ pin: p })
+                body: JSON.stringify({ pin: pin })
             });
             const d = await res.json();
+            const s = document.getElementById('status');
             if(res.ok) {
-                s.style.color = "#22c55e";
-                s.innerHTML = "CHAVE GERADA COM SUCESSO!<br><br><span style='background:#fff; color:#000; padding:10px; border-radius:5px'>" + d.key + "</span>";
+                let hist = d.historico.map(h => `<div style="font-family:monospace; font-size:11px; margin-bottom:5px;">${h}</div>`).join("");
+                s.innerHTML = `
+                    <div class="card">
+                        <h3 class="sucesso">Olá, ${d.empresa}!</h3>
+                        <p>Você usou <b>${d.usadas}</b> de <b>${d.limite}</b> chaves.</p>
+                        <p>Restantes: <b class="${d.restantes < 3 ? 'critico' : 'sucesso'}">${d.restantes}</b></p>
+                        <hr style="border-color:#334155">
+                        <h4>SUA CHAVE ATUAL:</h4>
+                        <div style="background:#fff; color:#000; padding:10px; font-weight:bold; border-radius:5px;">${d.key}</div>
+                        <h4 style="margin-top:20px;">HISTÓRICO RECENTE:</h4>
+                        ${hist}
+                    </div>`;
             } else {
-                s.style.color = "#ef4444";
-                s.innerHTML = "PIN INCORRETO OU EXPIRADO";
+                s.innerHTML = `<p class="critico">PIN INVÁLIDO OU LIMITE ATINGIDO!</p>`;
             }
         }
     </script>
-</body>
-</html>
+</body></html>
 """
 
 @app.route('/')
@@ -156,38 +139,65 @@ def admin_page(): return render_template_string(HTML_SISTEMA, tipo='admin')
 @app.route('/admin/cadastrar', methods=['POST'])
 def add():
     d = request.json
-    # Comparação direta com a variável do Render
-    if not ADMIN_KEY or d.get('key') != ADMIN_KEY: 
-        return jsonify({"erro": "Acesso negado. Configure ADMIN_KEY no Render."}), 403
-    try:
-        conn = get_db_connection(); cur = conn.cursor()
-        cur.execute("INSERT INTO clientes (nome_empresa, pin_hash, acessos) VALUES (%s, %s, 0)", (d['n'], d['p']))
-        conn.commit(); cur.close(); conn.close()
-        return jsonify({"msg": "Cliente cadastrado com sucesso!"})
-    except: return jsonify({"erro": "Este PIN já está em uso por outra empresa."}), 400
+    if not ADMIN_KEY or d.get('key') != ADMIN_KEY: return jsonify({"erro": "Erro"}), 403
+    conn = get_db_connection(); cur = conn.cursor()
+    cur.execute("INSERT INTO clientes (nome_empresa, pin_hash, limite) VALUES (%s, %s, %s)", (d['n'], d['p'], d['l']))
+    conn.commit(); cur.close(); conn.close()
+    return jsonify({"msg": "OK"})
 
 @app.route('/admin/listar')
 def list_all():
-    if not ADMIN_KEY or request.args.get('key') != ADMIN_KEY: 
-        return jsonify([]), 403
-    try:
-        conn = get_db_connection(); cur = conn.cursor()
-        cur.execute("SELECT nome_empresa, pin_hash, acessos, ultimo_acesso FROM clientes ORDER BY ultimo_acesso DESC NULLS LAST")
-        rows = cur.fetchall()
-        cur.close(); conn.close()
-        return jsonify([{"n": r[0], "p": r[1], "qtd": r[2], "data": r[3].strftime("%d/%m %H:%M") if r[3] else None} for r in rows])
-    except: return jsonify([])
+    if not ADMIN_KEY or request.args.get('key') != ADMIN_KEY: return jsonify([]), 403
+    conn = get_db_connection(); cur = conn.cursor()
+    cur.execute("SELECT nome_empresa, pin_hash, acessos, limite FROM clientes")
+    rows = cur.fetchall()
+    cur.close(); conn.close()
+    return jsonify([{"n": r[0], "p": r[1], "qtd": r[2], "limite": r[3]} for r in rows])
+
+@app.route('/admin/deletar', methods=['DELETE'])
+def delete_cli():
+    d = request.json
+    if d.get('key') != ADMIN_KEY: return jsonify({"erro": "Erro"}), 403
+    conn = get_db_connection(); cur = conn.cursor()
+    cur.execute("DELETE FROM clientes WHERE pin_hash = %s", (d.get('pin'),))
+    conn.commit(); cur.close(); conn.close()
+    return jsonify({"msg": "Removido"})
 
 @app.route('/v1/quantum-key', methods=['POST'])
 def login():
     p = request.json.get('pin', '').strip()
     try:
         conn = get_db_connection(); cur = conn.cursor()
-        cur.execute("UPDATE clientes SET acessos = acessos + 1, ultimo_acesso = %s WHERE pin_hash = %s RETURNING nome_empresa", (datetime.now(), p))
-        c = cur.fetchone()
-        conn.commit(); cur.close(); conn.close()
-        if c:
-            return jsonify({"status": "success", "key": secrets.token_hex(16).upper()})
+        # Verifica se ainda tem limite
+        cur.execute("SELECT nome_empresa, acessos, limite, historico_chaves FROM clientes WHERE pin_hash = %s", (p,))
+        cli = cur.fetchone()
+        
+        if cli and cli[1] < cli[2]:
+            nova_chave = secrets.token_hex(8).upper()
+            # Atualiza acessos e guarda a chave no histórico (array do Postgres)
+            cur.execute("""
+                UPDATE clientes 
+                SET acessos = acessos + 1, 
+                    historico_chaves = array_append(historico_chaves, %s) 
+                WHERE pin_hash = %s 
+                RETURNING nome_empresa, acessos, limite, historico_chaves
+            """, (f"{datetime.now().strftime('%d/%m %H:%M')} - {nova_chave}", p))
+            res = cur.fetchone()
+            conn.commit(); cur.close(); conn.close()
+            
+            # Pega as últimas 5 chaves do histórico para mostrar ao cliente
+            historico = res[3][-5:] if res[3] else []
+            historico.reverse()
+            
+            return jsonify({
+                "empresa": res[0],
+                "usadas": res[1],
+                "limite": res[2],
+                "restantes": res[2] - res[1],
+                "key": nova_chave,
+                "historico": historico
+            })
+        cur.close(); conn.close()
     except: pass
     return jsonify({"status": "error"}), 401
 
