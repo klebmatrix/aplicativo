@@ -1,6 +1,9 @@
 services:
   - type: web
-    name: cofre-quantico-api
+    name: quantum-app
     env: python
     buildCommand: pip install -r requirements.txt
     startCommand: gunicorn app:app
+    envVars:
+      - key: MEU_PIN
+        value: 123456 # Substitua pelo seu PIN de 6 dígitos
