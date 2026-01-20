@@ -16,7 +16,6 @@ if RAW_DB_URL and RAW_DB_URL.startswith("postgres://"):
 else:
     DATABASE_URL = RAW_DB_URL
 
-# Senha Mestre de Emergência (Se falhar no Render, use 190126)
 ADMIN_KEY = os.environ.get('ADMIN_KEY', '190126')
 
 def get_db_connection():
@@ -38,39 +37,36 @@ try:
     conn.commit()
     cur.close()
     conn.close()
-    print("SISTEMA KLEBMATRIX: BANCO CONECTADO")
+    print("SISTEMA KLEBMATRIX: ONLINE")
 except Exception as e:
-    print(f"ERRO DE CONEXÃO: {e}")
+    print(f"ERRO BANCO: {e}")
 
-# --- INTERFACE DO CLIENTE (DASHBOARD AZUL) ---
+# --- INTERFACE DO CLIENTE ---
 HTML_DASHBOARD = """
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
-    <meta charset="UTF-8"><title>KLEBMATRIX | Quantum Vault</title>
+    <meta charset="UTF-8"><title>KLEBMATRIX | Vault</title>
     <style>
-        body { background: #0b0f19; color: #38bdf8; font-family: 'Segoe UI', sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
-        .card { background: #161e2d; padding: 40px; border-radius: 15px; border: 1px solid #1e293b; box-shadow: 0 10px 25px rgba(0,0,0,0.5); text-align: center; width: 420px; }
-        h1 { font-size: 1.5rem; letter-spacing: 2px; margin-bottom: 5px; color: #fff; }
-        input { background: #0b0f19; border: 1px solid #334155; color: #fff; padding: 12px; border-radius: 5px; width: 90%; margin: 20px 0; text-align: center; font-size: 1rem; }
-        button { background: #0284c7; color: #fff; border: none; padding: 12px; border-radius: 5px; cursor: pointer; width: 95%; font-weight: bold; transition: 0.3s; }
-        button:hover { background: #0ea5e9; }
-        #output { margin-top: 25px; word-break: break-all; font-family: monospace; color: #22c55e; font-size: 0.85rem; background: #0b0f19; padding: 10px; border-radius: 5px; min-height: 60px; display: flex; align-items: center; justify-content: center;}
+        body { background: #0b0f19; color: #38bdf8; font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .card { background: #161e2d; padding: 40px; border-radius: 15px; border: 1px solid #1e293b; text-align: center; width: 400px; }
+        input { background: #0b0f19; border: 1px solid #334155; color: #fff; padding: 12px; border-radius: 5px; width: 90%; margin: 20px 0; text-align: center; }
+        button { background: #0284c7; color: #fff; border: none; padding: 12px; border-radius: 5px; cursor: pointer; width: 95%; font-weight: bold; }
+        #output { margin-top: 25px; word-break: break-all; font-family: monospace; color: #22c55e; }
     </style>
 </head>
 <body>
     <div class="card">
         <h1>KLEBMATRIX</h1>
-        <div style="color: #64748b; font-size: 0.8rem; margin-bottom: 20px;">SEGURANÇA DE DADOS ATÔMICA</div>
-        <input type="password" id="pinInput" placeholder="PIN ou Chave Quântica">
-        <button onclick="requestKey()">AUTENTICAR E GERAR</button>
-        <div id="output">Insira suas credenciais</div>
+        <input type="password" id="pinInput" placeholder="Digite seu PIN">
+        <button onclick="requestKey()">GERAR CHAVE ACESSO</button>
+        <div id="output">Aguardando...</div>
     </div>
     <script>
         async function requestKey() {
-            const pin = document.getElementById('pinInput').value;
+            const pin = document.getElementById('pinInput').value.trim();
             const out = document.getElementById('output');
-            out.innerText = "Processando Entropia...";
+            if(!pin) return alert("Digite o PIN");
             try {
                 const res = await fetch('/v1/quantum-key', {
                     method: 'POST',
@@ -78,89 +74,99 @@ HTML_DASHBOARD = """
                     body: JSON.stringify({ pin: pin })
                 });
                 const data = await res.json();
-                if(data.status === "success") {
+                if(res.ok) {
                     out.style.color = "#22c55e";
-                    out.innerHTML = "ACESSO LIBERADO: " + data.empresa + "<br><br>CHAVE:<br>" + data.key;
+                    out.innerHTML = "LIBERADO: " + data.empresa + "<br><br>" + data.key;
                 } else {
                     out.innerText = "ACESSO NEGADO";
                     out.style.color = "#ef4444";
                 }
-            } catch (e) { out.innerText = "Erro de rede"; }
+            } catch (e) { out.innerText = "Erro de conexão"; }
         }
     </script>
 </body>
 </html>
 """
 
-# --- INTERFACE DO ADMINISTRADOR (CENTRAL DE COMANDO) ---
+# --- INTERFACE DO ADMINISTRADOR ---
 HTML_ADMIN = """
 <!DOCTYPE html>
 <html>
 <head>
-    <title>KLEBMATRIX | Central de Comando</title>
+    <title>KLEBMATRIX | Admin</title>
     <style>
         body { background: #050a14; color: #fff; font-family: sans-serif; padding: 20px; }
-        .container { max-width: 900px; margin: auto; }
-        .box { border: 1px solid #334155; padding: 20px; background: #0a0f1a; border-radius: 10px; margin-bottom: 20px; }
-        input { width: 28%; padding: 10px; margin: 5px; background: #050a14; border: 1px solid #1e293b; color: #22c55e; }
-        button { background: #22c55e; color: #000; padding: 10px; cursor: pointer; border: none; font-weight: bold; border-radius: 4px; }
+        .box { border: 1px solid #334155; padding: 20px; background: #0a0f1a; border-radius: 10px; margin-bottom: 20px; max-width: 800px; margin: auto; }
+        input { padding: 10px; margin: 5px; background: #050a14; border: 1px solid #1e293b; color: #22c55e; }
+        button { background: #22c55e; color: #000; padding: 10px; cursor: pointer; border: none; font-weight: bold; margin: 5px; }
         table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-        th, td { border: 1px solid #1e293b; padding: 12px; text-align: left; font-size: 0.85rem; }
-        th { background: #111827; color: #38bdf8; }
-        .btn-del { background: #ef4444; color: #fff; padding: 5px; cursor:pointer; border:none; border-radius: 3px; }
+        th, td { border: 1px solid #1e293b; padding: 10px; text-align: left; font-size: 0.9rem; }
+        .btn-del { background: #ef4444; color: #fff; padding: 5px 10px; cursor:pointer; border:none; }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h2 style="color:#38bdf8">KLEBMATRIX - Central Admin</h2>
-        <div class="box">
-            <input type="password" id="adm" placeholder="Sua Chave Mestre">
-            <input type="text" id="emp" placeholder="Nome do Cliente">
-            <input type="text" id="pin" placeholder="PIN ou Chave do Cliente">
-            <button onclick="salvar()">ATIVAR NOVO ACESSO</button>
-        </div>
-        <div class="box">
-            <button onclick="carregarClientes()" style="background:#38bdf8">LISTAR / ATUALIZAR STATUS</button>
-            <table>
-                <thead>
-                    <tr><th>Empresa</th><th>IP</th><th>Atividade</th><th>Ação</th></tr>
-                </thead>
-                <tbody id="corpoTabela"></tbody>
-            </table>
-        </div>
+    <div class="box">
+        <h2>CENTRAL DE CONTROLE</h2>
+        <input type="password" id="adm" placeholder="Chave Mestre">
+        <hr style="border:0; border-top:1px solid #333">
+        <input type="text" id="emp" placeholder="Nome Empresa">
+        <input type="text" id="pin" placeholder="PIN Cliente">
+        <button onclick="salvar()">CADASTRAR NOVO</button>
+        <button onclick="carregarClientes()" style="background:#38bdf8">LISTAR TODOS</button>
+        
+        <table>
+            <thead>
+                <tr><th>Empresa</th><th>Último IP</th><th>Acesso</th><th>Ação</th></tr>
+            </thead>
+            <tbody id="corpoTabela"></tbody>
+        </table>
     </div>
+
     <script>
         async function salvar() {
+            const adm = document.getElementById('adm').value;
+            const emp = document.getElementById('emp').value;
+            const pin = document.getElementById('pin').value;
             const res = await fetch('/admin/cadastrar', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({
-                    admin_key: document.getElementById('adm').value,
-                    nome_empresa: document.getElementById('emp').value,
-                    pin: document.getElementById('pin').value
-                })
+                body: JSON.stringify({ admin_key: adm, nome_empresa: emp, pin: pin })
             });
             const data = await res.json();
-            alert(data.status === "sucesso" ? "Sucesso!" : "Erro: " + data.erro);
-            carregarClientes();
+            if(data.status === "sucesso") {
+                alert("Cadastrado com sucesso!");
+                carregarClientes();
+            } else {
+                alert("Erro: " + data.erro);
+            }
         }
+
         async function carregarClientes() {
             const adm = document.getElementById('adm').value;
-            const res = await fetch('/admin/listar?admin_key=' + adm);
-            const clientes = await res.json();
-            const corpo = document.getElementById('corpoTabela');
-            corpo.innerHTML = '';
-            clientes.forEach(c => {
-                corpo.innerHTML += `<tr>
-                    <td>${c.nome}</td>
-                    <td><code>${c.ip || '---'}</code></td>
-                    <td>${c.data || '---'}</td>
-                    <td><button class="btn-del" onclick="eliminar('${c.pin_ref}')">X</button></td>
-                </tr>`;
-            });
+            if(!adm) return alert("Digite a chave mestre para listar!");
+            try {
+                const res = await fetch('/admin/listar?admin_key=' + adm);
+                const clientes = await res.json();
+                const corpo = document.getElementById('corpoTabela');
+                corpo.innerHTML = '';
+                
+                if(clientes.length === 0) {
+                    corpo.innerHTML = '<tr><td colspan="4">Nenhum cliente encontrado ou chave incorreta.</td></tr>';
+                }
+
+                clientes.forEach(c => {
+                    corpo.innerHTML += `<tr>
+                        <td>${c.nome}</td>
+                        <td>${c.ip || '---'}</td>
+                        <td>${c.data || '---'}</td>
+                        <td><button class="btn-del" onclick="eliminar('${c.pin_ref}')">DELETAR</button></td>
+                    </tr>`;
+                });
+            } catch (e) { alert("Erro ao carregar lista"); }
         }
+
         async function eliminar(pin_ref) {
-            if(!confirm("Remover?")) return;
+            if(!confirm("Remover este acesso?")) return;
             const adm = document.getElementById('adm').value;
             await fetch('/admin/eliminar', {
                 method: 'DELETE',
@@ -177,51 +183,43 @@ HTML_ADMIN = """
 # --- ROTAS ---
 
 @app.route('/')
-def index():
-    return render_template_string(HTML_DASHBOARD)
+def index(): return render_template_string(HTML_DASHBOARD)
 
 @app.route('/painel-secreto-kleber')
-def admin_page():
-    return render_template_string(HTML_ADMIN)
+def admin_page(): return render_template_string(HTML_ADMIN)
 
 @app.route('/v1/quantum-key', methods=['POST'])
 def get_key():
-    pin = request.json.get('pin')
-    ip_cliente = request.headers.get('X-Forwarded-For', request.remote_addr)
+    pin = request.json.get('pin', '').strip()
     try:
         conn = get_db_connection()
         cur = conn.cursor()
         cur.execute('SELECT nome_empresa FROM clientes WHERE pin_hash = %s', (pin,))
         cliente = cur.fetchone()
         if cliente:
-            cur.execute('UPDATE clientes SET ultimo_acesso = %s, ultimo_ip = %s WHERE pin_hash = %s', 
-                       (datetime.now(), ip_cliente, pin))
+            ip = request.headers.get('X-Forwarded-For', request.remote_addr)
+            cur.execute('UPDATE clientes SET ultimo_acesso=%s, ultimo_ip=%s WHERE pin_hash=%s', (datetime.now(), ip, pin))
             conn.commit()
-            # Gerador de alta segurança (Secrets)
-            chave = secrets.token_hex(32).upper()
-            cur.close()
-            conn.close()
-            return jsonify({"status": "success", "empresa": cliente[0], "key": chave})
-        conn.close()
-    except Exception as e:
-        print(f"Erro no login: {e}")
+            key = secrets.token_hex(32).upper()
+            cur.close(); conn.close()
+            return jsonify({"status": "success", "empresa": cliente[0], "key": key})
+        cur.close(); conn.close()
+    except: pass
     return jsonify({"status": "error"}), 401
 
 @app.route('/admin/cadastrar', methods=['POST'])
 def cadastrar():
     data = request.json
-    if data.get('admin_key') != ADMIN_KEY:
-        return jsonify({"erro": "Chave Mestre Inválida"}), 403
+    if data.get('admin_key') != ADMIN_KEY: return jsonify({"erro": "Chave Mestre Inválida"}), 403
     try:
         conn = get_db_connection()
         cur = conn.cursor()
         cur.execute('INSERT INTO clientes (nome_empresa, pin_hash) VALUES (%s, %s)', 
-                   (data.get('nome_empresa'), data.get('pin')))
+                   (data.get('nome_empresa').strip(), data.get('pin').strip()))
         conn.commit()
-        cur.close()
-        conn.close()
+        cur.close(); conn.close()
         return jsonify({"status": "sucesso"})
-    except: return jsonify({"erro": "Erro ou PIN duplicado"}), 400
+    except: return jsonify({"erro": "PIN já existe no banco"}), 400
 
 @app.route('/admin/listar')
 def listar_clientes():
@@ -231,9 +229,8 @@ def listar_clientes():
         cur = conn.cursor()
         cur.execute('SELECT nome_empresa, ultimo_ip, ultimo_acesso, pin_hash FROM clientes')
         dados = cur.fetchall()
-        cur.close()
-        conn.close()
-        return jsonify([{"nome": d[0], "ip": d[1], "data": d[2].strftime("%H:%M %d/%m") if d[2] else None, "pin_ref": d[3]} for d in dados])
+        cur.close(); conn.close()
+        return jsonify([{"nome": d[0], "ip": d[1], "data": d[2].strftime("%d/%m %H:%M") if d[2] else None, "pin_ref": d[3]} for d in dados])
     except: return jsonify([])
 
 @app.route('/admin/eliminar', methods=['DELETE'])
@@ -244,8 +241,7 @@ def eliminar_cliente():
     cur = conn.cursor()
     cur.execute('DELETE FROM clientes WHERE pin_hash = %s', (data.get('pin'),))
     conn.commit()
-    cur.close()
-    conn.close()
+    cur.close(); conn.close()
     return jsonify({"status": "ok"})
 
 if __name__ == '__main__':
