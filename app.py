@@ -26,51 +26,53 @@ HTML_SISTEMA = """
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>KEYQUANTUM | Chaves de Alta Segurança</title>
+    <title>KEYQUANTUM | Sistema de Gestão</title>
     <style>
-        body { background: #0b1120; color: white; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; text-align: center; padding: 20px; }
-        .container { background: #1e293b; padding: 30px; border-radius: 20px; display: inline-block; width: 95%; max-width: 650px; border: 1px solid #334155; box-shadow: 0 15px 35px rgba(0,0,0,0.6); }
-        h1 { color: #38bdf8; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 30px; }
-        input { padding: 14px; margin: 10px 0; background: #0f172a; border: 1px solid #334155; color: white; border-radius: 8px; width: 85%; font-size: 1rem; }
-        button { padding: 12px 25px; background: #0284c7; border: none; color: white; cursor: pointer; border-radius: 8px; font-weight: bold; transition: 0.3s; }
-        button:hover { background: #0ea5e9; transform: translateY(-2px); }
-        .btn-main { background: #22c55e; width: 90%; font-size: 1.2rem; margin-top: 20px; box-shadow: 0 4px 15px rgba(34, 197, 94, 0.3); }
-        .card { background: #0f172a; padding: 25px; border-radius: 15px; text-align: left; margin-top: 25px; border-top: 4px solid #38bdf8; }
-        .key-display { background: #ffffff; color: #0f172a; padding: 18px; font-family: 'Courier New', monospace; border-radius: 8px; margin: 20px 0; word-break: break-all; font-weight: bold; text-align: center; font-size: 1.2rem; border: 2px solid #38bdf8; }
-        .hist-item { background: #1e293b; padding: 12px; margin-top: 10px; border-radius: 8px; font-size: 11px; border: 1px solid #334155; display: flex; justify-content: space-between; align-items: center; }
-        .copy-btn { background: #334155; padding: 6px 12px; font-size: 10px; border-radius: 5px; text-transform: uppercase; }
+        body { background: #0b1120; color: white; font-family: 'Segoe UI', sans-serif; text-align: center; padding: 20px; }
+        .container { background: #1e293b; padding: 30px; border-radius: 20px; display: inline-block; width: 95%; max-width: 650px; border: 1px solid #334155; }
+        h1 { color: #38bdf8; letter-spacing: 2px; }
+        input { padding: 12px; margin: 10px 0; background: #0f172a; border: 1px solid #334155; color: white; border-radius: 8px; width: 85%; }
+        button { padding: 12px 25px; background: #0284c7; border: none; color: white; cursor: pointer; border-radius: 8px; font-weight: bold; }
+        .btn-main { background: #22c55e; width: 90%; font-size: 1.1rem; margin-top: 15px; }
+        .card { background: #0f172a; padding: 20px; border-radius: 15px; text-align: left; margin-top: 20px; border-top: 4px solid #38bdf8; }
+        .key-display { background: #ffffff; color: #0f172a; padding: 15px; font-family: monospace; border-radius: 8px; margin: 15px 0; word-break: break-all; font-weight: bold; text-align: center; font-size: 1.2rem; }
+        .hist-item { background: #1e293b; padding: 12px; margin-top: 10px; border-radius: 8px; font-size: 11px; border: 1px solid #334155; }
+        .obs-tag { color: #eab308; font-weight: bold; margin-right: 10px; }
         table { width: 100%; margin-top: 20px; border-collapse: collapse; font-size: 13px; }
-        th, td { border: 1px solid #334155; padding: 12px; text-align: left; }
-        .btn-del { background: #ef4444; padding: 6px 10px; }
+        th, td { border: 1px solid #334155; padding: 10px; text-align: left; }
     </style>
 </head>
 <body>
     <div class="container">
         {% if tipo == 'admin' %}
-            <h2 style="color:#38bdf8">ADMINISTRAÇÃO | KEYQUANTUM</h2>
-            <input type="password" id="mestre" placeholder="Sua Chave Mestre">
-            <button onclick="listar()">CARREGAR SISTEMA</button>
-            <hr style="border:0; border-top:1px solid #334155; margin:30px 0;">
-            <h3>CADASTRAR NOVO CLIENTE</h3>
-            <input type="text" id="n" placeholder="Nome da Empresa">
-            <input type="text" id="p" placeholder="PIN de 6 dígitos">
-            <input type="number" id="l" placeholder="Total de Créditos" value="10">
-            <button onclick="add()" style="background:#22c55e; width: 85%;">ATIVAR CLIENTE</button>
+            <h2 style="color:#38bdf8">ADMIN | KEYQUANTUM</h2>
+            <input type="password" id="mestre" placeholder="Chave Mestre">
+            <button onclick="listar()">LISTAR CLIENTES</button>
+            <hr style="border:0; border-top:1px solid #334155; margin:20px 0;">
+            <input type="text" id="n" placeholder="Nome Empresa">
+            <input type="text" id="p" placeholder="PIN">
+            <input type="number" id="l" placeholder="Créditos" value="10">
+            <button onclick="add()" style="background:#22c55e; width: 85%;">ATIVAR</button>
             <div id="lista_admin"></div>
         {% else %}
             <h1>KEYQUANTUM</h1>
             <div id="login_area">
-                <p style="color: #94a3b8;">Sistema de Geração de Chaves de 30 Dígitos</p>
                 <input type="password" id="pin" placeholder="DIGITE SEU PIN">
-                <button onclick="entrar_painel()" style="width:85%; margin-top:10px;">ACESSAR PAINEL</button>
+                <button onclick="entrar_painel()" style="width:85%">ENTRAR</button>
             </div>
             <div id="cliente_dashboard" style="display:none;">
                 <div class="card">
-                    <h2 id="msg_boas_vindas" style="margin-top:0; color:#38bdf8; font-size: 1.2rem;"></h2>
-                    <p>Saldo de Chaves: <b id="uso" style="color:#22c55e">0</b> / <b id="total">0</b></p>
-                    <button class="btn-main" onclick="gerar_chave()">GERAR NOVA CHAVE QUANTUM</button>
+                    <h2 id="msg_boas_vindas" style="margin:0; color:#38bdf8"></h2>
+                    <p>Saldo: <b id="uso">0</b> / <b id="total">0</b></p>
+                    
+                    <div style="background:#1e293b; padding:15px; border-radius:10px; margin-top:10px;">
+                        <label style="font-size:12px; color:#94a3b8">OBSERVAÇÃO / IDENTIFICAÇÃO DO LOTE:</label>
+                        <input type="text" id="obs_input" placeholder="Ex: Lote 50, Cliente X..." style="width:90%">
+                        <button class="btn-main" onclick="gerar_chave()">GERAR NOVA CHAVE (30 DIGITOS)</button>
+                    </div>
+
                     <div id="area_chave_nova"></div>
-                    <h4 style="margin-top:30px; color:#94a3b8; border-bottom: 1px solid #334155; padding-bottom: 5px;">HISTÓRICO DE GERAÇÕES:</h4>
+                    <h4 style="margin-top:25px; color:#94a3b8">HISTÓRICO DE CHAVES:</h4>
                     <div id="historico_lista"></div>
                 </div>
             </div>
@@ -83,7 +85,7 @@ HTML_SISTEMA = """
     async function entrar_painel() {
         pin_atual = document.getElementById('pin').value;
         const res = await fetch('/v1/cliente/dados?pin=' + pin_atual);
-        if(res.ok) { await atualizar_dados_cliente(); } else { alert("PIN de acesso incorreto!"); }
+        if(res.ok) { await atualizar_dados_cliente(); } else { alert("PIN Inválido!"); }
     }
 
     async function atualizar_dados_cliente() {
@@ -91,42 +93,39 @@ HTML_SISTEMA = """
         const d = await res.json();
         document.getElementById('login_area').style.display = 'none';
         document.getElementById('cliente_dashboard').style.display = 'block';
-        document.getElementById('msg_boas_vindas').innerText = "Portal do Cliente: " + d.empresa;
+        document.getElementById('msg_boas_vindas').innerText = "Olá, " + d.empresa;
         document.getElementById('uso').innerText = d.usadas;
         document.getElementById('total').innerText = d.limite;
         
         let histHtml = "";
         d.hist.reverse().forEach(h => {
-            const so_chave = h.split(' - ')[1];
+            // Divide a string: DATA | OBS | CHAVE
+            const partes = h.split(' | ');
             histHtml += `<div class="hist-item">
-                <span>${h}</span>
-                <button class="copy-btn" onclick="copiar_texto('${so_chave}')">Copiar</button>
+                <div style="color:#94a3b8; margin-bottom:5px;">${partes[0]}</div>
+                <div><span class="obs-tag">[${partes[1]}]</span> <b>${partes[2]}</b></div>
+                <button onclick="navigator.clipboard.writeText('${partes[2]}'); alert('Copiado!')" style="margin-top:8px; padding:4px 10px; font-size:10px;">COPIAR</button>
             </div>`;
         });
         document.getElementById('historico_lista').innerHTML = histHtml;
     }
 
     async function gerar_chave() {
+        const obs = document.getElementById('obs_input').value || "S/ OBS";
         const res = await fetch('/v1/cliente/gerar', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ pin: pin_atual })
+            body: JSON.stringify({ pin: pin_atual, obs: obs })
         });
         const d = await res.json();
         if(res.ok) {
-            document.getElementById('area_chave_nova').innerHTML = `
-                <div class="key-display">${d.key}</div>
-                <button onclick="copiar_texto('${d.key}')" style="background:#0ea5e9; width:100%; border-radius: 8px;">COPIAR CHAVE GERADA</button>
-            `;
-            atualizar_dados_cliente();
-        } else { alert("Você não possui mais créditos!"); }
+            document.getElementById('area_chave_nova').innerHTML = `<div class="key-display">${d.key}</div>`;
+            document.getElementById('obs_input').value = ""; // limpa a obs
+            await atualizar_dados_cliente();
+        } else { alert("Sem créditos disponíveis!"); }
     }
 
-    function copiar_texto(t) {
-        navigator.clipboard.writeText(t);
-        alert("Copiado!");
-    }
-
+    // Admin
     async function add() {
         const res = await fetch('/admin/cadastrar', {
             method: 'POST',
@@ -135,21 +134,16 @@ HTML_SISTEMA = """
         });
         const d = await res.json(); alert(d.msg || d.erro); listar();
     }
-
     async function listar() {
         const k = document.getElementById('mestre').value;
         const res = await fetch('/admin/listar?key=' + k);
         const dados = await res.json();
-        let html = "<table><tr><th>Cliente</th><th>PIN</th><th>Uso/Limite</th><th>Ação</th></tr>";
-        dados.forEach(c => { 
-            html += `<tr><td>${c.n}</td><td>${c.p}</td><td>${c.u}/${c.l}</td>
-            <td><button class="btn-del" onclick="apagar('${c.p}')">X</button></td></tr>`; 
-        });
+        let html = "<table><tr><th>Empresa</th><th>PIN</th><th>Uso</th><th>Ação</th></tr>";
+        dados.forEach(c => { html += `<tr><td>${c.n}</td><td>${c.p}</td><td>${c.u}/${c.l}</td><td><button onclick="apagar('${c.p}')" style="background:red">X</button></td></tr>`; });
         document.getElementById('lista_admin').innerHTML = html + "</table>";
     }
-
     async function apagar(p) {
-        if(!confirm("Deseja remover este acesso?")) return;
+        if(!confirm("Remover?")) return;
         await fetch('/admin/deletar', {method: 'DELETE', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({key: document.getElementById('mestre').value, pin: p})});
         listar();
     }
@@ -175,13 +169,17 @@ def get_dados():
 
 @app.route('/v1/cliente/gerar', methods=['POST'])
 def gerar():
-    pin = request.json.get('pin')
+    data = request.json
+    pin = data.get('pin')
+    obs = data.get('obs', 'S/ OBS').upper()
     conn = get_db_connection(); cur = conn.cursor()
     cur.execute("SELECT acessos, limite FROM clientes WHERE pin_hash = %s", (pin,))
     c = cur.fetchone()
     if c and c[0] < c[1]:
         nk = generate_quantum_key(30)
-        cur.execute("UPDATE clientes SET acessos=acessos+1, historico_chaves=array_append(historico_chaves, %s) WHERE pin_hash=%s", (f"{datetime.now().strftime('%d/%m %H:%M')} - {nk}", pin))
+        # Salva no formato: DATA | OBS | CHAVE
+        registro = f"{datetime.now().strftime('%d/%m %H:%M')} | {obs} | {nk}"
+        cur.execute("UPDATE clientes SET acessos=acessos+1, historico_chaves=array_append(historico_chaves, %s) WHERE pin_hash=%s", (registro, pin))
         conn.commit(); cur.close(); conn.close()
         return jsonify({"key": nk})
     cur.close(); conn.close()
@@ -190,11 +188,11 @@ def gerar():
 @app.route('/admin/cadastrar', methods=['POST'])
 def add():
     d = request.json
-    if not ADMIN_KEY or d.get('key') != ADMIN_KEY: return jsonify({"erro": "Negado"}), 403
+    if not ADMIN_KEY or d.get('key') != ADMIN_KEY: return jsonify({"erro": "Erro"}), 403
     conn = get_db_connection(); cur = conn.cursor()
     cur.execute("INSERT INTO clientes (nome_empresa, pin_hash, limite, historico_chaves) VALUES (%s, %s, %s, '{}')", (d['n'], d['p'], d['l']))
     conn.commit(); cur.close(); conn.close()
-    return jsonify({"msg": "Cliente Ativado com Sucesso!"})
+    return jsonify({"msg": "OK"})
 
 @app.route('/admin/listar')
 def list_all():
@@ -211,7 +209,7 @@ def deletar_cli():
     conn = get_db_connection(); cur = conn.cursor()
     cur.execute("DELETE FROM clientes WHERE pin_hash = %s", (d.get('pin'),))
     conn.commit(); cur.close(); conn.close()
-    return jsonify({"msg": "Removido"})
+    return jsonify({"msg": "OK"})
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)))
