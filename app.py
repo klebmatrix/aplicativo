@@ -7,7 +7,10 @@ from flask import Flask, request, jsonify, render_template_string
 from flask_cors import CORS
 
 app = Flask(__name__)
-CORS(app)
+
+# CONFIGURAÇÃO DE CORS PARA LIBERAR A EXTENSÃO
+# O parâmetro 'origins': '*' permite que a extensão Chrome se conecte sem bloqueios
+CORS(app, resources={r"/*": {"origins": "*"}})
 
 ADMIN_KEY = os.environ.get('ADMIN_KEY')
 
@@ -26,10 +29,10 @@ HTML_SISTEMA = """
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>KEYQUANTUM | Sistema de Gestão</title>
+    <title>KEYQUANTUM | Sistema Oficial</title>
     <style>
-        body { background: #0b1120; color: white; font-family: 'Segoe UI', sans-serif; text-align: center; padding: 20px; }
-        .container { background: #1e293b; padding: 30px; border-radius: 20px; display: inline-block; width: 95%; max-width: 650px; border: 1px solid #334155; }
+        body { background: #0b1120; color: white; font-family: sans-serif; text-align: center; padding: 20px; }
+        .container { background: #1e293b; padding: 30px; border-radius: 20px; display: inline-block; width: 95%; max-width: 600px; border: 1px solid #334155; }
         h1 { color: #38bdf8; letter-spacing: 2px; }
         input { padding: 12px; margin: 10px 0; background: #0f172a; border: 1px solid #334155; color: white; border-radius: 8px; width: 85%; }
         button { padding: 12px 25px; background: #0284c7; border: none; color: white; cursor: pointer; border-radius: 8px; font-weight: bold; }
@@ -37,7 +40,6 @@ HTML_SISTEMA = """
         .card { background: #0f172a; padding: 20px; border-radius: 15px; text-align: left; margin-top: 20px; border-top: 4px solid #38bdf8; }
         .key-display { background: #ffffff; color: #0f172a; padding: 15px; font-family: monospace; border-radius: 8px; margin: 15px 0; word-break: break-all; font-weight: bold; text-align: center; font-size: 1.2rem; }
         .hist-item { background: #1e293b; padding: 12px; margin-top: 10px; border-radius: 8px; font-size: 11px; border: 1px solid #334155; }
-        .obs-tag { color: #eab308; font-weight: bold; margin-right: 10px; }
         table { width: 100%; margin-top: 20px; border-collapse: collapse; font-size: 13px; }
         th, td { border: 1px solid #334155; padding: 10px; text-align: left; }
     </style>
@@ -48,9 +50,9 @@ HTML_SISTEMA = """
             <h2 style="color:#38bdf8">ADMIN | KEYQUANTUM</h2>
             <input type="password" id="mestre" placeholder="Chave Mestre">
             <button onclick="listar()">LISTAR CLIENTES</button>
-            <hr style="border:0; border-top:1px solid #334155; margin:20px 0;">
+            <hr style="border:0; border-top:1px solid #334155; margin:30px 0;">
             <input type="text" id="n" placeholder="Nome Empresa">
-            <input type="text" id="p" placeholder="PIN">
+            <input type="text" id="p" placeholder="PIN de 6 dígitos">
             <input type="number" id="l" placeholder="Créditos" value="10">
             <button onclick="add()" style="background:#22c55e; width: 85%;">ATIVAR</button>
             <div id="lista_admin"></div>
@@ -58,21 +60,16 @@ HTML_SISTEMA = """
             <h1>KEYQUANTUM</h1>
             <div id="login_area">
                 <input type="password" id="pin" placeholder="DIGITE SEU PIN">
-                <button onclick="entrar_painel()" style="width:85%">ENTRAR</button>
+                <button onclick="entrar_painel()" style="width:85%">ENTRAR NO PAINEL</button>
             </div>
             <div id="cliente_dashboard" style="display:none;">
                 <div class="card">
                     <h2 id="msg_boas_vindas" style="margin:0; color:#38bdf8"></h2>
                     <p>Saldo: <b id="uso">0</b> / <b id="total">0</b></p>
-                    
-                    <div style="background:#1e293b; padding:15px; border-radius:10px; margin-top:10px;">
-                        <label style="font-size:12px; color:#94a3b8">OBSERVAÇÃO / IDENTIFICAÇÃO DO LOTE:</label>
-                        <input type="text" id="obs_input" placeholder="Ex: Lote 50, Cliente X..." style="width:90%">
-                        <button class="btn-main" onclick="gerar_chave()">GERAR NOVA CHAVE (30 DIGITOS)</button>
-                    </div>
-
+                    <input type="text" id="obs_input" placeholder="Observação / Lote" style="width:90%">
+                    <button class="btn-main" onclick="gerar_chave()">GERAR CHAVE (30 DÍGITOS)</button>
                     <div id="area_chave_nova"></div>
-                    <h4 style="margin-top:25px; color:#94a3b8">HISTÓRICO DE CHAVES:</h4>
+                    <h4 style="margin-top:25px; color:#94a3b8">HISTÓRICO:</h4>
                     <div id="historico_lista"></div>
                 </div>
             </div>
@@ -81,13 +78,11 @@ HTML_SISTEMA = """
 
     <script>
     let pin_atual = "";
-
     async function entrar_painel() {
         pin_atual = document.getElementById('pin').value;
         const res = await fetch('/v1/cliente/dados?pin=' + pin_atual);
         if(res.ok) { await atualizar_dados_cliente(); } else { alert("PIN Inválido!"); }
     }
-
     async function atualizar_dados_cliente() {
         const res = await fetch('/v1/cliente/dados?pin=' + pin_atual);
         const d = await res.json();
@@ -96,22 +91,14 @@ HTML_SISTEMA = """
         document.getElementById('msg_boas_vindas').innerText = "Olá, " + d.empresa;
         document.getElementById('uso').innerText = d.usadas;
         document.getElementById('total').innerText = d.limite;
-        
         let histHtml = "";
         d.hist.reverse().forEach(h => {
-            // Divide a string: DATA | OBS | CHAVE
-            const partes = h.split(' | ');
-            histHtml += `<div class="hist-item">
-                <div style="color:#94a3b8; margin-bottom:5px;">${partes[0]}</div>
-                <div><span class="obs-tag">[${partes[1]}]</span> <b>${partes[2]}</b></div>
-                <button onclick="navigator.clipboard.writeText('${partes[2]}'); alert('Copiado!')" style="margin-top:8px; padding:4px 10px; font-size:10px;">COPIAR</button>
-            </div>`;
+            histHtml += `<div class="hist-item">${h} <button onclick="navigator.clipboard.writeText('${h.split(' | ')[2]}');alert('Copiado')">COPIAR</button></div>`;
         });
         document.getElementById('historico_lista').innerHTML = histHtml;
     }
-
     async function gerar_chave() {
-        const obs = document.getElementById('obs_input').value || "S/ OBS";
+        const obs = document.getElementById('obs_input').value || "WEB";
         const res = await fetch('/v1/cliente/gerar', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
@@ -120,12 +107,9 @@ HTML_SISTEMA = """
         const d = await res.json();
         if(res.ok) {
             document.getElementById('area_chave_nova').innerHTML = `<div class="key-display">${d.key}</div>`;
-            document.getElementById('obs_input').value = ""; // limpa a obs
             await atualizar_dados_cliente();
-        } else { alert("Sem créditos disponíveis!"); }
+        } else { alert("Sem créditos!"); }
     }
-
-    // Admin
     async function add() {
         const res = await fetch('/admin/cadastrar', {
             method: 'POST',
@@ -138,12 +122,12 @@ HTML_SISTEMA = """
         const k = document.getElementById('mestre').value;
         const res = await fetch('/admin/listar?key=' + k);
         const dados = await res.json();
-        let html = "<table><tr><th>Empresa</th><th>PIN</th><th>Uso</th><th>Ação</th></tr>";
-        dados.forEach(c => { html += `<tr><td>${c.n}</td><td>${c.p}</td><td>${c.u}/${c.l}</td><td><button onclick="apagar('${c.p}')" style="background:red">X</button></td></tr>`; });
+        let html = "<table><tr><th>Empresa</th><th>PIN</th><th>Ação</th></tr>";
+        dados.forEach(c => { html += `<tr><td>${c.n}</td><td>${c.p}</td><td><button onclick="apagar('${c.p}')">DEL</button></td></tr>`; });
         document.getElementById('lista_admin').innerHTML = html + "</table>";
     }
     async function apagar(p) {
-        if(!confirm("Remover?")) return;
+        if(!confirm("Apagar?")) return;
         await fetch('/admin/deletar', {method: 'DELETE', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({key: document.getElementById('mestre').value, pin: p})});
         listar();
     }
@@ -177,7 +161,6 @@ def gerar():
     c = cur.fetchone()
     if c and c[0] < c[1]:
         nk = generate_quantum_key(30)
-        # Salva no formato: DATA | OBS | CHAVE
         registro = f"{datetime.now().strftime('%d/%m %H:%M')} | {obs} | {nk}"
         cur.execute("UPDATE clientes SET acessos=acessos+1, historico_chaves=array_append(historico_chaves, %s) WHERE pin_hash=%s", (registro, pin))
         conn.commit(); cur.close(); conn.close()
