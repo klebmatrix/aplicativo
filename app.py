@@ -26,15 +26,18 @@ HTML_SISTEMA = """
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>KLEBMATRIX | QUANTUM CUSTOM</title>
+    <title>KLEBMATRIX | QUANTUM DASHBOARD</title>
     <style>
         body { background: #0b1120; color: white; font-family: sans-serif; text-align: center; padding: 20px; }
-        .container { background: #1e293b; padding: 25px; border-radius: 15px; display: inline-block; width: 95%; max-width: 650px; border: 1px solid #334155; }
-        input, select { padding: 12px; margin: 8px; background: #0f172a; border: 1px solid #334155; color: white; border-radius: 6px; width: 85%; }
-        button { padding: 12px 24px; background: #0284c7; border: none; color: white; cursor: pointer; border-radius: 6px; font-weight: bold; width: 85%; }
-        .key-box { background: #fff; color: #000; padding: 15px; font-family: monospace; border-radius: 6px; margin: 15px 0; word-break: break-all; font-weight: bold; }
-        .hist-card { background: #0f172a; padding: 10px; margin-top: 8px; border-radius: 6px; text-align: left; border-left: 10px solid #334155; font-size: 12px; }
-        .label { display: block; text-align: left; margin-left: 8%; font-size: 12px; color: #38bdf8; margin-top: 10px; }
+        .container { background: #1e293b; padding: 25px; border-radius: 15px; display: inline-block; width: 95%; max-width: 600px; border: 1px solid #334155; }
+        input { padding: 12px; margin: 8px; background: #0f172a; border: 1px solid #334155; color: white; border-radius: 6px; width: 80%; font-size: 1.1rem; }
+        button { padding: 12px 24px; background: #0284c7; border: none; color: white; cursor: pointer; border-radius: 6px; font-weight: bold; transition: 0.3s; }
+        .btn-main { background: #22c55e; width: 100%; font-size: 1.1rem; margin-top: 15px; }
+        .btn-main:hover { background: #16a34a; }
+        .card { background: #0f172a; padding: 20px; border-radius: 10px; text-align: left; margin-top: 20px; border: 1px solid #38bdf8; }
+        .key-display { background: #fff; color: #000; padding: 15px; font-family: monospace; border-radius: 6px; margin: 15px 0; word-break: break-all; font-weight: bold; text-align: center; }
+        .hist-item { background: #1e293b; padding: 10px; margin-top: 8px; border-radius: 5px; font-size: 12px; border: 1px solid #334155; display: flex; justify-content: space-between; align-items: center; }
+        .copy-small { background: #334155; padding: 5px; font-size: 10px; border-radius: 3px; cursor: pointer; }
     </style>
 </head>
 <body>
@@ -42,7 +45,7 @@ HTML_SISTEMA = """
         {% if tipo == 'admin' %}
             <h2>PAINEL MASTER</h2>
             <input type="password" id="mestre" placeholder="Chave Mestre">
-            <button onclick="listar()">ATUALIZAR LISTA</button>
+            <button onclick="listar()">LISTAR CLIENTES</button>
             <hr style="border:0; border-top:1px solid #334155; margin:20px 0;">
             <input type="text" id="n" placeholder="Nome Empresa">
             <input type="text" id="p" placeholder="PIN">
@@ -50,28 +53,75 @@ HTML_SISTEMA = """
             <button onclick="add()" style="background:#22c55e">CADASTRAR</button>
             <div id="lista_admin"></div>
         {% else %}
-            <h1 style="color:#38bdf8">KLEBMATRIX QUANTUM</h1>
-            
-            <label class="label">SEU PIN DE ACESSO:</label>
-            <input type="password" id="pin" placeholder="••••••">
-            
-            <label class="label">E-MAIL DO DESTINATÁRIO (OPCIONAL):</label>
-            <input type="email" id="desc_email" placeholder="cliente@email.com">
-            
-            <label class="label">COR DE IDENTIFICAÇÃO:</label>
-            <select id="desc_cor">
-                <option value="#38bdf8">AZUL (Padrão)</option>
-                <option value="#22c55e">VERDE (Ativado)</option>
-                <option value="#eab308">AMARELO (Pendente)</option>
-                <option value="#ef4444">VERMELHO (Urgente)</option>
-            </select>
-
-            <button onclick="gerar()" style="margin-top:20px;">GERAR CHAVE PERSONALIZADA</button>
-            <div id="res" style="margin-top:20px;"></div>
+            <h1 style="color:#38bdf8">KLEBMATRIX</h1>
+            <div id="login_area">
+                <input type="password" id="pin" placeholder="INSIRA SEU PIN">
+                <button onclick="entrar_painel()" style="width:85%">ENTRAR NO SISTEMA</button>
+            </div>
+            <div id="cliente_dashboard" style="display:none;">
+                <div class="card">
+                    <h2 id="msg_boas_vindas" style="margin-top:0; color:#38bdf8"></h2>
+                    <p>Créditos Usados: <b id="uso">0</b> / Total: <b id="total">0</b></p>
+                    <button class="btn-main" onclick="gerar_chave()">GERAR NOVA CHAVE QUANTUM</button>
+                    <div id="area_chave_nova"></div>
+                    <h4 style="margin-top:25px; color:#94a3b8">MEU HISTÓRICO DE CHAVES:</h4>
+                    <div id="historico_lista"></div>
+                </div>
+            </div>
         {% endif %}
     </div>
 
     <script>
+    let pin_atual = "";
+
+    async function entrar_painel() {
+        pin_atual = document.getElementById('pin').value;
+        await atualizar_dados_cliente();
+    }
+
+    async function atualizar_dados_cliente() {
+        const res = await fetch('/v1/cliente/dados?pin=' + pin_atual);
+        const d = await res.json();
+        if(res.ok) {
+            document.getElementById('login_area').style.display = 'none';
+            document.getElementById('cliente_dashboard').style.display = 'block';
+            document.getElementById('msg_boas_vindas').innerText = "Olá, " + d.empresa;
+            document.getElementById('uso').innerText = d.usadas;
+            document.getElementById('total').innerText = d.limite;
+            
+            let histHtml = "";
+            d.hist.reverse().forEach(h => {
+                histHtml += `<div class="hist-item">
+                    <span>${h}</span>
+                    <span class="copy-small" onclick="copiar_texto('${h}')">COPIAR</span>
+                </div>`;
+            });
+            document.getElementById('historico_lista').innerHTML = histHtml;
+        } else { alert("PIN Inválido!"); }
+    }
+
+    async function gerar_chave() {
+        const res = await fetch('/v1/cliente/gerar', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ pin: pin_atual })
+        });
+        const d = await res.json();
+        if(res.ok) {
+            document.getElementById('area_chave_nova').innerHTML = `
+                <div class="key-display" id="key_val">${d.key}</div>
+                <button onclick="copiar_texto('${d.key}')" style="background:#0ea5e9; width:100%">COPIAR CHAVE AGORA</button>
+            `;
+            atualizar_dados_cliente();
+        } else { alert(d.erro || "Sem créditos!"); }
+    }
+
+    function copiar_texto(t) {
+        navigator.clipboard.writeText(t.split(' - ')[1] || t);
+        alert("Copiado para a área de transferência!");
+    }
+
+    // Funções Admin
     async function add() {
         const res = await fetch('/admin/cadastrar', {
             method: 'POST',
@@ -84,33 +134,9 @@ HTML_SISTEMA = """
         const k = document.getElementById('mestre').value;
         const res = await fetch('/admin/listar?key=' + k);
         const dados = await res.json();
-        let html = "<table><tr><th>Empresa</th><th>PIN</th><th>Uso</th></tr>";
+        let html = "<table style='width:100%; margin-top:20px; font-size:12px;'><tr><th>Empresa</th><th>PIN</th><th>Uso</th></tr>";
         dados.forEach(c => { html += `<tr><td>${c.n}</td><td>${c.p}</td><td>${c.u}/${c.l}</td></tr>`; });
         document.getElementById('lista_admin').innerHTML = html + "</table>";
-    }
-    async function gerar() {
-        const r = document.getElementById('res');
-        r.innerHTML = "Processando...";
-        const res = await fetch('/v1/quantum-key', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ 
-                pin: document.getElementById('pin').value,
-                email: document.getElementById('desc_email').value || "Sem E-mail",
-                cor: document.getElementById('desc_cor').value
-            })
-        });
-        const d = await res.json();
-        if(res.ok) {
-            r.innerHTML = `
-                <div style="text-align:left; background:#0f172a; padding:15px; border-radius:10px; border:1px solid ${d.cor_usada}">
-                    <p><b>${d.empresa}</b> | Créditos: ${d.usadas}/${d.limite}</p>
-                    <div class="key-box" id="ch">${d.key}</div>
-                    <button onclick="navigator.clipboard.writeText('${d.key}'); alert('Copiado!')" style="background:#22c55e; width:100%">COPIAR</button>
-                    <p style="margin-top:15px; font-size:12px">HISTÓRICO RECENTE:</p>
-                    ${d.hist.map(h => `<div class="hist-card" style="border-left-color:${h.cor}">${h.texto}</div>`).join('')}
-                </div>`;
-        } else { r.innerHTML = "<b style='color:red'>ERRO: PIN INVÁLIDO OU SEM CRÉDITOS</b>"; }
     }
     </script>
 </body>
@@ -123,12 +149,36 @@ def home(): return render_template_string(HTML_SISTEMA, tipo='login')
 @app.route('/painel-secreto-kleber')
 def admin_page(): return render_template_string(HTML_SISTEMA, tipo='admin')
 
+@app.route('/v1/cliente/dados')
+def get_dados():
+    pin = request.args.get('pin')
+    conn = get_db_connection(); cur = conn.cursor()
+    cur.execute("SELECT nome_empresa, acessos, limite, historico_chaves FROM clientes WHERE pin_hash = %s", (pin,))
+    c = cur.fetchone(); cur.close(); conn.close()
+    if c: return jsonify({"empresa": c[0], "usadas": c[1], "limite": c[2], "hist": c[3]})
+    return jsonify({"erro": "n"}), 404
+
+@app.route('/v1/cliente/gerar', methods=['POST'])
+def gerar():
+    pin = request.json.get('pin')
+    conn = get_db_connection(); cur = conn.cursor()
+    cur.execute("SELECT acessos, limite FROM clientes WHERE pin_hash = %s", (pin,))
+    c = cur.fetchone()
+    if c and c[0] < c[1]:
+        nk = generate_quantum_key(30)
+        timestamp = datetime.now().strftime('%d/%m %H:%M')
+        cur.execute("UPDATE clientes SET acessos=acessos+1, historico_chaves=array_append(historico_chaves, %s) WHERE pin_hash=%s", (f"{timestamp} - {nk}", pin))
+        conn.commit(); cur.close(); conn.close()
+        return jsonify({"key": nk})
+    cur.close(); conn.close()
+    return jsonify({"erro": "Limite de créditos atingido!"}), 403
+
 @app.route('/admin/cadastrar', methods=['POST'])
 def add():
     d = request.json
     if not ADMIN_KEY or d.get('key') != ADMIN_KEY: return jsonify({"erro": "Erro"}), 403
     conn = get_db_connection(); cur = conn.cursor()
-    cur.execute("INSERT INTO clientes (nome_empresa, pin_hash, limite) VALUES (%s, %s, %s)", (d['n'], d['p'], d['l']))
+    cur.execute("INSERT INTO clientes (nome_empresa, pin_hash, limite, historico_chaves) VALUES (%s, %s, %s, '{}')", (d['n'], d['p'], d['l']))
     conn.commit(); cur.close(); conn.close()
     return jsonify({"msg": "OK"})
 
@@ -139,41 +189,6 @@ def list_all():
     cur.execute("SELECT nome_empresa, pin_hash, COALESCE(acessos,0), COALESCE(limite,0) FROM clientes")
     r = cur.fetchall(); cur.close(); conn.close()
     return jsonify([{"n": x[0], "p": x[1], "u": x[2], "l": x[3]} for x in r])
-
-@app.route('/v1/quantum-key', methods=['POST'])
-def login():
-    d = request.json
-    pin = d.get('pin', '').strip()
-    email = d.get('email', 'Sem E-mail')
-    cor = d.get('cor', '#38bdf8')
-    
-    try:
-        conn = get_db_connection(); cur = conn.cursor()
-        cur.execute("SELECT nome_empresa, acessos, limite, historico_chaves FROM clientes WHERE pin_hash = %s", (pin,))
-        c = cur.fetchone()
-        
-        if c and c[1] < c[2]:
-            nk = generate_quantum_key(30)
-            # Salvamos a cor e o email dentro da string do histórico
-            info_completa = f"{cor}|{email}|{nk}"
-            cur.execute("UPDATE clientes SET acessos=acessos+1, historico_chaves=array_append(historico_chaves, %s) WHERE pin_hash=%s RETURNING historico_chaves", (info_completa, pin))
-            h_raw = cur.fetchone()[0]
-            conn.commit(); cur.close(); conn.close()
-            
-            # Formata o histórico para o cliente ver bonitinho
-            h_formatado = []
-            for item in h_raw[-5:]:
-                partes = item.split('|')
-                if len(partes) == 3:
-                    h_formatado.append({"cor": partes[0], "texto": f"{partes[1]}: {partes[2]}"})
-            
-            return jsonify({
-                "empresa": c[0], "usadas": c[1]+1, "limite": c[2], 
-                "key": nk, "cor_usada": cor, "hist": h_formatado[::-1]
-            })
-        cur.close(); conn.close()
-    except: pass
-    return jsonify({"status": "error"}), 401
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)))
