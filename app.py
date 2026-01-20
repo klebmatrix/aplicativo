@@ -1,5 +1,6 @@
 import os
 import secrets
+import string
 import psycopg2
 from datetime import datetime
 from flask import Flask, request, jsonify, render_template_string
@@ -16,68 +17,56 @@ def get_db_connection():
         url = url.replace("postgres://", "postgresql://", 1)
     return psycopg2.connect(url, sslmode='require')
 
-def force_repair():
-    try:
-        conn = get_db_connection()
-        cur = conn.cursor()
-        # Cria a tabela base se não existir
-        cur.execute("CREATE TABLE IF NOT EXISTS clientes (id SERIAL PRIMARY KEY, nome_empresa TEXT, pin_hash TEXT UNIQUE)")
-        
-        # Adiciona cada coluna nova individualmente para não dar erro se já existir
-        colunas = [
-            "ALTER TABLE clientes ADD COLUMN IF NOT EXISTS acessos INTEGER DEFAULT 0",
-            "ALTER TABLE clientes ADD COLUMN IF NOT EXISTS limite INTEGER DEFAULT 10",
-            "ALTER TABLE clientes ADD COLUMN IF NOT EXISTS ultimo_acesso TIMESTAMP",
-            "ALTER TABLE clientes ADD COLUMN IF NOT EXISTS historico_chaves TEXT[] DEFAULT '{}'"
-        ]
-        
-        for col in colunas:
-            try:
-                cur.execute(col)
-                conn.commit()
-            except:
-                conn.rollback()
-        
-        cur.close(); conn.close()
-        print("BANCO DESTRAVADO E ATUALIZADO!")
-    except Exception as e:
-        print(f"Erro crítico no reset: {e}")
-
-# Executa o conserto ao iniciar
-force_repair()
+def generate_quantum_key(length=30):
+    chars = string.ascii_uppercase + string.digits
+    return ''.join(secrets.choice(chars) for _ in range(length))
 
 HTML_SISTEMA = """
 <!DOCTYPE html>
-<html>
-<head><meta charset="UTF-8"><title>KLEBMATRIX | GESTÃO</title>
-<style>
-    body { background: #0b1120; color: white; font-family: sans-serif; text-align: center; padding: 20px; }
-    .container { background: #1e293b; padding: 20px; border-radius: 10px; display: inline-block; width: 90%; max-width: 700px; border: 1px solid #334155; }
-    input { padding: 10px; margin: 5px; background: #0f172a; border: 1px solid #334155; color: white; border-radius: 5px; }
-    button { padding: 10px 20px; background: #0284c7; border: none; color: white; cursor: pointer; border-radius: 5px; font-weight: bold; }
-    table { width: 100%; margin-top: 20px; border-collapse: collapse; }
-    th, td { border: 1px solid #334155; padding: 8px; font-size: 13px; }
-</style>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>KLEBMATRIX | QUANTUM CUSTOM</title>
+    <style>
+        body { background: #0b1120; color: white; font-family: sans-serif; text-align: center; padding: 20px; }
+        .container { background: #1e293b; padding: 25px; border-radius: 15px; display: inline-block; width: 95%; max-width: 650px; border: 1px solid #334155; }
+        input, select { padding: 12px; margin: 8px; background: #0f172a; border: 1px solid #334155; color: white; border-radius: 6px; width: 85%; }
+        button { padding: 12px 24px; background: #0284c7; border: none; color: white; cursor: pointer; border-radius: 6px; font-weight: bold; width: 85%; }
+        .key-box { background: #fff; color: #000; padding: 15px; font-family: monospace; border-radius: 6px; margin: 15px 0; word-break: break-all; font-weight: bold; }
+        .hist-card { background: #0f172a; padding: 10px; margin-top: 8px; border-radius: 6px; text-align: left; border-left: 10px solid #334155; font-size: 12px; }
+        .label { display: block; text-align: left; margin-left: 8%; font-size: 12px; color: #38bdf8; margin-top: 10px; }
+    </style>
 </head>
 <body>
     <div class="container">
         {% if tipo == 'admin' %}
-            <h2>🛠 PAINEL MASTER</h2>
+            <h2>PAINEL MASTER</h2>
             <input type="password" id="mestre" placeholder="Chave Mestre">
-            <button onclick="listar()">LISTAR / ATUALIZAR</button>
-            <hr>
-            <input type="text" id="n" placeholder="Cliente">
+            <button onclick="listar()">ATUALIZAR LISTA</button>
+            <hr style="border:0; border-top:1px solid #334155; margin:20px 0;">
+            <input type="text" id="n" placeholder="Nome Empresa">
             <input type="text" id="p" placeholder="PIN">
-            <input type="number" id="l" placeholder="Créditos" value="10" style="width:60px">
+            <input type="number" id="l" placeholder="Créditos" value="10">
             <button onclick="add()" style="background:#22c55e">CADASTRAR</button>
-            <table>
-                <thead><tr><th>Cliente</th><th>PIN</th><th>Uso/Total</th><th>Ação</th></tr></thead>
-                <tbody id="lista"></tbody>
-            </table>
+            <div id="lista_admin"></div>
         {% else %}
-            <h1>KLEBMATRIX</h1>
-            <input type="password" id="pin_acesso" placeholder="DIGITE SEU PIN">
-            <button onclick="entrar()">GERAR CHAVE</button>
+            <h1 style="color:#38bdf8">KLEBMATRIX QUANTUM</h1>
+            
+            <label class="label">SEU PIN DE ACESSO:</label>
+            <input type="password" id="pin" placeholder="••••••">
+            
+            <label class="label">E-MAIL DO DESTINATÁRIO (OPCIONAL):</label>
+            <input type="email" id="desc_email" placeholder="cliente@email.com">
+            
+            <label class="label">COR DE IDENTIFICAÇÃO:</label>
+            <select id="desc_cor">
+                <option value="#38bdf8">AZUL (Padrão)</option>
+                <option value="#22c55e">VERDE (Ativado)</option>
+                <option value="#eab308">AMARELO (Pendente)</option>
+                <option value="#ef4444">VERMELHO (Urgente)</option>
+            </select>
+
+            <button onclick="gerar()" style="margin-top:20px;">GERAR CHAVE PERSONALIZADA</button>
             <div id="res" style="margin-top:20px;"></div>
         {% endif %}
     </div>
@@ -94,36 +83,34 @@ HTML_SISTEMA = """
     async function listar() {
         const k = document.getElementById('mestre').value;
         const res = await fetch('/admin/listar?key=' + k);
-        if(!res.ok) { alert("Chave incorreta ou erro no servidor"); return; }
         const dados = await res.json();
-        const l = document.getElementById('lista');
-        l.innerHTML = "";
-        dados.forEach(c => {
-            l.innerHTML += `<tr><td>${c.n}</td><td>${c.p}</td><td>${c.u}/${c.l}</td><td><button onclick="del('${c.p}')" style="background:red; padding:3px 7px;">X</button></td></tr>`;
-        });
+        let html = "<table><tr><th>Empresa</th><th>PIN</th><th>Uso</th></tr>";
+        dados.forEach(c => { html += `<tr><td>${c.n}</td><td>${c.p}</td><td>${c.u}/${c.l}</td></tr>`; });
+        document.getElementById('lista_admin').innerHTML = html + "</table>";
     }
-    async function del(p) {
-        if(!confirm("Remover?")) return;
-        await fetch('/admin/deletar', {method: 'DELETE', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({key: document.getElementById('mestre').value, pin: p})});
-        listar();
-    }
-    async function entrar() {
+    async function gerar() {
         const r = document.getElementById('res');
-        r.innerHTML = "Verificando...";
+        r.innerHTML = "Processando...";
         const res = await fetch('/v1/quantum-key', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ pin: document.getElementById('pin_acesso').value })
+            body: JSON.stringify({ 
+                pin: document.getElementById('pin').value,
+                email: document.getElementById('desc_email').value || "Sem E-mail",
+                cor: document.getElementById('desc_cor').value
+            })
         });
         const d = await res.json();
         if(res.ok) {
-            r.innerHTML = `<div style="background:#0f172a; padding:15px; border-radius:10px; border-left:5px solid #22c55e">
-                <h3>Olá, ${d.empresa}!</h3>
-                <p>Créditos: ${d.usadas}/${d.limite}</p>
-                <div style="background:#fff; color:#000; padding:10px; font-weight:bold; font-size:1.2rem;">${d.key}</div>
-                <p style="font-size:10px; margin-top:10px;">HISTÓRICO: ${d.hist.join(' | ')}</p>
-            </div>`;
-        } else { r.innerHTML = "<b style='color:red'>ACESSO NEGADO</b>"; }
+            r.innerHTML = `
+                <div style="text-align:left; background:#0f172a; padding:15px; border-radius:10px; border:1px solid ${d.cor_usada}">
+                    <p><b>${d.empresa}</b> | Créditos: ${d.usadas}/${d.limite}</p>
+                    <div class="key-box" id="ch">${d.key}</div>
+                    <button onclick="navigator.clipboard.writeText('${d.key}'); alert('Copiado!')" style="background:#22c55e; width:100%">COPIAR</button>
+                    <p style="margin-top:15px; font-size:12px">HISTÓRICO RECENTE:</p>
+                    ${d.hist.map(h => `<div class="hist-card" style="border-left-color:${h.cor}">${h.texto}</div>`).join('')}
+                </div>`;
+        } else { r.innerHTML = "<b style='color:red'>ERRO: PIN INVÁLIDO OU SEM CRÉDITOS</b>"; }
     }
     </script>
 </body>
@@ -139,7 +126,7 @@ def admin_page(): return render_template_string(HTML_SISTEMA, tipo='admin')
 @app.route('/admin/cadastrar', methods=['POST'])
 def add():
     d = request.json
-    if not ADMIN_KEY or d.get('key') != ADMIN_KEY: return jsonify({"erro": "Chave Errada"}), 403
+    if not ADMIN_KEY or d.get('key') != ADMIN_KEY: return jsonify({"erro": "Erro"}), 403
     conn = get_db_connection(); cur = conn.cursor()
     cur.execute("INSERT INTO clientes (nome_empresa, pin_hash, limite) VALUES (%s, %s, %s)", (d['n'], d['p'], d['l']))
     conn.commit(); cur.close(); conn.close()
@@ -150,32 +137,40 @@ def list_all():
     if not ADMIN_KEY or request.args.get('key') != ADMIN_KEY: return jsonify([]), 403
     conn = get_db_connection(); cur = conn.cursor()
     cur.execute("SELECT nome_empresa, pin_hash, COALESCE(acessos,0), COALESCE(limite,0) FROM clientes")
-    r = cur.fetchall()
-    cur.close(); conn.close()
+    r = cur.fetchall(); cur.close(); conn.close()
     return jsonify([{"n": x[0], "p": x[1], "u": x[2], "l": x[3]} for x in r])
-
-@app.route('/admin/deletar', methods=['DELETE'])
-def deletar():
-    d = request.json
-    if d.get('key') != ADMIN_KEY: return jsonify({"erro": "Erro"}), 403
-    conn = get_db_connection(); cur = conn.cursor()
-    cur.execute("DELETE FROM clientes WHERE pin_hash = %s", (d.get('pin'),))
-    conn.commit(); cur.close(); conn.close()
-    return jsonify({"msg": "Removido"})
 
 @app.route('/v1/quantum-key', methods=['POST'])
 def login():
-    p = request.json.get('pin', '').strip()
+    d = request.json
+    pin = d.get('pin', '').strip()
+    email = d.get('email', 'Sem E-mail')
+    cor = d.get('cor', '#38bdf8')
+    
     try:
         conn = get_db_connection(); cur = conn.cursor()
-        cur.execute("SELECT nome_empresa, acessos, limite, historico_chaves FROM clientes WHERE pin_hash = %s", (p,))
+        cur.execute("SELECT nome_empresa, acessos, limite, historico_chaves FROM clientes WHERE pin_hash = %s", (pin,))
         c = cur.fetchone()
+        
         if c and c[1] < c[2]:
-            nk = secrets.token_hex(8).upper()
-            cur.execute("UPDATE clientes SET acessos=acessos+1, historico_chaves=array_append(historico_chaves, %s) WHERE pin_hash=%s RETURNING historico_chaves", (nk, p))
-            h = cur.fetchone()[0]
+            nk = generate_quantum_key(30)
+            # Salvamos a cor e o email dentro da string do histórico
+            info_completa = f"{cor}|{email}|{nk}"
+            cur.execute("UPDATE clientes SET acessos=acessos+1, historico_chaves=array_append(historico_chaves, %s) WHERE pin_hash=%s RETURNING historico_chaves", (info_completa, pin))
+            h_raw = cur.fetchone()[0]
             conn.commit(); cur.close(); conn.close()
-            return jsonify({"empresa":c[0], "usadas":c[1]+1, "limite":c[2], "key":nk, "hist":h[-3:]})
+            
+            # Formata o histórico para o cliente ver bonitinho
+            h_formatado = []
+            for item in h_raw[-5:]:
+                partes = item.split('|')
+                if len(partes) == 3:
+                    h_formatado.append({"cor": partes[0], "texto": f"{partes[1]}: {partes[2]}"})
+            
+            return jsonify({
+                "empresa": c[0], "usadas": c[1]+1, "limite": c[2], 
+                "key": nk, "cor_usada": cor, "hist": h_formatado[::-1]
+            })
         cur.close(); conn.close()
     except: pass
     return jsonify({"status": "error"}), 401
