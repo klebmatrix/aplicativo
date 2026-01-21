@@ -18,24 +18,77 @@ HTML_SISTEMA = """
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SISTEMA QUANTUM | REGISTRO</title>
+    <title>SISTEMA QUANTUM | REGISTRO PROFISSIONAL</title>
     <style>
-        /* INTERFACE TOTALMENTE BRANCA */
-        body { background-color: #f4f7f6 !important; color: #1a1a1a !important; font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 20px; }
-        .container { max-width: 850px; margin: auto; background: #ffffff; padding: 40px; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); border: 1px solid #e0e0e0; }
-        
-        h1 { color: #0f172a; text-align: center; margin-bottom: 30px; }
-        label { display: block; margin-bottom: 8px; font-weight: bold; color: #444; }
-        input { padding: 12px; border: 1px solid #ccc; border-radius: 6px; width: 100%; box-sizing: border-box; margin-bottom: 20px; font-size: 16px; }
-        
-        .btn { padding: 14px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 16px; width: 100%; transition: 0.3s; }
-        .btn-azul { background: #2563eb; color: white; }
-        .btn-azul:hover { background: #1d4ed8; }
-        
-        .hist-item { border: 1px solid #eee; padding: 20px; margin-top: 15px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; background: #fff; }
-        .btn-imprimir { background: #000; color: white; padding: 8px 15px; border-radius: 4px; width: auto; font-size: 13px; }
+        /* TELA TOTALMENTE BRANCA - SEM CONFLITOS */
+        body { 
+            background-color: #ffffff !important; 
+            color: #1a1a1a !important; 
+            font-family: 'Segoe UI', Arial, sans-serif; 
+            margin: 0; 
+            padding: 20px; 
+        }
 
-        /* CONFIGURAÇÃO DO CERTIFICADO A4 (SÓ APARECE NA IMPRESSÃO) */
+        .container { 
+            max-width: 850px; 
+            margin: auto; 
+            background: #ffffff !important; 
+            padding: 40px; 
+            border-radius: 12px; 
+            box-shadow: 0 10px 25px rgba(0,0,0,0.05); 
+            border: 1px solid #e2e8f0; 
+        }
+        
+        h1 { color: #0f172a; text-align: center; font-weight: 800; }
+        label { display: block; margin-bottom: 8px; font-weight: 600; color: #475569; }
+        
+        input { 
+            padding: 14px; 
+            border: 2px solid #e2e8f0; 
+            border-radius: 8px; 
+            width: 100%; 
+            box-sizing: border-box; 
+            margin-bottom: 20px; 
+            font-size: 16px; 
+            background: white !important;
+            color: black !important;
+        }
+
+        .btn { 
+            padding: 15px; 
+            border: none; 
+            border-radius: 8px; 
+            cursor: pointer; 
+            font-weight: bold; 
+            font-size: 16px; 
+            width: 100%; 
+            transition: all 0.2s; 
+        }
+
+        .btn-principal { background: #000000; color: white; }
+        .btn-principal:hover { background: #334155; }
+
+        .hist-item { 
+            border: 1px solid #e2e8f0; 
+            padding: 20px; 
+            margin-top: 15px; 
+            border-radius: 10px; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            background: #f8fafc; 
+        }
+
+        .btn-imprimir { 
+            background: #2563eb; 
+            color: white; 
+            padding: 10px 20px; 
+            border-radius: 6px; 
+            width: auto; 
+            font-size: 14px; 
+        }
+
+        /* --- CONFIGURAÇÃO DO CERTIFICADO A4 --- */
         .certificado-a4 { display: none; }
 
         @media print {
@@ -44,8 +97,8 @@ HTML_SISTEMA = """
             body { background: white !important; padding: 0 !important; margin: 0 !important; }
             .container { border: none !important; box-shadow: none !important; width: 100% !important; max-width: 100% !important; }
             
-            /* MOSTRA APENAS O CERTIFICADO QUE ESTÁ SENDO IMPRESSO NO MOMENTO */
-            .certificado-a4.print-focus { 
+            /* SÓ APARECE O QUE ESTIVER COM A CLASSE 'imprimir-agora' */
+            .certificado-a4.imprimir-agora { 
                 display: flex !important; 
                 flex-direction: column; 
                 justify-content: center; 
@@ -57,35 +110,42 @@ HTML_SISTEMA = """
                 box-sizing: border-box; 
                 text-align: center;
                 background: white !important;
+                color: black !important;
+                page-break-after: always;
             }
-            .cert-title { font-size: 38px; font-weight: bold; margin-bottom: 10px; }
-            .cert-line { border-top: 2px solid #000; width: 100%; margin: 20px 0; }
-            .auth-box { border: 1px solid #000; padding: 20px; margin: 40px 0; width: 90%; }
-            .footer-sign { margin-top: 80px; width: 100%; display: flex; justify-content: space-around; }
+
+            .cert-header { font-size: 40px; font-weight: bold; margin-bottom: 5px; }
+            .cert-subtitle { font-size: 16px; letter-spacing: 6px; margin-bottom: 40px; font-weight: bold; }
+            .cert-box { border: 1px solid #000; padding: 25px; margin: 30px 0; width: 85%; }
+            .footer-line { margin-top: 80px; width: 100%; display: flex; justify-content: space-around; }
+            .signature { border-top: 1px solid #000; width: 220px; font-size: 12px; padding-top: 8px; }
         }
     </style>
 </head>
 <body>
     <div class="container no-print">
         <div id="login_area">
-            <h1>ÁREA DO CLIENTE</h1>
-            <label>Senha de Acesso (8 caracteres)</label>
-            <input type="password" id="senha_cli" placeholder="Digite sua senha" maxlength="8">
-            <button class="btn btn-azul" onclick="entrar()">ENTRAR NO SISTEMA</button>
+            <h1>SISTEMA QUANTUM</h1>
+            <label>Senha de Acesso</label>
+            <input type="password" id="senha_cli" placeholder="Digite sua senha de 6 dígitos" maxlength="6">
+            <button class="btn btn-principal" onclick="entrar()">ENTRAR</button>
         </div>
 
         <div id="dashboard" style="display:none;">
-            <h2 id="emp_nome" style="border-bottom: 2px solid #f0f0f0; padding-bottom: 10px;"></h2>
+            <div style="text-align:center; margin-bottom:30px;">
+                <h2 id="emp_nome" style="margin:0; color:#2563eb;"></h2>
+                <p style="color:#64748b;">Painel de Autenticação de Produtos</p>
+            </div>
             
-            <div style="margin: 30px 0;">
-                <label>Registrar Novo Produto</label>
+            <div style="background:#f1f5f9; padding:20px; border-radius:10px;">
+                <label>Novo Registro (Nome do Produto)</label>
                 <div style="display:flex; gap:10px;">
-                    <input type="text" id="obs" placeholder="Ex: Módulo Pro v2.0" style="margin:0;">
-                    <button class="btn btn-azul" style="width:200px;" onclick="gerar()">GERAR</button>
+                    <input type="text" id="obs" placeholder="Ex: Software XP" style="margin:0;">
+                    <button class="btn btn-principal" style="width:180px;" onclick="gerar()">REGISTRAR</button>
                 </div>
             </div>
 
-            <h3 style="margin-top:40px;">Histórico de Registros</h3>
+            <h3 style="margin-top:30px; border-bottom: 2px solid #f1f5f9; padding-bottom: 10px;">Meus Certificados</h3>
             <div id="lista_historico"></div>
         </div>
     </div>
@@ -96,7 +156,7 @@ HTML_SISTEMA = """
     async function entrar() {
         const s = document.getElementById('senha_cli').value;
         const res = await fetch('/v1/cliente/dados?pin=' + s);
-        if(!res.ok) return alert("Senha Inválida!");
+        if(!res.ok) return alert("Senha incorreta!");
         const d = await res.json();
         
         document.getElementById('login_area').style.display='none';
@@ -109,29 +169,33 @@ HTML_SISTEMA = """
             h_tela += `
                 <div class="hist-item">
                     <div>
-                        <strong>${pt[1]}</strong><br>
-                        <small style="color:#666">${pt[0]}</small>
+                        <strong style="font-size:18px;">${pt[1]}</strong><br>
+                        <small style="color:#64748b">Data: ${pt[0]}</small>
                     </div>
-                    <button class="btn btn-imprimir" onclick="imprimirSoEste(${i})">IMPRIMIR A4</button>
+                    <button class="btn btn-imprimir" onclick="imprimirUnico(${i})">IMPRIMIR A4</button>
                 </div>`;
             
             h_cert += `
                 <div class="certificado-a4" id="cert-${i}">
-                    <div class="cert-title">CERTIFICADO</div>
-                    <div style="letter-spacing:5px; font-weight:bold;">AUTENTICIDADE DE SOFTWARE</div>
-                    <div class="cert-line"></div>
-                    <p style="font-size:22px;">Atestamos que o produto abaixo foi registrado com sucesso:</p>
-                    <h2 style="font-size:32px; text-transform:uppercase;">${pt[1]}</h2>
+                    <div class="cert-header">CERTIFICADO</div>
+                    <div class="cert-subtitle">DE AUTENTICIDADE ORIGINAL</div>
                     
-                    <div class="auth-box">
-                        <small>CÓDIGO DE VALIDAÇÃO ÚNICO</small>
-                        <div style="font-family:monospace; font-size:26px; font-weight:bold; margin-top:10px;">${pt[2]}</div>
+                    <div style="margin: 40px 0; font-size:22px; line-height:1.6;">
+                        Certificamos que o produto/licença:<br>
+                        <strong style="font-size:30px; text-transform:uppercase;">${pt[1]}</strong><br>
+                        foi autenticado com sucesso e possui garantia de originalidade.
+                    </div>
+                    
+                    <div class="cert-box">
+                        <small style="display:block; margin-bottom:10px; font-weight:bold;">CHAVE DE VALIDAÇÃO</small>
+                        <div style="font-family:monospace; font-size:24px; font-weight:bold; letter-spacing:2px;">${pt[2]}</div>
                     </div>
 
                     <p><strong>REGISTRADO EM:</strong> ${pt[0]}</p>
-                    <div class="footer-sign">
-                        <div style="border-top:1px solid #000; width:220px; padding-top:10px;">Assinatura do Responsável</div>
-                        <div style="border-top:1px solid #000; width:220px; padding-top:10px;">Carimbo da Empresa</div>
+
+                    <div class="footer-line">
+                        <div class="signature">Assinatura Digital Quantum</div>
+                        <div class="signature">Carimbo e Selo da Empresa</div>
                     </div>
                 </div>`;
         });
@@ -139,15 +203,15 @@ HTML_SISTEMA = """
         document.getElementById('area_certificados').innerHTML = h_cert;
     }
 
-    function imprimirSoEste(i) {
-        // Remove foco de qualquer outro certificado
-        document.querySelectorAll('.certificado-a4').forEach(c => c.classList.remove('print-focus'));
+    function imprimirUnico(id) {
+        // 1. Remove a marca de impressão de todos os outros
+        document.querySelectorAll('.certificado-a4').forEach(c => c.classList.remove('imprimir-agora'));
         
-        // Aplica foco apenas no selecionado
-        const cert = document.getElementById('cert-'+i);
-        cert.classList.add('print-focus');
+        // 2. Ativa apenas o selecionado
+        const cert = document.getElementById('cert-'+id);
+        cert.classList.add('imprimir-agora');
         
-        // Dispara a impressão
+        // 3. Imprime
         window.print();
     }
 
