@@ -12,153 +12,60 @@ def get_db_connection():
         url = url.replace("postgres://", "postgresql://", 1)
     return psycopg2.connect(url, sslmode='require')
 
+# O erro estava aqui: certifique-se de que o bloco termina com aspas triplas no final
 HTML_SISTEMA = """
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SISTEMA QUANTUM | REGISTRO PROFISSIONAL</title>
+    <title>SISTEMA QUANTUM | REGISTRO</title>
     <style>
-        /* TELA TOTALMENTE BRANCA - SEM CONFLITOS */
-        body { 
-            background-color: #ffffff !important; 
-            color: #1a1a1a !important; 
-            font-family: 'Segoe UI', Arial, sans-serif; 
-            margin: 0; 
-            padding: 20px; 
-        }
-
-        .container { 
-            max-width: 850px; 
-            margin: auto; 
-            background: #ffffff !important; 
-            padding: 40px; 
-            border-radius: 12px; 
-            box-shadow: 0 10px 25px rgba(0,0,0,0.05); 
-            border: 1px solid #e2e8f0; 
-        }
+        body { background-color: #ffffff !important; color: #1a1a1a !important; font-family: sans-serif; margin: 0; padding: 20px; }
+        .container { max-width: 800px; margin: auto; background: #ffffff; padding: 30px; border-radius: 10px; border: 1px solid #ddd; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
+        input { padding: 12px; border: 1px solid #ccc; border-radius: 6px; width: 100%; box-sizing: border-box; margin-bottom: 15px; background: white !important; color: black !important; }
+        .btn { padding: 12px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; width: 100%; transition: 0.2s; }
+        .btn-azul { background: #000; color: white; }
+        .hist-item { border: 1px solid #eee; padding: 15px; margin-top: 10px; display: flex; justify-content: space-between; align-items: center; background: #fdfdfd; }
         
-        h1 { color: #0f172a; text-align: center; font-weight: 800; }
-        label { display: block; margin-bottom: 8px; font-weight: 600; color: #475569; }
-        
-        input { 
-            padding: 14px; 
-            border: 2px solid #e2e8f0; 
-            border-radius: 8px; 
-            width: 100%; 
-            box-sizing: border-box; 
-            margin-bottom: 20px; 
-            font-size: 16px; 
-            background: white !important;
-            color: black !important;
-        }
-
-        .btn { 
-            padding: 15px; 
-            border: none; 
-            border-radius: 8px; 
-            cursor: pointer; 
-            font-weight: bold; 
-            font-size: 16px; 
-            width: 100%; 
-            transition: all 0.2s; 
-        }
-
-        .btn-principal { background: #000000; color: white; }
-        .btn-principal:hover { background: #334155; }
-
-        .hist-item { 
-            border: 1px solid #e2e8f0; 
-            padding: 20px; 
-            margin-top: 15px; 
-            border-radius: 10px; 
-            display: flex; 
-            justify-content: space-between; 
-            align-items: center; 
-            background: #f8fafc; 
-        }
-
-        .btn-imprimir { 
-            background: #2563eb; 
-            color: white; 
-            padding: 10px 20px; 
-            border-radius: 6px; 
-            width: auto; 
-            font-size: 14px; 
-        }
-
-        /* --- CONFIGURAÇÃO DO CERTIFICADO A4 --- */
         .certificado-a4 { display: none; }
 
         @media print {
             @page { size: A4; margin: 0; }
             .no-print { display: none !important; }
-            body { background: white !important; padding: 0 !important; margin: 0 !important; }
-            .container { border: none !important; box-shadow: none !important; width: 100% !important; max-width: 100% !important; }
-            
-            /* SÓ APARECE O QUE ESTIVER COM A CLASSE 'imprimir-agora' */
-            .certificado-a4.imprimir-agora { 
-                display: flex !important; 
-                flex-direction: column; 
-                justify-content: center; 
-                align-items: center;
-                width: 210mm; 
-                height: 297mm; 
-                border: 20px double #000 !important; 
-                padding: 30mm; 
-                box-sizing: border-box; 
-                text-align: center;
-                background: white !important;
-                color: black !important;
-                page-break-after: always;
+            body { background: white !important; }
+            .certificado-a4.print-now { 
+                display: flex !important; flex-direction: column; justify-content: center; align-items: center;
+                width: 210mm; height: 297mm; border: 20px double #000 !important; padding: 30mm; box-sizing: border-box; text-align: center;
             }
-
-            .cert-header { font-size: 40px; font-weight: bold; margin-bottom: 5px; }
-            .cert-subtitle { font-size: 16px; letter-spacing: 6px; margin-bottom: 40px; font-weight: bold; }
-            .cert-box { border: 1px solid #000; padding: 25px; margin: 30px 0; width: 85%; }
-            .footer-line { margin-top: 80px; width: 100%; display: flex; justify-content: space-around; }
-            .signature { border-top: 1px solid #000; width: 220px; font-size: 12px; padding-top: 8px; }
         }
     </style>
 </head>
 <body>
     <div class="container no-print">
         <div id="login_area">
-            <h1>SISTEMA QUANTUM</h1>
-            <label>Senha de Acesso</label>
+            <h1>LOGIN CLIENTE</h1>
             <input type="password" id="senha_cli" placeholder="Digite sua senha de 6 dígitos" maxlength="6">
-            <button class="btn btn-principal" onclick="entrar()">ENTRAR</button>
+            <button class="btn btn-azul" onclick="entrar()">ENTRAR</button>
         </div>
-
         <div id="dashboard" style="display:none;">
-            <div style="text-align:center; margin-bottom:30px;">
-                <h2 id="emp_nome" style="margin:0; color:#2563eb;"></h2>
-                <p style="color:#64748b;">Painel de Autenticação de Produtos</p>
+            <h2 id="emp_nome"></h2>
+            <div style="background:#f9f9f9; padding:15px; border-radius:8px;">
+                <input type="text" id="obs" placeholder="Nome do Produto" style="margin:0;">
+                <button class="btn btn-azul" style="margin-top:10px;" onclick="gerar()">GERAR REGISTRO</button>
             </div>
-            
-            <div style="background:#f1f5f9; padding:20px; border-radius:10px;">
-                <label>Novo Registro (Nome do Produto)</label>
-                <div style="display:flex; gap:10px;">
-                    <input type="text" id="obs" placeholder="Ex: Software XP" style="margin:0;">
-                    <button class="btn btn-principal" style="width:180px;" onclick="gerar()">REGISTRAR</button>
-                </div>
-            </div>
-
-            <h3 style="margin-top:30px; border-bottom: 2px solid #f1f5f9; padding-bottom: 10px;">Meus Certificados</h3>
+            <h3>Histórico</h3>
             <div id="lista_historico"></div>
         </div>
     </div>
-
     <div id="area_certificados"></div>
 
     <script>
     async function entrar() {
         const s = document.getElementById('senha_cli').value;
         const res = await fetch('/v1/cliente/dados?pin=' + s);
-        if(!res.ok) return alert("Senha incorreta!");
+        if(!res.ok) return alert("Erro de acesso!");
         const d = await res.json();
-        
         document.getElementById('login_area').style.display='none';
         document.getElementById('dashboard').style.display='block';
         document.getElementById('emp_nome').innerText = d.empresa;
@@ -166,65 +73,54 @@ HTML_SISTEMA = """
         let h_tela = ""; let h_cert = "";
         [...d.hist].reverse().forEach((t, i) => {
             const pt = t.split(' | '); 
-            h_tela += `
-                <div class="hist-item">
-                    <div>
-                        <strong style="font-size:18px;">${pt[1]}</strong><br>
-                        <small style="color:#64748b">Data: ${pt[0]}</small>
-                    </div>
-                    <button class="btn btn-imprimir" onclick="imprimirUnico(${i})">IMPRIMIR A4</button>
-                </div>`;
-            
-            h_cert += `
-                <div class="certificado-a4" id="cert-${i}">
-                    <div class="cert-header">CERTIFICADO</div>
-                    <div class="cert-subtitle">DE AUTENTICIDADE ORIGINAL</div>
-                    
-                    <div style="margin: 40px 0; font-size:22px; line-height:1.6;">
-                        Certificamos que o produto/licença:<br>
-                        <strong style="font-size:30px; text-transform:uppercase;">${pt[1]}</strong><br>
-                        foi autenticado com sucesso e possui garantia de originalidade.
-                    </div>
-                    
-                    <div class="cert-box">
-                        <small style="display:block; margin-bottom:10px; font-weight:bold;">CHAVE DE VALIDAÇÃO</small>
-                        <div style="font-family:monospace; font-size:24px; font-weight:bold; letter-spacing:2px;">${pt[2]}</div>
-                    </div>
-
-                    <p><strong>REGISTRADO EM:</strong> ${pt[0]}</p>
-
-                    <div class="footer-line">
-                        <div class="signature">Assinatura Digital Quantum</div>
-                        <div class="signature">Carimbo e Selo da Empresa</div>
-                    </div>
-                </div>`;
+            h_tela += `<div class="hist-item"><span><b>${pt[1]}</b><br>${pt[0]}</span><button class="btn" style="width:100px; background:#22c55e; color:white;" onclick="imprimir(${i})">IMPRIMIR</button></div>`;
+            h_cert += `<div class="certificado-a4" id="cert-${i}"><h1>CERTIFICADO</h1><p>AUTENTICIDADE ORIGINAL</p><hr><div style="margin:40px 0;">Produto: <b>${pt[1]}</b><br>Código: <b>${pt[2]}</b></div><p>Data: ${pt[0]}</p></div>`;
         });
         document.getElementById('lista_historico').innerHTML = h_tela;
         document.getElementById('area_certificados').innerHTML = h_cert;
     }
-
-    function imprimirUnico(id) {
-        // 1. Remove a marca de impressão de todos os outros
-        document.querySelectorAll('.certificado-a4').forEach(c => c.classList.remove('imprimir-agora'));
-        
-        // 2. Ativa apenas o selecionado
-        const cert = document.getElementById('cert-'+id);
-        cert.classList.add('imprimir-agora');
-        
-        // 3. Imprime
+    function imprimir(i) {
+        document.querySelectorAll('.certificado-a4').forEach(c => c.classList.remove('print-now'));
+        document.getElementById('cert-'+i).classList.add('print-now');
         window.print();
     }
-
     async function gerar() {
         const s = document.getElementById('senha_cli').value;
-        const obs = document.getElementById('obs').value || "PRODUTO";
         await fetch('/v1/cliente/gerar', {
-            method:'POST', 
-            headers:{'Content-Type':'application/json'}, 
-            body:JSON.stringify({pin:s, obs:obs})
+            method:'POST', headers:{'Content-Type':'application/json'}, 
+            body:JSON.stringify({pin:s, obs:document.getElementById('obs').value || "PRODUTO"})
         });
         entrar();
     }
     </script>
 </body>
 </html>
+"""
+
+@app.route('/')
+def index():
+    return render_template_string(HTML_SISTEMA, tipo='cliente')
+
+@app.route('/v1/cliente/dados')
+def get_dados():
+    pin = request.args.get('pin')
+    conn = get_db_connection(); cur = conn.cursor()
+    cur.execute("SELECT empresa, historico_chaves FROM clientes WHERE pin_hash = %s", (pin,))
+    c = cur.fetchone()
+    cur.close(); conn.close()
+    if c: return jsonify({"empresa": c[0], "hist": c[1]})
+    return jsonify({"e": 404}), 404
+
+@app.route('/v1/cliente/gerar', methods=['POST'])
+def gen_key():
+    d = request.json
+    conn = get_db_connection(); cur = conn.cursor()
+    nk = ''.join(secrets.choice(string.ascii_uppercase + string.digits) for _ in range(25))
+    data_atual = datetime.datetime.now().strftime('%d/%m/%Y %H:%M')
+    reg = f"{data_atual} | {d['obs'].upper()} | {nk}"
+    cur.execute("UPDATE clientes SET acessos=acessos+1, historico_chaves=array_append(historico_chaves, %s) WHERE pin_hash=%s", (reg, d['pin']))
+    conn.commit(); cur.close(); conn.close()
+    return jsonify({"ok": True})
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
