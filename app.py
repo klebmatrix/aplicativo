@@ -5,8 +5,7 @@ from flask_cors import CORS
 app = Flask(__name__)
 CORS(app)
 
-# --- IMPORTAÇÃO DAS VARIÁVEIS DE AMBIENTE DO RENDER ---
-# O sistema busca a chave 'ADMIN_KEY' configurada no seu painel do Render
+# IMPORTAÇÃO DO RENDER
 ADMIN_KEY_RENDER = os.environ.get('ADMIN_KEY')
 
 def get_db_connection():
@@ -21,77 +20,86 @@ def get_db_connection():
 
 @app.before_request
 def init_db():
+    # RESET DE TABELA PARA CORRIGIR O ERRO DE COLUNA
     conn = get_db_connection()
     if conn:
         cur = conn.cursor()
-        cur.execute('''
-            CREATE TABLE IF NOT EXISTS clientes (
-                id SERIAL PRIMARY KEY,
-                nome_empresa TEXT NOT NULL,
-                pin_hash TEXT UNIQUE NOT NULL,
-                limite INTEGER DEFAULT 100,
-                acessos INTEGER DEFAULT 0,
-                historico_chaves TEXT[] DEFAULT '{}'
-            );
-        ''')
+        # Se a coluna não existe, vamos recriar a tabela do jeito certo
+        try:
+            cur.execute("SELECT nome_empresa FROM clientes LIMIT 1;")
+        except:
+            conn.rollback()
+            print("Recriando tabela para corrigir colunas...")
+            cur.execute("DROP TABLE IF EXISTS clientes;")
+            cur.execute('''
+                CREATE TABLE clientes (
+                    id SERIAL PRIMARY KEY,
+                    nome_empresa TEXT NOT NULL,
+                    pin_hash TEXT UNIQUE NOT NULL,
+                    limite INTEGER DEFAULT 100,
+                    acessos INTEGER DEFAULT 0,
+                    historico_chaves TEXT[] DEFAULT '{}'
+                );
+            ''')
         conn.commit()
         cur.close(); conn.close()
 
 HTML_SISTEMA = """
 <!DOCTYPE html>
-<html lang="pt-br">
+<html>
 <head>
     <meta charset="UTF-8">
-    <title>SISTEMA QUANTUM</title>
+    <title>QUANTUM MASTER</title>
     <style>
-        body { background: white; font-family: sans-serif; padding: 30px; text-align: center; }
-        .box { max-width: 450px; margin: auto; border: 1px solid #ccc; padding: 25px; border-radius: 15px; }
-        input { width: 90%; padding: 12px; margin: 10px 0; border: 1px solid #000; border-radius: 5px; }
-        button { width: 95%; padding: 12px; background: black; color: white; border: none; cursor: pointer; font-weight: bold; border-radius: 5px; }
+        body { font-family: sans-serif; text-align: center; padding: 40px; background: #f4f4f4; }
+        .box { background: white; max-width: 400px; margin: auto; padding: 30px; border-radius: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
+        input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
+        button { width: 100%; padding: 12px; background: #000; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
+        .cli-row { text-align: left; background: #f9f9f9; padding: 10px; margin-top: 10px; border-radius: 5px; font-size: 14px; }
     </style>
 </head>
 <body>
     <div class="box">
-        <h2>PAINEL MASTER</h2>
-        <p style="font-size: 12px; color: gray;">Validando chave via Ambiente Render</p>
-        <input type="password" id="mestre" placeholder="Digite a ADMIN_KEY">
-        <button onclick="acessar()">ENTRAR</button>
+        <h2>PAINEL ADMIN</h2>
+        <input type="password" id="mestre" placeholder="Digite a ADMIN_KEY do Render">
+        <button onclick="listar()">ENTRAR</button>
         
-        <div id="resultado" style="display:none; margin-top:20px; text-align: left;">
+        <div id="resultado" style="display:none; margin-top:20px;">
             <hr>
-            <h4>CADASTRAR CLIENTE</h4>
-            <input type="text" id="n" placeholder="Nome Empresa">
-            <input type="text" id="p" placeholder="PIN (6-8 dig)" maxlength="8">
-            <button style="background: green;" onclick="salvar()">SALVAR</button>
-            <div id="tabela" style="margin-top:20px;"></div>
+            <h4>CADASTRAR NOVO</h4>
+            <input type="text" id="n" placeholder="Nome da Empresa">
+            <input type="text" id="p" placeholder="Senha (6 a 8 dígitos)" maxlength="8">
+            <button style="background: #16a34a;" onclick="salvar()">SALVAR</button>
+            <div id="lista" style="margin-top:20px;"></div>
         </div>
     </div>
 
     <script>
-    async function acessar() {
+    async function listar() {
         const k = document.getElementById('mestre').value;
         const res = await fetch('/admin/listar?key=' + k);
-        if(!res.ok) return alert("Erro: Chave de Ambiente Inválida!");
+        if(!res.ok) return alert("Chave incorreta ou erro no servidor!");
         
         document.getElementById('resultado').style.display = 'block';
         const dados = await res.json();
-        let h = "<table>";
+        let h = "<h4>CLIENTES:</h4>";
         dados.forEach(c => {
-            h += `<tr><td>${c.n}</td><td><b>${c.p}</b></td><td>${c.u}/${c.l}</td></tr>`;
+            h += `<div class="cli-row"><b>${c.n}</b> - PIN: ${c.p} <br> Uso: ${c.u}/${c.l}</div>`;
         });
-        document.getElementById('tabela').innerHTML = h + "</table>";
+        document.getElementById('lista').innerHTML = h;
     }
 
     async function salvar() {
         const k = document.getElementById('mestre').value;
         const n = document.getElementById('n').value;
         const p = document.getElementById('p').value;
-        if(p.length < 6) return alert("PIN deve ter 6-8 digitos!");
+        if(p.length < 6) return alert("O PIN deve ter no mínimo 6 dígitos!");
+        
         await fetch('/admin/cadastrar', {
             method:'POST', headers:{'Content-Type':'application/json'},
             body: JSON.stringify({key:k, n:n, p:p})
         });
-        acessar();
+        listar();
     }
     </script>
 </body>
@@ -99,20 +107,18 @@ HTML_SISTEMA = """
 """
 
 @app.route('/')
-def home(): return "SISTEMA ATIVO"
+def home(): return "SISTEMA ONLINE"
 
 @app.route('/painel-secreto-kleber')
 def admin_page(): return render_template_string(HTML_SISTEMA)
 
 @app.route('/admin/listar')
 def list_adm():
-    # Verifica se a chave digitada é igual à importada do ambiente do Render
-    key_digitada = request.args.get('key', '').strip()
-    if not ADMIN_KEY_RENDER or key_digitada != ADMIN_KEY_RENDER:
-        return jsonify({"erro": "Acesso Proibido"}), 403
+    key_user = request.args.get('key', '').strip()
+    if not ADMIN_KEY_RENDER or key_user != ADMIN_KEY_RENDER:
+        return "Acesso Negado", 403
 
     conn = get_db_connection()
-    if not conn: return jsonify([]), 500
     cur = conn.cursor()
     cur.execute("SELECT nome_empresa, pin_hash, acessos, limite FROM clientes")
     r = cur.fetchall(); cur.close(); conn.close()
