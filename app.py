@@ -23,78 +23,94 @@ HTML_SISTEMA = """
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SISTEMA QUANTUM | AUTENTICAÇÃO</title>
     <style>
-        :root { --blue: #38bdf8; --dark: #0b1120; --card: #1e293b; --gold: #fbbf24; }
-        body { background: var(--dark); color: white; font-family: 'Segoe UI', sans-serif; padding: 20px; }
-        .container { max-width: 1000px; margin: auto; background: var(--card); padding: 30px; border-radius: 15px; border: 1px solid #334155; }
+        /* TELA TODA BRANCA E LIMPA */
+        :root { --primary: #1e293b; --accent: #38bdf8; --bg: #f8fafc; }
+        body { background: var(--bg); color: #1e293b; font-family: 'Segoe UI', sans-serif; padding: 20px; margin: 0; }
         
-        input { padding: 12px; background: #1e293b; border: 1px solid #334155; color: white; border-radius: 8px; margin-bottom: 5px; }
-        .btn { padding: 10px 15px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; color: white; }
+        .container { max-width: 900px; margin: auto; background: white; padding: 40px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); border: 1px solid #e2e8f0; }
         
-        .hist-item { background: #0f172a; padding: 15px; margin-top: 10px; border-radius: 10px; display: flex; justify-content: space-between; cursor: pointer; border: 1px solid transparent; }
-        .hist-item.selected { border-color: var(--gold); background: #1e3a8a; }
+        h1 { text-align: center; color: var(--primary); letter-spacing: -1px; }
+        
+        input { padding: 14px; background: white; border: 2px solid #e2e8f0; color: #1e293b; border-radius: 8px; width: 100%; box-sizing: border-box; font-size: 16px; transition: border 0.3s; }
+        input:focus { border-color: var(--accent); outline: none; }
+        
+        .btn { padding: 15px 25px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 16px; transition: 0.3s; width: 100%; }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-primary:hover { background: #334155; }
+        
+        .hist-item { background: #ffffff; padding: 20px; margin-top: 15px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; border: 1px solid #e2e8f0; }
+        .hist-item:hover { background: #f1f5f9; }
+        .hist-item.selected { border-left: 6px solid var(--primary); background: #f8fafc; }
 
-        /* --- LAYOUT DO CERTIFICADO A4 --- */
-        .certificado-a4 { display: none; }
+        /* --- ESTILO DO CERTIFICADO (PARA TELA E IMPRESSÃO) --- */
+        .certificado-a4 { 
+            display: none; 
+            background: white !important; 
+            color: black !important; 
+            width: 210mm; 
+            min-height: 297mm; 
+            margin: 20px auto; 
+            padding: 25mm; 
+            box-sizing: border-box; 
+            border: 2px solid #000; /* Moldura externa fina */
+            outline: 15px double #000; /* Moldura dupla interna */
+            outline-offset: -20px;
+            position: relative;
+            text-align: center;
+        }
+
+        .cert-stamp { position: absolute; top: 40px; right: 60px; border: 3px solid #000; padding: 10px; font-weight: bold; transform: rotate(15deg); text-transform: uppercase; font-size: 14px; }
+        .cert-header { font-size: 32px; font-weight: bold; margin-top: 60px; text-transform: uppercase; }
+        .cert-subtitle { font-size: 14px; letter-spacing: 4px; margin-bottom: 50px; border-top: 1px solid #000; display: inline-block; padding-top: 5px; }
+        .cert-content { font-size: 20px; line-height: 1.6; margin-bottom: 40px; }
+        .auth-box { border: 1px solid #000; padding: 20px; margin: 30px auto; width: 80%; }
+        .auth-code { font-family: monospace; font-size: 24px; font-weight: bold; }
+        .footer-line { margin-top: 80px; display: flex; justify-content: space-around; width: 100%; }
+        .sign { border-top: 1px solid #000; width: 200px; font-size: 12px; padding-top: 5px; }
 
         @media print {
             @page { size: A4; margin: 0; }
             .no-print { display: none !important; }
-            body { background: white !important; color: black !important; padding: 0; margin: 0; }
-            .container { border: none !important; background: white !important; width: 100%; max-width: 100%; }
-            
-            .certificado-a4 { 
-                display: flex !important;
-                flex-direction: column;
-                justify-content: center;
-                align-items: center;
-                width: 210mm;
-                height: 297mm;
-                padding: 30mm;
-                box-sizing: border-box;
-                border: 20px double #000;
-                position: relative;
-                page-break-after: always;
-                background: white !important;
-                color: black !important;
-                text-align: center;
-            }
-
-            .cert-header { font-size: 35px; font-weight: bold; text-decoration: underline; margin-bottom: 10px; }
-            .cert-subtitle { font-size: 16px; letter-spacing: 5px; margin-bottom: 50px; font-weight: bold; }
-            .auth-box { border: 2px solid #000; padding: 20px; width: 85%; margin: 20px 0; }
-            .auth-code { font-family: monospace; font-size: 28px; font-weight: bold; letter-spacing: 3px; }
-            .footer-area { margin-top: 60px; width: 100%; display: flex; justify-content: space-around; }
-            .signature { border-top: 1px solid #000; width: 220px; font-size: 12px; padding-top: 8px; }
+            body { background: white !important; padding: 0; }
+            .container { border: none !important; box-shadow: none !important; width: 100%; max-width: 100%; padding: 0; }
+            .certificado-a4 { display: flex !important; flex-direction: column; margin: 0; border: none; outline-offset: -30px; }
         }
     </style>
 </head>
 <body>
     <div class="container">
         {% if tipo == 'admin' %}
-            <h1>PAINEL ADMIN</h1>
+            <h1>ADMINISTRAÇÃO</h1>
             <div class="no-print">
-                <input type="password" id="mestre" placeholder="Chave Admin">
-                <button class="btn" style="background:var(--blue)" onclick="listar()">CARREGAR</button>
+                <input type="password" id="mestre" placeholder="Chave Admin" style="margin-bottom:10px;">
+                <button class="btn btn-primary" onclick="listar()">CARREGAR DADOS</button>
             </div>
             <div id="lista_admin"></div>
         {% else %}
-            <div id="login_area" style="text-align:center; padding: 80px 0;">
-                <h1 style="color:var(--blue)">ÁREA DO CLIENTE</h1>
-                <p>Por favor, insira sua senha de acesso:</p>
-                <input type="password" id="senha_cli" placeholder="DIGITE SUA SENHA" maxlength="8" style="width:280px; text-align:center; font-size:20px;">
-                <br><br>
-                <button class="btn" style="background:var(--blue); width:305px; height:50px;" onclick="entrar()">ACESSAR SISTEMA</button>
+            <div id="login_area" style="text-align:center;">
+                <h1 style="font-size: 35px; margin-bottom: 10px;">QUANTUM</h1>
+                <p style="color: #64748b; margin-bottom: 30px;">Sistema de Autenticação e Registro</p>
+                
+                <div style="max-width: 400px; margin: auto;">
+                    <label style="display:block; text-align:left; font-weight:bold; margin-bottom:5px;">Senha de Acesso</label>
+                    <input type="password" id="senha_cli" placeholder="••••••••" maxlength="8">
+                    <br><br>
+                    <button class="btn btn-primary" onclick="entrar()">ACESSAR PAINEL</button>
+                </div>
             </div>
 
             <div id="dashboard" style="display:none;">
-                <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <h2 id="emp_nome" style="color:var(--blue)"></h2>
-                    <button class="btn no-print" style="background:var(--gold); color:black" onclick="window.print()">🖨️ IMPRIMIR SELECIONADOS</button>
+                <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 2px solid #f1f5f9; padding-bottom: 20px; margin-bottom: 20px;">
+                    <h2 id="emp_nome" style="margin:0;"></h2>
+                    <button class="btn btn-primary no-print" style="width:auto;" onclick="window.print()">🖨️ IMPRIMIR SELECIONADO</button>
                 </div>
 
-                <div class="no-print" style="margin:20px 0; background:#0f172a; padding:20px; border-radius:10px;">
-                    <input type="text" id="obs" placeholder="Nome do Produto / Lote" style="width:60%">
-                    <button class="btn" style="background:var(--blue)" onclick="gerar()">GERAR REGISTRO</button>
+                <div class="no-print" style="margin-bottom: 30px;">
+                    <label style="display:block; font-weight:bold; margin-bottom:5px;">Novo Registro de Produto</label>
+                    <div style="display:flex; gap:10px;">
+                        <input type="text" id="obs" placeholder="Ex: Software Quantum Pro">
+                        <button class="btn btn-primary" style="width:200px;" onclick="gerar()">GERAR AGORA</button>
+                    </div>
                 </div>
 
                 <div id="lista_historico"></div>
@@ -105,7 +121,7 @@ HTML_SISTEMA = """
     <script>
     async function entrar() {
         const s = document.getElementById('senha_cli').value;
-        const res = await fetch('/v1/cliente/dados?pin=' + s); // Mantemos 'pin' na URL para não quebrar o backend
+        const res = await fetch('/v1/cliente/dados?pin=' + s);
         if(!res.ok) return alert("Senha incorreta!");
         const d = await res.json();
         
@@ -117,25 +133,32 @@ HTML_SISTEMA = """
         [...d.hist].reverse().forEach((t, i) => {
             const pt = t.split(' | '); 
             h_tela += `<div class="hist-item no-print" id="row-${i}" onclick="toggleCert(${i})">
-                <span><b>${pt[1]}</b> <br><small>Registrado em: ${pt[0]}</small></span>
-                <span style="font-family:monospace; color:var(--blue)">${pt[2]}</span>
+                <span><strong style="font-size:18px">${pt[1]}</strong><br><small style="color:#64748b">${pt[0]}</small></span>
+                <span style="font-family:monospace; font-weight:bold; color:#0f172a; background:#f1f5f9; padding:8px; border-radius:4px;">${pt[2].substring(0,8)}...</span>
             </div>`;
             
             h_cert += `
                 <div class="certificado-a4" id="cert-${i}">
+                    <div class="cert-stamp">REGISTO<br>QUANTUM</div>
                     <div class="cert-header">CERTIFICADO DE AUTENTICIDADE</div>
                     <div class="cert-subtitle">REGISTRO OFICIAL DE PROPRIEDADE</div>
-                    <div style="font-size:20px; margin-bottom:30px;">
-                        Certificamos que o item <br><strong>${pt[1]}</strong><br> foi autenticado com sucesso.
+                    
+                    <div class="cert-content">
+                        Certificamos que o item abaixo identificado:<br>
+                        <strong style="font-size:28px;">${pt[1]}</strong><br>
+                        foi autenticado com sucesso em nosso sistema.
                     </div>
+
                     <div class="auth-box">
-                        <div style="font-size:12px; margin-bottom:5px;">CÓDIGO DE VALIDAÇÃO</div>
+                        <div style="font-size:12px; margin-bottom:10px; font-weight:bold;">CÓDIGO DE VALIDAÇÃO</div>
                         <div class="auth-code">${pt[2]}</div>
                     </div>
+
                     <p><strong>DATA DE REGISTRO:</strong> ${pt[0]}</p>
-                    <div class="footer-area">
-                        <div class="signature">Assinatura</div>
-                        <div class="signature">Selo de Originalidade</div>
+
+                    <div class="footer-line">
+                        <div class="sign">Assinatura</div>
+                        <div class="sign">Selo de Originalidade</div>
                     </div>
                 </div>`;
         });
@@ -143,10 +166,12 @@ HTML_SISTEMA = """
     }
 
     function toggleCert(i) {
-        const row = document.getElementById('row-'+i);
+        document.querySelectorAll('.certificado-a4').forEach(c => c.style.display = 'none');
+        document.querySelectorAll('.hist-item').forEach(r => r.classList.remove('selected'));
+        
         const cert = document.getElementById('cert-'+i);
-        row.classList.toggle('selected');
-        cert.style.display = (cert.style.display === 'flex') ? 'none' : 'flex';
+        document.getElementById('row-'+i).classList.add('selected');
+        cert.style.display = 'flex';
     }
 
     async function gerar() {
@@ -158,25 +183,6 @@ HTML_SISTEMA = """
         });
         if(res.ok) entrar();
     }
-    // Funções Admin permanecem as mesmas
     </script>
 </body>
 </html>
-"""
-
-# --- BACKEND (Python) ---
-@app.route('/v1/cliente/gerar', methods=['POST'])
-def gen_key():
-    d = request.json
-    conn = get_db_connection(); cur = conn.cursor()
-    cur.execute("SELECT acessos, limite FROM clientes WHERE pin_hash = %s", (d['pin'],))
-    c = cur.fetchone()
-    if c and (c[1] == -1 or c[0] < c[1]):
-        nk = ''.join(secrets.choice(string.ascii_uppercase + string.digits) for _ in range(25))
-        data_atual = datetime.datetime.now().strftime('%d/%m/%Y %H:%M')
-        reg = f"{data_atual} | {d['obs'].upper()} | {nk}"
-        cur.execute("UPDATE clientes SET acessos=acessos+1, historico_chaves=array_append(historico_chaves, %s) WHERE pin_hash=%s", (reg, d['pin']))
-        conn.commit(); cur.close(); conn.close(); return jsonify({"ok": True})
-    cur.close(); conn.close(); return jsonify({"e": 403}), 403
-
-# (As outras rotas de admin e listagem continuam as mesmas do código anterior)
