@@ -5,10 +5,10 @@ from flask_cors import CORS
 app = Flask(__name__)
 CORS(app)
 
-# --- CONFIGURAÇÃO RENDER ---
 def get_admin_key():
-    # Puxa a chave 'ADMIN_KEY' que você salvou no Render
-    return (os.environ.get('ADMIN_KEY') or '').strip()
+    # Puxa a chave e remove qualquer espaço acidental que você tenha deixado no Render
+    key = os.environ.get('ADMIN_KEY')
+    return key.strip() if key else ""
 
 def get_db_connection():
     url = os.environ.get('DATABASE_URL')
@@ -20,7 +20,6 @@ def get_db_connection():
     except:
         return None
 
-# --- INICIALIZAÇÃO ---
 @app.before_request
 def init_db():
     conn = get_db_connection()
@@ -39,7 +38,6 @@ def init_db():
         conn.commit()
         cur.close(); conn.close()
 
-# --- INTERFACE TELA BRANCA ---
 HTML_SISTEMA = """
 <!DOCTYPE html>
 <html lang="pt-br">
@@ -48,44 +46,45 @@ HTML_SISTEMA = """
     <title>SISTEMA QUANTUM</title>
     <style>
         body { background: white; color: black; font-family: sans-serif; padding: 20px; }
-        .container { max-width: 850px; margin: auto; border: 1px solid #eee; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
-        input { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; }
-        button { width: 100%; padding: 12px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; margin-top: 10px; }
-        .btn-black { background: black; color: white; }
-        .btn-blue { background: #0056b3; color: white; }
-        .btn-red { background: #cc0000; color: white; width: auto; padding: 5px 10px; }
+        .container { max-width: 800px; margin: auto; border: 1px solid #ddd; padding: 20px; border-radius: 10px; }
+        input { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; }
+        button { width: 100%; padding: 12px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; }
+        .btn-blue { background: #2563eb; color: white; margin-bottom: 20px; }
+        .btn-green { background: #16a34a; color: white; }
+        .btn-red { background: #dc2626; color: white; width: auto; padding: 5px 10px; }
         table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-        th, td { border-bottom: 1px solid #eee; padding: 12px; text-align: left; }
-        .hist-card { border: 1px solid #eee; padding: 10px; margin-top: 10px; display: flex; justify-content: space-between; align-items: center; }
-        .quantum-key { font-family: monospace; color: #0056b3; font-weight: bold; }
+        th, td { border-bottom: 1px solid #eee; padding: 10px; text-align: left; }
     </style>
 </head>
 <body>
     <div class="container">
         {% if tipo == 'admin' %}
-            <h2>PAINEL MASTER - QUANTUM</h2>
-            <input type="password" id="mestre" placeholder="Digite a ADMIN_KEY do Render">
-            <button class="btn-blue" onclick="listar()">ACESSAR PAINEL</button>
-            <div id="admin_content" style="display:none; margin-top:30px;">
+            <h2>PAINEL DE CONTROLE (ADMIN)</h2>
+            <p>Digite a chave configurada no Render:</p>
+            <input type="password" id="mestre" placeholder="Chave de Ambiente">
+            <button class="btn-blue" onclick="listar()">ENTRAR NO PAINEL</button>
+            
+            <div id="painel_admin" style="display:none;">
+                <hr>
                 <h3>Cadastrar Novo Cliente</h3>
                 <input type="text" id="n" placeholder="Nome da Empresa">
                 <input type="text" id="p" placeholder="Senha (6 a 8 dígitos)" maxlength="8">
-                <input type="number" id="l" placeholder="Total de Créditos" value="100">
-                <button class="btn-black" onclick="cadastrar()">SALVAR CLIENTE</button>
-                <div id="lista_clientes"></div>
+                <input type="number" id="l" value="100" placeholder="Créditos">
+                <button class="btn-green" onclick="cadastrar()">SALVAR CLIENTE</button>
+                <div id="lista_dados"></div>
             </div>
         {% else %}
-            <div id="login_area">
-                <h2>LOGIN QUANTUM</h2>
-                <input type="password" id="pin" placeholder="Sua Senha de 6 a 8 dígitos" maxlength="8">
-                <button class="btn-black" onclick="entrar()">ACESSAR</button>
+            <div id="login_cliente">
+                <h2>LOGIN CLIENTE</h2>
+                <input type="password" id="pin" placeholder="Sua Senha" maxlength="8">
+                <button style="background:black; color:white;" onclick="entrar()">ACESSAR</button>
             </div>
             <div id="dash" style="display:none;">
-                <h2 id="emp_nome"></h2>
-                <p><b>Saldo Quântico:</b> <span id="uso"></span> / <span id="total"></span></p>
-                <input type="text" id="obs" placeholder="Referência do Equipamento">
-                <button class="btn-black" onclick="gerar()">GERAR NOVA CHAVE QUANTICA</button>
-                <div id="historico" style="margin-top:20px;"></div>
+                <h2 id="cli_nome"></h2>
+                <p>Saldo: <b id="uso"></b> / <b id="total"></b></p>
+                <input type="text" id="obs" placeholder="Referência">
+                <button style="background:green; color:white;" onclick="gerar()">GERAR CHAVE QUANTICA</button>
+                <div id="hist" style="margin-top:20px;"></div>
             </div>
         {% endif %}
     </div>
@@ -94,21 +93,24 @@ HTML_SISTEMA = """
     async function listar() {
         const k = document.getElementById('mestre').value.trim();
         const res = await fetch('/admin/listar?key=' + k);
-        if(!res.ok) return alert("Chave do Render incorreta!");
         
-        document.getElementById('admin_content').style.display = 'block';
+        if (res.status === 403) {
+            return alert("A CHAVE NÃO BATE! Verifique se no Render a ADMIN_KEY é igual à que você digitou.");
+        }
+        
         const dados = await res.json();
-        let h = "<table><tr><th>Empresa</th><th>Senha</th><th>Créditos</th><th>Ações</th></tr>";
+        document.getElementById('painel_admin').style.display = 'block';
+        let h = "<table><tr><th>Empresa</th><th>Senha</th><th>Créditos</th><th>Ação</th></tr>";
         dados.forEach(c => {
             h += `<tr><td>${c.n}</td><td>${c.p}</td><td>${c.u}/${c.l}</td>
             <td><button class="btn-red" onclick="excluir('${c.p}')">Remover</button></td></tr>`;
         });
-        document.getElementById('lista_clientes').innerHTML = h + "</table>";
+        document.getElementById('lista_dados').innerHTML = h + "</table>";
     }
 
     async function cadastrar() {
         const p = document.getElementById('p').value;
-        if(p.length < 6 || p.length > 8) return alert("A senha deve ter de 6 a 8 dígitos!");
+        if(p.length < 6 || p.length > 8) return alert("Senha do cliente deve ter entre 6 e 8 dígitos.");
         const k = document.getElementById('mestre').value.trim();
         await fetch('/admin/cadastrar', {
             method:'POST', headers:{'Content-Type':'application/json'},
@@ -119,9 +121,10 @@ HTML_SISTEMA = """
 
     async function excluir(pin) {
         if(confirm("Excluir cliente?")) {
+            const k = document.getElementById('mestre').value.trim();
             await fetch('/admin/deletar', {
                 method:'DELETE', headers:{'Content-Type':'application/json'},
-                body: JSON.stringify({key:document.getElementById('mestre').value.trim(), pin:pin})
+                body: JSON.stringify({key:k, pin:pin})
             });
             listar();
         }
@@ -130,28 +133,28 @@ HTML_SISTEMA = """
     async function entrar() {
         const p = document.getElementById('pin').value;
         const res = await fetch('/v1/cliente/dados?pin=' + p);
-        if(!res.ok) return alert("Acesso Negado!");
+        if(!res.ok) return alert("Senha incorreta!");
         const d = await res.json();
-        document.getElementById('login_area').style.display='none';
+        document.getElementById('login_cliente').style.display='none';
         document.getElementById('dash').style.display='block';
-        document.getElementById('emp_nome').innerText = d.empresa;
+        document.getElementById('cli_nome').innerText = d.empresa;
         document.getElementById('uso').innerText = d.usadas;
         document.getElementById('total').innerText = d.limite;
         let h = "";
         d.hist.reverse().forEach(t => {
             const pt = t.split(' | ');
-            h += `<div class="hist-card"><span><b>${pt[1]}</b><br><small>${pt[0]}</small></span><span class="quantum-key">${pt[2]}</span></div>`;
+            h += `<div style="border:1px solid #eee; padding:10px; margin-top:5px;"><b>${pt[1]}</b><br><small>${pt[2]}</small></div>`;
         });
-        document.getElementById('historico').innerHTML = h;
+        document.getElementById('hist').innerHTML = h;
     }
 
     async function gerar() {
         const p = document.getElementById('pin').value;
         const res = await fetch('/v1/cliente/gerar', {
             method:'POST', headers:{'Content-Type':'application/json'},
-            body: JSON.stringify({pin:p, obs:document.getElementById('obs').value || "GERAL"})
+            body: JSON.stringify({pin:p, obs:document.getElementById('obs').value})
         });
-        if(res.ok) entrar(); else alert("Erro ou sem créditos!");
+        if(res.ok) entrar(); else alert("Erro ao gerar!");
     }
     </script>
 </body>
@@ -166,8 +169,13 @@ def admin_page(): return render_template_string(HTML_SISTEMA, tipo='admin')
 
 @app.route('/admin/listar')
 def list_adm():
-    key = get_admin_key()
-    if not key or request.args.get('key', '').strip() != key: return jsonify([]), 403
+    # Comparação segura: limpa espaços e ignora se é maiúsculo/minúsculo
+    real_key = get_admin_key().lower()
+    user_key = request.args.get('key', '').strip().lower()
+    
+    if not real_key or user_key != real_key:
+        return jsonify([]), 403
+        
     conn = get_db_connection(); cur = conn.cursor()
     cur.execute("SELECT nome_empresa, pin_hash, acessos, limite FROM clientes")
     r = cur.fetchall(); cur.close(); conn.close()
@@ -176,7 +184,7 @@ def list_adm():
 @app.route('/admin/cadastrar', methods=['POST'])
 def add_adm():
     d = request.json
-    if d.get('key', '').strip() != get_admin_key(): return jsonify({"e":403}), 403
+    if d.get('key', '').strip().lower() != get_admin_key().lower(): return jsonify({"e":403}), 403
     conn = get_db_connection(); cur = conn.cursor()
     cur.execute("INSERT INTO clientes (nome_empresa, pin_hash, limite) VALUES (%s, %s, %s)", (d['n'], d['p'], d['l']))
     conn.commit(); cur.close(); conn.close()
@@ -185,7 +193,7 @@ def add_adm():
 @app.route('/admin/deletar', methods=['DELETE'])
 def del_adm():
     d = request.json
-    if d.get('key', '').strip() != get_admin_key(): return jsonify({"e":403}), 403
+    if d.get('key', '').strip().lower() != get_admin_key().lower(): return jsonify({"e":403}), 403
     conn = get_db_connection(); cur = conn.cursor()
     cur.execute("DELETE FROM clientes WHERE pin_hash = %s", (d['pin'],))
     conn.commit(); cur.close(); conn.close()
@@ -207,8 +215,7 @@ def gen_key():
     cur.execute("SELECT acessos, limite FROM clientes WHERE pin_hash = %s", (d['pin'],))
     c = cur.fetchone()
     if c and c[0] < c[1]:
-        # Geração de chave "Quântica" (longa e aleatória)
-        nk = ''.join(secrets.choice(string.ascii_uppercase + string.digits) for _ in range(24))
+        nk = ''.join(secrets.choice(string.ascii_uppercase + string.digits) for _ in range(25))
         reg = f"{datetime.datetime.now().strftime('%d/%m/%Y')} | {d['obs'].upper()} | {nk}"
         cur.execute("UPDATE clientes SET acessos=acessos+1, historico_chaves=array_append(historico_chaves, %s) WHERE pin_hash=%s", (reg, d['pin']))
         conn.commit(); cur.close(); conn.close()
