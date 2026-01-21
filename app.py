@@ -1,19 +1,36 @@
-import os, secrets, string, psycopg2
+import os, secrets, string, psycopg2, datetime
 from flask import Flask, request, jsonify, render_template_string
 from flask_cors import CORS
 
 app = Flask(__name__)
 CORS(app)
 
-def get_admin_key():
-    return (os.environ.get('ADMIN_KEY') or '').strip()
-
 def get_db_connection():
     url = os.environ.get('DATABASE_URL')
     if not url: return None
     if url.startswith("postgres://"):
         url = url.replace("postgres://", "postgresql://", 1)
-    return psycopg2.connect(url, sslmode='require')
+    try:
+        return psycopg2.connect(url, sslmode='require')
+    except:
+        return None
+
+# Criação automática da tabela caso não exista
+@app.before_request
+def init_db():
+    conn = get_db_connection()
+    if conn:
+        cur = conn.cursor()
+        cur.execute('''
+            CREATE TABLE IF NOT EXISTS clientes (
+                id SERIAL PRIMARY KEY,
+                empresa TEXT NOT NULL,
+                pin_hash TEXT UNIQUE NOT NULL,
+                historico_chaves TEXT[] DEFAULT '{}'
+            );
+        ''')
+        conn.commit()
+        cur.close(); conn.close()
 
 HTML_SISTEMA = """
 <!DOCTYPE html>
@@ -21,92 +38,76 @@ HTML_SISTEMA = """
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SISTEMA DE AUTENTICAÇÃO QUANTUM</title>
+    <title>QUANTUM AUTH</title>
     <style>
-        :root { --blue: #38bdf8; --dark: #0b1120; --card: #1e293b; --gold: #fbbf24; }
-        body { background: var(--dark); color: white; font-family: 'Segoe UI', serif; padding: 20px; }
-        .container { max-width: 1000px; margin: auto; background: var(--card); padding: 30px; border-radius: 15px; border: 1px solid #334155; }
+        /* TELA BRANCA TOTAL */
+        :root { --blue: #2563eb; --border: #e2e8f0; --bg: #ffffff; --text: #1e293b; }
         
-        /* BOTÕES E INPUTS */
-        input { padding: 12px; background: #1e293b; border: 1px solid #334155; color: white; border-radius: 8px; margin-bottom: 5px; }
-        .btn { padding: 10px 15px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; color: white; transition: 0.2s; }
+        body { background: var(--bg) !important; color: var(--text) !important; font-family: 'Segoe UI', system-ui, sans-serif; margin: 0; padding: 20px; }
         
-        /* DASHBOARD */
-        .hist-item { background: #0f172a; padding: 15px; margin-top: 10px; border-radius: 10px; display: flex; justify-content: space-between; cursor: pointer; border: 1px solid transparent; }
-        .hist-item.selected { border-color: var(--gold); background: #1e3a8a; }
+        .container { max-width: 600px; margin: 40px auto; background: #fff; padding: 30px; border-radius: 12px; border: 1px solid var(--border); box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
+        
+        h1, h2 { text-align: center; color: #000; margin-bottom: 20px; }
+        
+        input { width: 100%; padding: 12px; margin-bottom: 15px; border: 1px solid var(--border); border-radius: 8px; box-sizing: border-box; font-size: 16px; background: #fff; color: #000; }
+        
+        .btn { padding: 12px 20px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; width: 100%; transition: 0.2s; font-size: 16px; }
+        .btn-black { background: #000; color: #fff; }
+        .btn-blue { background: var(--blue); color: #fff; }
+        .btn-outline { background: #fff; color: #000; border: 1px solid var(--border); margin-top: 10px; }
 
-        /* --- LAYOUT A4 DE IMPRESSÃO --- */
+        /* LISTA DE REGISTROS */
+        .hist-item { border-bottom: 1px solid var(--border); padding: 15px 0; display: flex; justify-content: space-between; align-items: center; }
+        .hist-item b { display: block; color: #000; }
+        .hist-item small { color: #64748b; }
+
+        /* CERTIFICADO A4 */
         .certificado-a4 { display: none; }
 
         @media print {
-            @page { size: A4; margin: 0; }
             .no-print { display: none !important; }
-            body { background: white !important; color: black !important; padding: 0; margin: 0; }
-            .container { border: none !important; background: white !important; max-width: 100%; width: 100%; }
-            
-            .certificado-a4 { 
-                display: flex !important;
-                flex-direction: column;
-                justify-content: center;
-                align-items: center;
-                width: 210mm;
-                height: 297mm;
-                padding: 40mm;
-                box-sizing: border-box;
-                border: 25px double #1e293b; /* Borda luxuosa */
-                position: relative;
-                page-break-after: always;
-                text-align: center;
-                margin: 0 auto;
+            body { background: white !important; margin: 0; padding: 0; }
+            .certificado-a4.print-now { 
+                display: flex !important; flex-direction: column; justify-content: center; align-items: center;
+                width: 210mm; height: 297mm; border: 20px double #000; padding: 40mm; box-sizing: border-box; text-align: center; 
             }
-
-            .cert-stamp { position: absolute; top: 60mm; right: 40mm; border: 4px solid #000; padding: 10px; font-weight: bold; transform: rotate(15deg); opacity: 0.6; }
-            .cert-title { font-size: 42px; font-weight: bold; text-transform: uppercase; margin-bottom: 20px; border-bottom: 4px solid #000; }
-            .cert-subtitle { font-size: 20px; letter-spacing: 5px; color: #555; margin-bottom: 60px; }
-            .cert-body { font-size: 24px; line-height: 1.8; margin-bottom: 50px; }
-            
-            .auth-box { border: 3px solid #000; padding: 30px; background: #f9f9f9; margin-bottom: 60px; }
-            .auth-label { font-size: 14px; margin-bottom: 10px; display: block; }
-            .auth-code { font-family: 'Courier New', monospace; font-size: 32px; font-weight: bold; letter-spacing: 5px; }
-            
-            .footer-sign { margin-top: 100px; width: 100%; display: flex; justify-content: space-around; }
-            .sign-line { border-top: 2px solid #000; width: 250px; font-size: 14px; padding-top: 10px; }
+            .cert-title { font-size: 50px; font-weight: bold; text-transform: uppercase; border-bottom: 5px solid #000; margin-bottom: 10px; }
+            .cert-body { font-size: 22px; margin: 60px 0; line-height: 1.6; }
+            .auth-box { border: 2px solid #000; padding: 20px; font-family: monospace; font-size: 28px; font-weight: bold; letter-spacing: 3px; }
         }
     </style>
 </head>
 <body>
-    <div class="container">
+    <div class="container no-print">
         {% if tipo == 'admin' %}
-            <h1 style="color:var(--blue)">ADMINISTRAÇÃO MESTRE</h1>
-            <div class="no-print">
-                <input type="password" id="mestre" placeholder="Chave Admin">
-                <button class="btn" style="background:var(--blue)" onclick="listar()">CARREGAR CLIENTES</button>
+            <h2>PAINEL ADMINISTRATIVO</h2>
+            <div id="form-admin">
+                <input type="text" id="adm_nome" placeholder="Nome da Empresa">
+                <input type="text" id="adm_pin" placeholder="PIN de Acesso (6 dígitos)" maxlength="6">
+                <button class="btn btn-black" onclick="cadastrar()">CADASTRAR NOVO CLIENTE</button>
             </div>
-            <div id="lista_admin"></div>
+            <div id="lista_admin" style="margin-top:30px;"></div>
 
         {% else %}
-            <div id="login_area" style="text-align:center; padding: 100px 0;">
-                <h1 style="font-size:40px">QUANTUM AUTH</h1>
-                <input type="password" id="pin_cli" placeholder="Senha de até 8 dígitos" maxlength="8" style="width:300px; text-align:center; font-size:22px;">
-                <br><br>
-                <button class="btn" style="background:var(--blue); width:325px; height:50px;" onclick="entrar()">AUTENTICAR</button>
+            <div id="login_area">
+                <h1>QUANTUM AUTH</h1>
+                <p style="text-align:center; color:#64748b;">Acesse com seu PIN</p>
+                <input type="password" id="pin_cli" placeholder="PIN de 6 dígitos" maxlength="6" style="text-align:center; font-size:24px;">
+                <button class="btn btn-black" onclick="entrar()">ENTRAR NO SISTEMA</button>
             </div>
 
             <div id="dashboard" style="display:none;">
-                <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <h2 id="emp_nome" style="color:var(--blue)"></h2>
-                    <button class="btn no-print" style="background:var(--gold); color:black" onclick="window.print()">🖨️ IMPRIMIR CERTIFICADO A4</button>
+                <h2 id="emp_nome" style="color:var(--blue)"></h2>
+                <div style="background:#f8fafc; padding:20px; border-radius:10px; border:1px solid var(--border);">
+                    <input type="text" id="obs" placeholder="Nome do Produto / Lote">
+                    <button class="btn btn-blue" onclick="gerar()">GERAR NOVO CERTIFICADO</button>
                 </div>
-
-                <div class="no-print" style="margin:20px 0; background:#0f172a; padding:20px; border-radius:10px; border-left: 4px solid var(--green);">
-                    <input type="text" id="obs" placeholder="Referência (Ex: Lote Software X)" style="width:60%">
-                    <button class="btn" style="background:var(--green); width:30%" onclick="gerar()">GERAR AUTENTICADOR</button>
-                </div>
-
                 <div id="lista_historico"></div>
             </div>
         {% endif %}
     </div>
+
+    <div id="area_certificados"></div>
 
     <script>
     async function entrar() {
@@ -119,80 +120,95 @@ HTML_SISTEMA = """
         document.getElementById('dashboard').style.display='block';
         document.getElementById('emp_nome').innerText = d.empresa;
         
-        let h_tela = ""; let h_cert = "";
+        let h_t = ""; let h_c = "";
         [...d.hist].reverse().forEach((t, i) => {
             const pt = t.split(' | ');
-            h_tela += `<div class="hist-item no-print" id="row-${i}" onclick="toggleCert(${i})">
-                <span><b>${pt[1]}</b></span> <span style="font-family:monospace; color:var(--blue)">${pt[2]}</span>
-            </div>`;
-            
-            h_cert += `
-                <div class="certificado-a4" id="cert-${i}">
-                    <div class="cert-stamp">VALIDADO E<br>ORIGINAL</div>
-                    <div class="cert-title">Certificado</div>
-                    <div class="cert-subtitle">DE AUTENTICIDADE</div>
-                    
-                    <div class="cert-body">
-                        Certificamos para os devidos fins de direito que a licença<br>
-                        referente ao módulo <strong>${pt[1]}</strong> foi processada<br>
-                        e autenticada com sucesso pelo Sistema Quantum.
-                    </div>
-
-                    <div class="auth-box">
-                        <span class="auth-label">CÓDIGO DE AUTENTICAÇÃO ÚNICO</span>
-                        <div class="auth-code">${pt[2]}</div>
-                    </div>
-
-                    <div class="cert-body" style="font-size:16px;">
-                        Data de Emissão: ${new Date().toLocaleDateString('pt-BR')}<br>
-                        Identificador Digital: #Q${Math.floor(Math.random() * 1000000)}
-                    </div>
-
-                    <div class="footer-sign">
-                        <div class="sign-line">Assinatura do Responsável</div>
-                        <div class="sign-line">Carimbo da Empresa</div>
-                    </div>
-                </div>`;
+            h_t += `<div class="hist-item">
+                        <span><b>${pt[1]}</b><small>${pt[0]}</small></span>
+                        <button class="btn btn-outline" style="width:100px; margin:0;" onclick="imprimir(${i})">IMPRIMIR</button>
+                    </div>`;
+            h_c += `<div class="certificado-a4" id="cert-${i}">
+                        <div class="cert-title">Certificado</div>
+                        <div style="letter-spacing:8px; margin-bottom:40px;">AUTENTICIDADE QUANTUM</div>
+                        <div class="cert-body">
+                            Certificamos que o produto/software<br>
+                            <strong style="font-size:30px;">${pt[1]}</strong><br>
+                            foi devidamente registrado e autenticado em nossa base.
+                        </div>
+                        <div class="auth-box">${pt[2]}</div>
+                        <div style="margin-top:40px;">Data: ${pt[0]}</div>
+                    </div>`;
         });
-        document.getElementById('lista_historico').innerHTML = h_tela + h_cert;
-    }
-
-    function toggleCert(i) {
-        document.getElementById('row-'+i).classList.toggle('selected');
-        const c = document.getElementById('cert-'+i);
-        c.style.setProperty('display', (c.style.display==='flex'?'none':'flex'), 'important');
+        document.getElementById('lista_historico').innerHTML = h_t;
+        document.getElementById('area_certificados').innerHTML = h_c;
     }
 
     async function gerar() {
         const p = document.getElementById('pin_cli').value;
-        const res = await fetch('/v1/cliente/gerar', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({pin:p, obs:document.getElementById('obs').value || "PADRÃO"})});
-        if(res.ok) entrar(); else alert("Limite atingido!");
-    }
-
-    async function listar() {
-        const k = document.getElementById('mestre').value;
-        const res = await fetch('/admin/listar?key=' + k);
-        const dados = await res.json();
-        let h = `<table style="width:100%; border-collapse:collapse; margin-top:20px;">
-            <tr style="background:#1e293b; color:var(--blue)"><th>Empresa</th><th>PIN (8 car.)</th><th>Ações</th></tr>`;
-        dados.forEach(c => {
-            h += `<tr style="border-bottom: 1px solid #334155;">
-                <td>${c.n}</td>
-                <td><input type="text" value="${c.p}" id="pin-${c.p}" style="width:100px; padding:5px;"></td>
-                <td>
-                    <button class="btn" style="background:var(--blue); font-size:10px;" onclick="mudarPin('${c.p}')">Salvar PIN</button>
-                    <button class="btn" style="background:var(--red); font-size:10px;" onclick="del('${c.p}')">Remover</button>
-                </td>
-            </tr>`;
+        const o = document.getElementById('obs').value || "PRODUTO";
+        await fetch('/v1/cliente/gerar', {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({pin:p, obs:o})
         });
-        document.getElementById('lista_admin').innerHTML = h + "</table>";
+        entrar();
     }
 
-    async function mudarPin(p_antigo) {
-        const np = document.getElementById('pin-'+p_antigo).value;
-        await fetch('/admin/mudar-pin', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({key:document.getElementById('mestre').value, pin_antigo:p_antigo, pin_novo:np})});
-        alert("PIN Atualizado!"); listar();
+    function imprimir(i) {
+        document.querySelectorAll('.certificado-a4').forEach(c => c.classList.remove('print-now'));
+        document.getElementById('cert-'+i).classList.add('print-now');
+        window.print();
+    }
+
+    async function cadastrar() {
+        const n = document.getElementById('adm_nome').value;
+        const p = document.getElementById('adm_pin').value;
+        const res = await fetch('/admin/cadastrar', {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({empresa:n, pin:p})
+        });
+        if(res.ok) { alert("Cadastrado!"); location.reload(); }
     }
     </script>
 </body>
 </html>
+"""
+
+@app.route('/')
+def index(): return render_template_string(HTML_SISTEMA, tipo='cliente')
+
+@app.route('/admin')
+def admin(): return render_template_string(HTML_SISTEMA, tipo='admin')
+
+@app.route('/v1/cliente/dados')
+def get_dados():
+    pin = request.args.get('pin')
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute("SELECT empresa, historico_chaves FROM clientes WHERE pin_hash = %s", (pin,))
+    res = cur.fetchone()
+    cur.close(); conn.close()
+    if res: return jsonify({"empresa": res[0], "hist": res[1]})
+    return jsonify({}), 404
+
+@app.route('/v1/cliente/gerar', methods=['POST'])
+def gen():
+    d = request.json
+    conn = get_db_connection(); cur = conn.cursor()
+    ch = ''.join(secrets.choice(string.ascii_uppercase + string.digits) for _ in range(16))
+    dt = datetime.datetime.now().strftime('%d/%m/%Y %H:%M')
+    cur.execute("UPDATE clientes SET historico_chaves = array_append(historico_chaves, %s) WHERE pin_hash = %s", 
+                (f"{dt} | {d['obs'].upper()} | {ch}", d['pin']))
+    conn.commit(); cur.close(); conn.close()
+    return jsonify({"ok": True})
+
+@app.route('/admin/cadastrar', methods=['POST'])
+def add():
+    d = request.json
+    conn = get_db_connection(); cur = conn.cursor()
+    cur.execute("INSERT INTO clientes (empresa, pin_hash, historico_chaves) VALUES (%s, %s, %s)", 
+                (d['empresa'], d['pin'], []))
+    conn.commit(); cur.close(); conn.close()
+    return jsonify({"ok": True})
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
