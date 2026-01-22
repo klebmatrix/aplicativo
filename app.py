@@ -7,7 +7,7 @@ CORS(app)
 
 # Busca a chave no Render usando nome em minúsculo
 # Se não estiver configurado no Render, o acesso será negado (sem senha padrão)
-admin_key_env = os.environ.get('admin_key')
+admin_key = os.environ.get('admin_key')
 
 def get_db_connection():
     url = os.environ.get('database_url') or os.environ.get('DATABASE_URL')
