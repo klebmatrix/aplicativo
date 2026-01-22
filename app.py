@@ -5,7 +5,6 @@ from flask_cors import CORS
 app = Flask(__name__)
 CORS(app)
 
-# Extração de Chave do Ambiente Render
 MASTER_KEY = os.environ.get('ADMIN_KEY') or os.environ.get('admin_key')
 
 def get_db_connection():
@@ -47,105 +46,131 @@ CONHECIMENTO = {
     ]
 }
 
-# --- INTERFACE DE ELITE (ADMIN E CLIENTE) ---
 HTML_SISTEMA = """
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>QUANTUM SEED - PLATAFORMA DE ELITE</title>
+    <title>QUANTUM SEED - ELITE</title>
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Montserrat:wght@300;400;600&display=swap" rel="stylesheet">
     <style>
-        :root { --gold: #c5a059; --bg: #020617; --card: #0f172a; --red: #ef4444; --green: #22c55e; }
-        body { background: var(--bg); color: #f8fafc; font-family: 'Montserrat', sans-serif; margin: 0; padding: 20px; }
-        .glass-card { background: rgba(15, 23, 42, 0.9); border: 1px solid rgba(197, 160, 89, 0.3); border-radius: 20px; padding: 25px; box-shadow: 0 20px 50px rgba(0,0,0,0.6); }
-        h1, h2 { font-family: 'Cinzel', serif; color: var(--gold); text-align: center; margin-top: 0; }
-        input, select { width: 100%; padding: 12px; margin: 8px 0; background: #1e293b; border: 1px solid #334155; color: white; border-radius: 8px; box-sizing: border-box; }
-        .btn { padding: 12px 20px; border-radius: 8px; border: none; cursor: pointer; font-weight: bold; transition: 0.3s; text-transform: uppercase; font-size: 12px; }
-        .btn-gold { background: var(--gold); color: black; width: 100%; font-size: 14px; }
-        .btn-red { background: var(--red); color: white; }
+        :root { --gold: #b38b4d; --bg: #fdfcf9; --card: #ffffff; --text: #2c2c2c; --border: #eaddca; }
+        body { background: var(--bg); color: var(--text); font-family: 'Montserrat', sans-serif; margin: 0; padding: 20px; }
         
-        /* Layout Admin */
-        .admin-grid { display: grid; grid-template-columns: 1fr 2fr; gap: 20px; margin-top: 20px; }
+        .glass-card { background: var(--card); border: 1px solid var(--border); border-radius: 20px; padding: 25px; box-shadow: 0 10px 30px rgba(179,139,77,0.1); }
+        h1, h2 { font-family: 'Cinzel', serif; color: var(--gold); text-align: center; }
+        
+        input, select { width: 100%; padding: 12px; margin: 8px 0; background: #fff; border: 1px solid var(--border); color: #333; border-radius: 8px; box-sizing: border-box; font-size: 16px; }
+        .btn { padding: 14px 20px; border-radius: 8px; border: none; cursor: pointer; font-weight: bold; transition: 0.3s; text-transform: uppercase; font-size: 13px; }
+        .btn-gold { background: var(--gold); color: white; width: 100%; box-shadow: 0 4px 15px rgba(179,139,77,0.3); }
+        .btn-gold:hover { background: #8e6d3a; transform: translateY(-1px); }
+
+        /* Admin Table */
         table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-        th { color: var(--gold); border-bottom: 1px solid var(--gold); padding: 10px; text-align: left; font-size: 11px; }
-        td { padding: 10px; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 13px; }
+        th { color: var(--gold); border-bottom: 2px solid var(--gold); padding: 10px; text-align: left; }
+        td { padding: 12px; border-bottom: 1px solid var(--border); }
+
+        /* Cliente Luxo */
+        .energy-bar { background: #eee; height: 12px; border-radius: 6px; margin: 15px 0; overflow: hidden; border: 1px solid var(--border); }
+        .energy-fill { height: 100%; background: linear-gradient(90deg, #d4af37, #b38b4d); width: 0%; transition: 1.5s cubic-bezier(0.1, 0, 0.3, 1); }
         
-        /* Layout Cliente */
-        .energy-bar { background: rgba(255,255,255,0.05); height: 10px; border-radius: 5px; margin: 15px 0; overflow: hidden; }
-        .energy-fill { height: 100%; background: var(--gold); width: 0%; transition: 1s ease; }
-        .history-item { background: rgba(255,255,255,0.02); border-left: 4px solid var(--gold); padding: 12px; margin: 8px 0; border-radius: 4px; display: flex; align-items: center; }
-        
-        @media print { .no-print { display: none; } #print_area { display: block; color: black; } }
+        .history-item { background: #fff; border: 1px solid var(--border); padding: 15px; margin: 10px 0; border-radius: 12px; display: flex; align-items: center; }
+        .history-item:hover { border-color: var(--gold); background: #fdfaf5; }
+
+        /* CERTIFICADO - CORRIGIDO PARA IMPRESSÃO */
+        #print_area { display: none; }
+        @media print {
+            body { background: white !important; padding: 0; margin: 0; }
+            .no-print { display: none !important; }
+            #print_area { display: block !important; width: 100%; }
+            .cert-page { 
+                height: 100vh; 
+                display: flex; 
+                justify-content: center; 
+                align-items: center; 
+                page-break-after: always;
+                background: white !important;
+            }
+            .cert-box { 
+                border: 15px double #b38b4d; 
+                width: 80%; 
+                padding: 40px; 
+                text-align: center; 
+                color: #1a1a1a !important; 
+                font-family: 'Cinzel', serif;
+                background: white !important;
+            }
+            .cert-freq { font-size: 42px; font-weight: bold; color: #b38b4d; margin: 20px 0; border-top: 2px solid #b38b4d; border-bottom: 2px solid #b38b4d; padding: 15px 0; }
+        }
     </style>
 </head>
 <body>
-    <div class="no-print" style="max-width: 1000px; margin: auto;">
+    <div class="no-print" style="max-width: 900px; margin: auto;">
         {% if modo == 'admin' %}
             <div class="glass-card">
-                <h1>GESTÃO MASTER QUANTUM</h1>
-                <div style="text-align:center"><input type="password" id="ak" placeholder="CHAVE ADMIN_KEY" style="max-width:300px"></div>
-                <button class="btn btn-gold" onclick="listar()" style="max-width:200px; display:block; margin: 10px auto;">SINCRONIZAR REDE</button>
-
-                <div class="admin-grid">
-                    <div class="glass-card" style="background: rgba(0,0,0,0.3)">
-                        <h3>NOVO PORTADOR</h3>
-                        <input type="text" id="n" placeholder="Nome do Cliente">
-                        <input type="text" id="p" placeholder="PIN (6-8 dig)">
-                        <input type="number" id="l" placeholder="Limite Inicial">
-                        <select id="st">
-                            <option value="Ativo">Status: ATIVO</option>
-                            <option value="VIP">Status: VIP (ILIMITADO)</option>
-                            <option value="Bloqueado">Status: BLOQUEADO</option>
-                        </select>
-                        <button class="btn btn-gold" onclick="salvar()">CONSEGRAR / ATUALIZAR</button>
-                    </div>
-                    <div class="glass-card" style="background: rgba(0,0,0,0.3)">
-                        <h3>GERENCIAMENTO</h3>
-                        <div id="lista_admin"></div>
-                    </div>
-                </div>
+                <h1>GESTÃO MASTER</h1>
+                <div style="text-align:center"><input type="password" id="ak" placeholder="ADMIN_KEY" style="max-width:300px"></div>
+                <button class="btn btn-gold" onclick="listar()" style="max-width:200px; display:block; margin: 10px auto;">SINCRONIZAR</button>
+                <div id="lista_admin"></div>
+                <hr style="border:0; border-top:1px solid var(--border); margin:30px 0;">
+                <h3>ADICIONAR NOVO TERAPEUTA</h3>
+                <input type="text" id="n" placeholder="Nome Completo">
+                <input type="text" id="p" placeholder="Definir PIN (6-8 dig)">
+                <input type="number" id="l" placeholder="Créditos Iniciais">
+                <select id="st">
+                    <option value="Ativo">Status: ATIVO</option>
+                    <option value="VIP">Status: VIP (ILIMITADO)</option>
+                    <option value="Bloqueado">Status: BLOQUEADO</option>
+                </select>
+                <button class="btn btn-gold" onclick="salvar()">CADASTRAR E ATIVAR</button>
             </div>
         {% else %}
-            <div class="glass-card" style="max-width:500px; margin: auto;">
+            <div class="glass-card" style="max-width:450px; margin: auto;">
                 <h1>QUANTUM SEED</h1>
                 <div id="login_area">
-                    <input type="password" id="pin" placeholder="Chave de Acesso" maxlength="8">
-                    <button class="btn btn-gold" onclick="logar()">SINTONIZAR PORTAL</button>
+                    <p style="text-align:center; font-size:12px; opacity:0.7;">ACESSO AO PORTAL VIBRACIONAL</p>
+                    <input type="password" id="pin" placeholder="Seu Código PIN" maxlength="8">
+                    <button class="btn btn-gold" onclick="logar()">ENTRAR NO SISTEMA</button>
                 </div>
                 <div id="dash_area" style="display:none;">
-                    <h2 id="nome_cli" style="font-size:18px"></h2>
-                    <div style="display:flex; justify-content:space-between; font-size:12px">
-                        <span>Fluxo de Créditos</span>
+                    <h2 id="nome_cli" style="font-size:20px; margin-bottom:5px;"></h2>
+                    <div style="display:flex; justify-content:space-between; font-size:11px; font-weight:600;">
+                        <span>ENERGIA DISPONÍVEL</span>
                         <span id="txt_saldo"></span>
                     </div>
                     <div class="energy-bar"><div id="fill" class="energy-fill"></div></div>
                     
-                    <input type="text" id="obs" placeholder="Nome do Paciente ou Intenção">
-                    <button class="btn btn-gold" id="btn_gerar" onclick="gerar()">MANIFESTAR FREQUÊNCIA</button>
-                    <button onclick="window.print()" style="background:none; border:none; color:var(--gold); width:100%; margin-top:15px; cursor:pointer; font-size:11px; text-decoration:underline;">IMPRIMIR CERTIFICADOS</button>
-                    <div id="lista_cli" style="margin-top:20px"></div>
+                    <input type="text" id="obs" placeholder="Nome do Paciente / Intenção">
+                    <button class="btn btn-gold" id="btn_gerar" onclick="gerar()">GERAR ATIVAÇÃO QUÂNTICA</button>
+                    
+                    <button onclick="window.print()" style="background:none; border:none; color:var(--gold); width:100%; margin-top:20px; cursor:pointer; font-weight:bold; text-decoration:underline;">
+                        IMPRIMIR CERTIFICADOS SELECIONADOS
+                    </button>
+                    
+                    <h4 style="margin-top:30px; border-bottom:1px solid var(--border); padding-bottom:5px;">Histórico Recente</h4>
+                    <div id="lista_cli"></div>
                 </div>
             </div>
         {% endif %}
     </div>
+
     <div id="print_area"></div>
 
     <script>
-    // --- LÓGICA ADMIN ---
+    // JS DO ADMIN
     async function listar() {
         const k = document.getElementById('ak').value;
         const res = await fetch(`/api/admin/list?k=${k}`);
-        if(!res.ok) return alert("Acesso Negado.");
+        if(!res.ok) return alert("Chave incorreta.");
         const data = await res.json();
-        let h = "<table><tr><th>NOME</th><th>SALDO</th><th>AÇÃO</th></tr>";
+        let h = "<table><tr><th>NOME</th><th>SALDO</th><th>AÇÕES</th></tr>";
         data.forEach(c => {
             h += `<tr>
                 <td><b>${c.n}</b><br><small>${c.p}</small></td>
                 <td>${c.u}/${c.l}<br><small>${c.s}</small></td>
                 <td>
-                    <button class="btn" style="background:#3b82f6; padding:5px" onclick="addCr('${c.p}',50)">+50</button>
-                    <button class="btn btn-red" style="padding:5px" onclick="remover('${c.p}')">X</button>
+                    <button class="btn" style="background:#eee; color:#333; padding:5px 10px;" onclick="addCr('${c.p}',50)">+50</button>
+                    <button class="btn" style="background:#ffeded; color:red; padding:5px 10px;" onclick="remover('${c.p}')">X</button>
                 </td>
             </tr>`;
         });
@@ -153,34 +178,35 @@ HTML_SISTEMA = """
     }
 
     async function addCr(pin, q) {
-        const k = document.getElementById('ak').value;
-        await fetch('/api/admin/add_credit', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({k:k, p:pin, q:q}) });
+        await fetch('/api/admin/add_credit', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({k:document.getElementById('ak').value, p:pin, q:q}) });
         listar();
     }
 
     async function salvar() {
         const payload = { k:document.getElementById('ak').value, n:document.getElementById('n').value, p:document.getElementById('p').value, l:parseInt(document.getElementById('l').value), s:document.getElementById('st').value };
         await fetch('/api/admin/save', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) });
-        listar();
+        alert("Salvo!"); listar();
     }
 
     async function remover(pin) {
-        if(!confirm("Excluir cliente?")) return;
-        await fetch('/api/admin/delete', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({k:document.getElementById('ak').value, p:pin}) });
-        listar();
+        if(confirm("Excluir definitivamente?")) {
+            await fetch('/api/admin/delete', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({k:document.getElementById('ak').value, p:pin}) });
+            listar();
+        }
     }
 
-    // --- LÓGICA CLIENTE ---
+    // JS DO CLIENTE
     async function logar() {
         const p = document.getElementById('pin').value;
         const res = await fetch(`/api/cli/info?p=${p}`, {cache: "no-store"});
-        if(!res.ok) return alert("PIN inválido ou Bloqueado.");
+        if(!res.ok) return alert("PIN Inválido ou bloqueado.");
         const d = await res.json();
-        if(d.s === 'Bloqueado') return alert("Assinatura suspensa. Contate o administrador.");
-        
+        if(d.s === 'Bloqueado') return alert("Acesso suspenso.");
+
         document.getElementById('login_area').style.display='none';
         document.getElementById('dash_area').style.display='block';
         document.getElementById('nome_cli').innerText = d.n;
+        
         const saldo = (d.s === 'VIP') ? 'ILIMITADO' : (d.l - d.u);
         document.getElementById('txt_saldo').innerText = saldo;
         document.getElementById('fill').style.width = (d.s === 'VIP') ? '100%' : ((d.l-d.u)/d.l*100) + "%";
@@ -189,25 +215,48 @@ HTML_SISTEMA = """
         if(d.h) d.h.reverse().forEach(item => {
             const pts = item.split(' | ');
             h += `<div class="history-item">
-                <input type="checkbox" class="ck" data-full="${item}" style="margin-right:10px">
-                <div><b>${pts[1]}</b><br><small>${pts[2]} • ${pts[0]}</small></div>
+                <input type="checkbox" class="ck" data-full="${item}" style="margin-right:12px; width:18px; height:18px;">
+                <div style="flex-grow:1">
+                    <div style="font-weight:700;">${pts[1]}</div>
+                    <div style="font-size:11px; color:#b38b4d;">${pts[2]} • ${pts[0]}</div>
+                </div>
             </div>`;
         });
-        document.getElementById('lista_cli').innerHTML = h;
+        document.getElementById('lista_cli').innerHTML = h || "<p style='font-size:12px; opacity:0.5;'>Nenhuma ativação.</p>";
     }
 
     async function gerar() {
         const p = document.getElementById('pin').value;
         const o = document.getElementById('obs').value || "GERAL";
+        const btn = document.getElementById('btn_gerar');
+        btn.disabled = true;
         const res = await fetch('/api/cli/generate', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({p:p, o:o}) });
-        if(res.ok) { document.getElementById('obs').value = ""; logar(); } else { alert("Saldo insuficiente."); }
+        if(res.ok) { document.getElementById('obs').value = ""; logar(); } else { alert("Sem saldo."); }
+        btn.disabled = false;
     }
+
+    window.onbeforeprint = () => {
+        let h = "";
+        document.querySelectorAll('.ck:checked').forEach(c => {
+            const p = c.getAttribute('data-full').split(' | ');
+            h += `<div class="cert-page"><div class="cert-box">
+                <p style="letter-spacing:5px; font-size:14px; margin:0;">CERTIFICADO DE SINTONIA</p>
+                <h1 style="font-size:35px; color:#000; margin:10px 0;">QUANTUM SEED</h1>
+                <p style="font-size:18px; margin-top:30px;">Frequência Manifestada para:</p>
+                <h2 style="font-size:32px; color:#b38b4d;">${p[1]}</h2>
+                <div class="cert-freq">${p[2]}</div>
+                <p style="font-style:italic; font-size:20px;">"${p[3]}"</p>
+                <p style="margin-top:40px; font-size:12px;">Sintonia válida por 21 dias. Expira em: ${p[4]}</p>
+            </div></div>`;
+        });
+        document.getElementById('print_area').innerHTML = h;
+    };
     </script>
 </body>
 </html>
 """
 
-# --- ROTAS DE GESTÃO ---
+# --- ROTAS DA API ---
 
 @app.route('/api/admin/list')
 def api_l():
