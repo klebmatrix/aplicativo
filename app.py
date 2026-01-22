@@ -1,221 +1,200 @@
-import os, secrets, string, psycopg2, datetime, time
-from flask import Flask, request, jsonify, render_template_string
-from flask_cors import CORS
-
-app = Flask(__name__)
-CORS(app, resources={r"/api/*": {"origins": "*"}})
-
-MASTER_KEY = os.environ.get('admin_key') or os.environ.get('ADMIN_KEY')
-
-def connect_db_with_retry(attempts=3, delay=2):
-    url = os.environ.get('DATABASE_URL')
-    if url and url.startswith("postgres://"):
-        url = url.replace("postgres://", "postgresql://", 1)
-    for i in range(attempts):
-        try:
-            conn = psycopg2.connect(url, sslmode='require', connect_timeout=5)
-            return conn
-        except:
-            time.sleep(delay)
-    return None
-
-@app.before_request
-def setup_database():
-    conn = connect_db_with_retry()
-    if conn:
-        cur = conn.cursor()
-        cur.execute('''
-            CREATE TABLE IF NOT EXISTS clientes (
-                id SERIAL PRIMARY KEY,
-                nome_empresa TEXT NOT NULL,
-                pin_hash TEXT UNIQUE NOT NULL,
-                limite INTEGER DEFAULT 100,
-                acessos INTEGER DEFAULT 0,
-                historico_chaves TEXT[] DEFAULT '{}'
-            );
-        ''')
-        conn.commit(); cur.close(); conn.close()
-
-UI_VIBRACIONAL = """
+UI_FINAL = """
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>SISTEMA NUMEROLOGIA QUÂNTICA</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QUANTUM SEED - SISTEMA VIBRACIONAL</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Montserrat:wght@300;400;600&display=swap" rel="stylesheet">
     <style>
-        :root { --gold: #d4af37; --bg: #05070a; --card: #0f172a; }
-        body { background: var(--bg); color: white; font-family: 'Georgia', serif; padding: 20px; }
-        .container { max-width: 850px; margin: auto; background: var(--card); padding: 30px; border-radius: 20px; border: 1px solid var(--gold); }
-        input { padding: 12px; margin: 5px; background: #1e293b; border: 1px solid #334155; color: white; border-radius: 8px; width: 250px; }
-        button { padding: 12px 25px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; text-transform: uppercase; }
-        .btn-gold { background: var(--gold); color: black; }
-        .btn-red { background: #991b1b; color: white; font-size: 10px; }
-        .item { background: #1e293b; padding: 15px; margin: 10px 0; border-radius: 10px; border-left: 4px solid var(--gold); display: flex; align-items: center; }
+        :root { --gold: #c5a059; --gold-dark: #8e6d2f; --bg: #05070a; --glass: rgba(255, 255, 255, 0.03); }
         
+        * { box-sizing: border-box; }
+        body { background: var(--bg); color: #e2e8f0; font-family: 'Montserrat', sans-serif; margin: 0; overflow-x: hidden; }
+        
+        /* Interface de Usuário (Dashboard) */
+        .no-print { max-width: 1000px; margin: 40px auto; padding: 20px; position: relative; z-index: 10; }
+        .glass-card { background: var(--glass); border: 1px solid rgba(197, 160, 89, 0.2); backdrop-filter: blur(10px); border-radius: 20px; padding: 40px; box-shadow: 0 20px 50px rgba(0,0,0,0.5); }
+        
+        h1, h2, h3 { font-family: 'Cinzel', serif; color: var(--gold); letter-spacing: 2px; text-align: center; }
+        
+        input { background: rgba(0,0,0,0.4); border: 1px solid #334155; padding: 15px; color: white; border-radius: 10px; width: 100%; margin-bottom: 15px; transition: 0.3s; }
+        input:focus { border-color: var(--gold); outline: none; box-shadow: 0 0 10px rgba(197, 160, 89, 0.3); }
+        
+        .btn-quantum { background: linear-gradient(135deg, var(--gold), var(--gold-dark)); color: #000; border: none; padding: 15px 30px; border-radius: 10px; font-weight: bold; cursor: pointer; width: 100%; text-transform: uppercase; letter-spacing: 1px; transition: 0.3s; }
+        .btn-quantum:hover { transform: translateY(-2px); box-shadow: 0 10px 20px rgba(197, 160, 89, 0.4); }
+        
+        .history-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 15px; margin-top: 30px; }
+        .history-item { background: rgba(255,255,255,0.05); padding: 20px; border-radius: 12px; border-left: 4px solid var(--gold); display: flex; align-items: center; }
+        .history-item input { width: 20px; margin-right: 15px; margin-bottom: 0; }
+
+        /* Estilo do Certificado de Impressão */
+        #print_area { display: none; }
         @media print {
             .no-print { display: none !important; }
-            .cert-page { page-break-after: always; height: 98vh; display: flex; justify-content: center; align-items: center; background: white; }
-            .cert-box { border: 10px double #d4af37; width: 80%; padding: 60px; text-align: center; color: #1a1a1a; position: relative; }
-            .cert-title { font-size: 32px; color: #856404; margin-bottom: 10px; }
-            .cert-val { background: #fdf6e3 !important; padding: 25px; font-size: 28px; font-weight: bold; border: 1px solid #d4af37; margin: 30px 0; letter-spacing: 3px; }
-            .cert-footer { font-size: 12px; color: #666; font-style: italic; }
+            #print_area { display: block !important; background: #fff; }
+            .cert-page { height: 100vh; page-break-after: always; display: flex; justify-content: center; align-items: center; background: white; padding: 40px; position: relative; }
+            .cert-border { border: 15px solid #1a1a1a; width: 90%; height: 90%; padding: 40px; position: relative; border-image: url('https://www.transparenttextures.com/patterns/gold-glitter.png') 30 stretch; }
+            .cert-content { text-align: center; font-family: 'Cinzel', serif; color: #1a1a1a; }
+            .cert-gold-txt { color: #8e6d2f; font-size: 14px; letter-spacing: 5px; }
+            .cert-main-val { font-size: 45px; margin: 30px 0; border-top: 1px solid #d4af37; border-bottom: 1px solid #d4af37; padding: 20px 0; font-weight: bold; }
+            .cert-mantra { font-family: 'Montserrat', sans-serif; font-style: italic; font-size: 20px; color: #444; margin: 40px 0; }
+            .cert-footer { position: absolute; bottom: 40px; width: 80%; left: 10%; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #eee; padding-top: 20px; }
+            .qr-box { width: 80px; height: 80px; background: #eee; }
         }
     </style>
 </head>
 <body>
-    <div class="container no-print">
-        {% if modo == 'admin' %}
-            <h1 style="color:var(--gold)">PAINEL MASTER QUÂNTICO</h1>
-            <input type="password" id="ak" placeholder="Chave Master">
-            <button class="btn-gold" onclick="listar()">Ver Portadores</button>
-            <hr style="border:0.5px solid var(--gold); margin:30px 0;">
-            <h3>CADASTRAR TERAPEUTA / +FLUXO</h3>
-            <input type="text" id="n" placeholder="Nome/Empresa">
-            <input type="text" id="p" placeholder="PIN (6-8 dig)" maxlength="8">
-            <input type="number" id="l" placeholder="Qtd. Ativações">
-            <button class="btn-gold" onclick="salvar()">Consagrar Acesso</button>
-            <div id="res_adm"></div>
-        {% else %}
-            <div id="login">
-                <h1 style="text-align:center; color:var(--gold)">SINTONIA QUÂNTICA</h1>
-                <div style="text-align:center">
-                    <input type="password" id="pin" placeholder="SEU PIN" style="width:80%">
-                    <br><br>
-                    <button class="btn-gold" onclick="logar()">Acessar Frequências</button>
+    <div style="position:fixed; top:0; left:0; width:100%; height:100%; z-index:-1; background: radial-gradient(circle at center, #101827 0%, #05070a 100%); opacity:0.8;"></div>
+
+    <div class="no-print">
+        <div class="glass-card">
+            {% if modo == 'admin' %}
+                <h1>QUANTUM ADMIN CONTROL</h1>
+                <input type="password" id="ak" placeholder="CHAVE MASTER DO SISTEMA">
+                <button class="btn-quantum" onclick="listar()">Sincronizar Banco de Dados</button>
+                <div id="res_adm" style="margin-top:20px"></div>
+                
+                <div style="margin-top:40px; border-top: 1px solid rgba(197, 160, 89, 0.2); padding-top:20px;">
+                    <h3>GERENCIAR PORTAL</h3>
+                    <input type="text" id="n" placeholder="Nome do Terapeuta / Empresa">
+                    <input type="text" id="p" placeholder="Definir PIN (6-8 caracteres)">
+                    <input type="number" id="l" placeholder="Limite de Fluxo (Créditos)">
+                    <button class="btn-quantum" onclick="salvar()">Consagrar Acesso</button>
                 </div>
-            </div>
-            <div id="painel" style="display:none;">
-                <h2 id="emp" style="color:var(--gold)"></h2>
-                <p>Ativações Realizadas: <b id="u"></b> / Limite Contratado: <b id="lim"></b></p>
-                <input type="text" id="o" placeholder="Nome do Cliente ou Intenção">
-                <button class="btn-gold" onclick="gerar()">GERAR ATIVAÇÃO</button>
-                <button onclick="window.print()">🖨️ IMPRIMIR CERTIFICADOS</button>
-                <br><br>
-                <label><input type="checkbox" onclick="tudo(this)"> Selecionar Todos</label>
-                <div id="lista_cli"></div>
-            </div>
-        {% endif %}
+            {% else %}
+                <div id="view_login">
+                    <h1>ACESSO QUÂNTICO</h1>
+                    <p style="text-align:center; opacity:0.6">Sintonize sua frequência de acesso</p>
+                    <input type="password" id="pin" placeholder="DIGITE SEU PIN">
+                    <button class="btn-quantum" onclick="logar()">ENTRAR NO PORTAL</button>
+                </div>
+
+                <div id="view_dash" style="display:none;">
+                    <h2 id="txt_terapeuta" style="margin-bottom:5px"></h2>
+                    <p style="text-align:center; margin-bottom:30px">
+                        Fluxo Disponível: <span id="txt_saldo" style="color:var(--gold); font-weight:bold"></span>
+                    </p>
+                    
+                    <div style="background: rgba(255,255,255,0.03); padding:25px; border-radius:15px; margin-bottom:20px">
+                        <input type="text" id="obs" placeholder="Nome do Paciente / Intenção da Ativação">
+                        <button class="btn-quantum" onclick="gerar()">GERAR NOVA ATIVAÇÃO</button>
+                        <button class="btn-quantum" style="background: transparent; border: 1px solid var(--gold); color: var(--gold); margin-top:10px;" onclick="window.print()">IMPRIMIR SELECIONADOS</button>
+                    </div>
+
+                    <div style="display:flex; justify-content:space-between; align-items:center; padding:0 10px">
+                        <span>Histórico de Ativações</span>
+                        <label><input type="checkbox" onclick="toggleAll(this)"> Selecionar Todos</label>
+                    </div>
+                    <div id="lista_ativações" class="history-grid"></div>
+                </div>
+            {% endif %}
+        </div>
     </div>
+
     <div id="print_area"></div>
 
     <script>
-    async function listar() {
-        const k = document.getElementById('ak').value;
-        const r = await fetch('/api/admin/list?k='+k);
-        if(!r.ok) return alert("Erro");
-        const d = await r.json();
-        let h = "<table><tr><th>Portador</th><th>PIN</th><th>Fluxo</th><th>Ação</th></tr>";
-        d.forEach(c => { h += `<tr><td>${c.n}</td><td>${c.p}</td><td>${c.u}/${c.l}</td><td><button class="btn-red" onclick="excluir('${c.p}')">REMOVER</button></td></tr>`; });
-        document.getElementById('res_adm').innerHTML = h + "</table>";
-    }
-    async function salvar() {
-        const k = document.getElementById('ak').value;
-        await fetch('/api/admin/save', { method:'POST', headers:{'Content-Type':'application/json'}, 
-            body: JSON.stringify({k:k, n:document.getElementById('n').value, p:document.getElementById('p').value, l:document.getElementById('l').value}) 
-        });
-        listar();
-    }
-    async function excluir(p) {
-        if(confirm("Remover?")) {
-            await fetch('/api/admin/delete', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({k:document.getElementById('ak').value, p:p}) });
+        // Funções de Lógica (Mesma estrutura do seu app.py)
+        async function logar() {
+            const p = document.getElementById('pin').value;
+            const res = await fetch(`/api/cli/info?p=${p}`);
+            if(!res.ok) return alert("PIN não sintonizado.");
+            const d = await res.json();
+            document.getElementById('view_login').style.display = 'none';
+            document.getElementById('view_dash').style.display = 'block';
+            document.getElementById('txt_terapeuta').innerText = d.n;
+            document.getElementById('txt_saldo').innerText = `${d.l - d.u} de ${d.l}`;
+            
+            let html = "";
+            d.h.reverse().forEach((item, i) => {
+                html += `
+                <div class="history-item">
+                    <input type="checkbox" class="ck" data-full="${item}">
+                    <div>
+                        <div style="font-size:12px; color:var(--gold)">${item.split(' | ')[0]}</div>
+                        <div style="font-weight:600">${item.split(' | ')[1]}</div>
+                        <div style="font-size:11px; opacity:0.6">${item.split(' | ')[2]}</div>
+                    </div>
+                </div>`;
+            });
+            document.getElementById('lista_ativações').innerHTML = html;
+        }
+
+        async function gerar() {
+            const pin = document.getElementById('pin').value;
+            const obs = document.getElementById('obs').value;
+            const res = await fetch('/api/cli/generate', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({p: pin, o: obs})
+            });
+            if(res.ok) logar(); else alert("Limite de fluxo atingido.");
+        }
+
+        async function listar() {
+            const k = document.getElementById('ak').value;
+            const res = await fetch(`/api/admin/list?k=${k}`);
+            const data = await res.json();
+            let h = "<table style='width:100%; margin-top:20px;'><tr><th>Nome</th><th>Fluxo</th><th>Ação</th></tr>";
+            data.forEach(c => {
+                h += `<tr><td>${c.n}</td><td>${c.u}/${c.l}</td><td><button onclick="excluir('${c.p}')">Excluir</button></td></tr>`;
+            });
+            document.getElementById('res_adm').innerHTML = h + "</table>";
+        }
+
+        async function salvar() {
+            const payload = {
+                k: document.getElementById('ak').value,
+                n: document.getElementById('n').value,
+                p: document.getElementById('p').value,
+                l: document.getElementById('l').value
+            };
+            await fetch('/api/admin/save', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) });
             listar();
         }
-    }
-    let pAtivo = "";
-    async function logar() {
-        pAtivo = document.getElementById('pin').value;
-        const r = await fetch('/api/cli/info?p='+pAtivo);
-        if(!r.ok) return alert("PIN Não Sintonizado");
-        const d = await r.json();
-        document.getElementById('login').style.display='none';
-        document.getElementById('painel').style.display='block';
-        document.getElementById('emp').innerText = "Terapeuta: " + d.n;
-        document.getElementById('u').innerText = d.u;
-        document.getElementById('lim').innerText = d.l;
-        let h = "";
-        d.h.reverse().forEach((t, i) => {
-            h += `<div class="item"><input type="checkbox" class="ck" data-key="${t.split(' | ')[2]}"><span style="margin-left:15px">${t}</span></div>`;
-        });
-        document.getElementById('lista_cli').innerHTML = h;
-    }
-    async function gerar() {
-        await fetch('/api/cli/generate', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({p:pAtivo, o:document.getElementById('o').value}) });
-        logar();
-    }
-    function tudo(s) { document.querySelectorAll('.ck').forEach(c => c.checked = s.checked); }
-    window.onbeforeprint = () => {
-        let h = "";
-        document.querySelectorAll('.ck:checked').forEach(c => {
-            h += `<div class="cert-page"><div class="cert-box"><div class="cert-title">CERTIFICADO DE ATIVAÇÃO</div><p>ASSINATURA VIBRACIONAL QUÂNTICA</p><div class="cert-val">${c.getAttribute('data-key')}</div><div class="cert-footer">Este código representa uma frequência única gerada para sua harmonia pessoal.</div></div></div>`;
-        });
-        document.getElementById('print_area').innerHTML = h;
-    };
+
+        function toggleAll(src) { document.querySelectorAll('.ck').forEach(c => c.checked = src.checked); }
+
+        window.onbeforeprint = () => {
+            let h = "";
+            document.querySelectorAll('.ck:checked').forEach(c => {
+                const p = c.getAttribute('data-full').split(' | ');
+                h += `
+                <div class="cert-page">
+                    <div class="cert-border">
+                        <div class="cert-content">
+                            <div class="cert-gold-txt">CERTIFICADO DE SINTONIA</div>
+                            <h2 style="font-size:30px; margin:10px 0;">ATIVAÇÃO QUÂNTICA</h2>
+                            <p style="margin-top:40px">Certificamos que a frequência vibracional de</p>
+                            <h3 style="font-size:24px; color:#000;">${p[1]}</h3>
+                            <p>foi sintonizada e gravada no campo informacional.</p>
+                            
+                            <div class="cert-main-val">${p[2]}</div>
+                            
+                            <div class="cert-mantra">"${p[3]}"</div>
+                            
+                            <div style="font-size:12px; margin-top:40px;">
+                                Validade da Ativação: <strong>${p[4]}</strong><br>
+                                <small>Recomenda-se nova sintonização após este período.</small>
+                            </div>
+
+                            <div class="cert-footer">
+                                <div style="text-align:left">
+                                    <small>Autenticidade:</small><br>
+                                    <span style="font-family:monospace; font-size:10px;">${Math.random().toString(36).substr(2, 9).toUpperCase()}</span>
+                                </div>
+                                <div>
+                                    <img src="https://api.qrserver.com/v1/create-qr-code/?size=60x60&data=https://www.youtube.com/results?search_query=solfeggio+${p[2].split(' ')[0]}" />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>`;
+            });
+            document.getElementById('print_area').innerHTML = h;
+        };
     </script>
 </body>
 </html>
 """
-
-@app.route('/')
-def r_h(): return render_template_string(UI_VIBRACIONAL, modo='cliente')
-
-@app.route('/painel-secreto-kleber')
-def r_a(): return render_template_string(UI_VIBRACIONAL, modo='admin')
-
-@app.route('/api/admin/list')
-def api_l():
-    if request.args.get('k') != MASTER_KEY: return "Err", 403
-    conn = connect_db_with_retry()
-    cur = conn.cursor()
-    cur.execute("SELECT nome_empresa, pin_hash, acessos, limite FROM clientes ORDER BY id DESC")
-    r = cur.fetchall(); cur.close(); conn.close()
-    return jsonify([{"n": x[0], "p": x[1], "u": x[2], "l": x[3]} for x in r])
-
-@app.route('/api/admin/save', methods=['POST'])
-def api_s():
-    d = request.json
-    if d.get('k') != MASTER_KEY: return "Err", 403
-    conn = connect_db_with_retry()
-    cur = conn.cursor()
-    cur.execute("INSERT INTO clientes (nome_empresa, pin_hash, limite) VALUES (%s, %s, %s) ON CONFLICT (pin_hash) DO UPDATE SET limite = EXCLUDED.limite, nome_empresa = EXCLUDED.nome_empresa", (d['n'], d['p'], d['l']))
-    conn.commit(); cur.close(); conn.close()
-    return "OK"
-
-@app.route('/api/admin/delete', methods=['POST'])
-def api_d():
-    d = request.json
-    if d.get('k') != MASTER_KEY: return "Err", 403
-    conn = connect_db_with_retry()
-    cur = conn.cursor()
-    cur.execute("DELETE FROM clientes WHERE pin_hash = %s", (d['p'],))
-    conn.commit(); cur.close(); conn.close()
-    return "OK"
-
-@app.route('/api/cli/info')
-def api_i():
-    p = request.args.get('p')
-    conn = connect_db_with_retry()
-    cur = conn.cursor()
-    cur.execute("SELECT nome_empresa, acessos, limite, historico_chaves FROM clientes WHERE pin_hash = %s", (p,))
-    c = cur.fetchone(); cur.close(); conn.close()
-    if c: return jsonify({"n": c[0], "u": c[1], "l": c[2], "h": c[3]})
-    return "Err", 404
-
-@app.route('/api/cli/generate', methods=['POST'])
-def api_g():
-    d = request.json
-    conn = connect_db_with_retry()
-    cur = conn.cursor()
-    cur.execute("SELECT acessos, limite FROM clientes WHERE pin_hash = %s", (d['p'],))
-    c = cur.fetchone()
-    if c and c[0] < c[1]:
-        freqs = ["432Hz", "528Hz", "639Hz", "741Hz", "852Hz", "963Hz"]
-        sel_f = secrets.choice(freqs)
-        n_quantico = f"{sel_f} | {''.join(secrets.choice(string.digits) for _ in range(3))}.{secrets.choice(string.digits*3)}.{secrets.choice(string.digits*2)}"
-        t = f"{datetime.datetime.now().strftime('%d/%m/%Y')} | {str(d.get('o','GERAL')).upper()} | {n_quantico}"
-        cur.execute("UPDATE clientes SET acessos=acessos+1, historico_chaves=array_append(historico_chaves, %s) WHERE pin_hash=%s", (t, d['p']))
-        conn.commit(); cur.close(); conn.close()
-        return "OK"
-    return "Err", 403
-
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)))
