@@ -3,284 +3,211 @@ from flask import Flask, request, jsonify, render_template_string
 from flask_cors import CORS
 
 app = Flask(__name__)
-CORS(app)
+# CORS configurado para permitir a conexão da Extensão Chrome
+CORS(app, resources={r"/api/*": {"origins": "*"}})
 
-# Busca as chaves do Render
-ADMIN_KEY = os.environ.get('admin_key') or os.environ.get('ADMIN_KEY')
+MASTER_KEY = os.environ.get('admin_key') or os.environ.get('ADMIN_KEY')
 
-def get_db_connection():
+def connect_db():
     url = os.environ.get('DATABASE_URL')
     if url and url.startswith("postgres://"):
         url = url.replace("postgres://", "postgresql://", 1)
-    try:
-        return psycopg2.connect(url, sslmode='require')
-    except:
-        return None
+    return psycopg2.connect(url, sslmode='require')
 
 @app.before_request
-def init_db():
-    conn = get_db_connection()
-    if conn:
-        cur = conn.cursor()
-        cur.execute('''
-            CREATE TABLE IF NOT EXISTS clientes (
-                id SERIAL PRIMARY KEY,
-                nome_empresa TEXT NOT NULL,
-                pin_hash TEXT UNIQUE NOT NULL,
-                limite INTEGER DEFAULT 100,
-                acessos INTEGER DEFAULT 0,
-                historico_chaves TEXT[] DEFAULT '{}'
-            );
-        ''')
-        conn.commit(); cur.close(); conn.close()
+def setup_database():
+    conn = connect_db()
+    cur = conn.cursor()
+    cur.execute('''
+        CREATE TABLE IF NOT EXISTS clientes (
+            id SERIAL PRIMARY KEY,
+            nome_empresa TEXT NOT NULL,
+            pin_hash TEXT UNIQUE NOT NULL,
+            limite INTEGER DEFAULT 100,
+            acessos INTEGER DEFAULT 0,
+            historico_chaves TEXT[] DEFAULT '{}'
+        );
+    ''')
+    conn.commit(); cur.close(); conn.close()
 
-HTML_SISTEMA = """
+UI_FINAL = """
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>SISTEMA QUANTUM</title>
+    <title>SISTEMA QUANTUM V4</title>
     <style>
-        :root { --blue: #38bdf8; --dark: #0b1120; --card: #1e293b; }
-        body { background: var(--dark); color: white; font-family: sans-serif; margin: 0; padding: 20px; }
-        .no-print { max-width: 900px; margin: auto; background: var(--card); padding: 25px; border-radius: 15px; border: 1px solid #334155; }
+        :root { --accent: #38bdf8; --bg: #0b1120; --card: #1e293b; }
+        body { background: var(--bg); color: white; font-family: sans-serif; padding: 20px; }
+        .container { max-width: 900px; margin: auto; background: var(--card); padding: 25px; border-radius: 15px; border: 1px solid #334155; }
         input { padding: 12px; margin: 5px; background: #0f172a; border: 1px solid #334155; color: white; border-radius: 8px; }
-        button { padding: 12px 20px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; color: white; margin: 5px; }
+        button { padding: 12px 20px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; color: white; }
         .btn-green { background: #22c55e; } .btn-blue { background: #0284c7; } .btn-red { background: #ef4444; }
         
-        .hist-item { background: #0f172a; padding: 15px; margin: 10px 0; border-radius: 8px; display: flex; align-items: center; border: 1px solid #334155; }
-        .hist-item.selected { border-color: var(--blue); background: #1e293b; }
         table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-        th, td { border: 1px solid #334155; padding: 12px; text-align: left; }
+        th, td { border-bottom: 1px solid #334155; padding: 12px; text-align: left; }
+        .item { background: #0f172a; padding: 15px; margin: 10px 0; border-radius: 8px; display: flex; align-items: center; border: 1px solid #334155; }
+        .item.selected { border-color: var(--accent); background: #1e3a5a; }
 
-        /* --- MODELO DO CERTIFICADO --- */
-        #print_area { display: none; }
         @media print {
-            @page { size: landscape; margin: 0; }
-            body { background: white !important; color: black !important; }
             .no-print { display: none !important; }
-            #print_area { display: block !important; }
-            .certificado { 
-                page-break-after: always; height: 95vh; display: flex; justify-content: center; align-items: center; 
-            }
-            .moldura { 
-                border: 12px solid black; width: 85%; padding: 60px; text-align: center; position: relative;
-            }
-            .titulo { font-size: 32px; font-weight: bold; margin-bottom: 40px; text-transform: uppercase; }
-            .faixa { 
-                background: #f8f9fa !important; border: 1px solid #ddd; padding: 20px; 
-                font-family: monospace; font-size: 26px; font-weight: bold; margin: 20px 0; 
-            }
-            .footer { font-size: 14px; margin-top: 30px; }
+            .cert-page { page-break-after: always; height: 95vh; display: flex; justify-content: center; align-items: center; }
+            .cert-box { border: 12px solid black; width: 85%; padding: 50px; text-align: center; color: black; }
+            .cert-key { background: #f9f9f9 !important; padding: 20px; font-family: monospace; font-size: 22px; font-weight: bold; margin: 20px 0; border: 1px solid #ccc; }
         }
     </style>
 </head>
 <body>
-
-    <div class="no-print">
-        {% if tipo == 'admin' %}
-            <h1>PAINEL MASTER</h1>
-            <input type="password" id="mk" placeholder="Chave Admin">
-            <button class="btn-blue" onclick="listar()">ATUALIZAR LISTA</button>
-            <hr style="border: 0.5px solid #334155; margin: 20px 0;">
+    <div class="container no-print">
+        {% if modo == 'admin' %}
+            <h1>PAINEL ADMIN</h1>
+            <input type="password" id="ak" placeholder="Chave Master">
+            <button class="btn-blue" onclick="listar()">LISTAR CLIENTES</button>
+            <hr style="border:0.5px solid #334155; margin:20px 0;">
             <h3>CADASTRAR / +CREDITOS</h3>
-            <input type="text" id="n" placeholder="Nome da Empresa">
-            <input type="text" id="p" placeholder="PIN (6-8 digitos)" maxlength="8">
-            <input type="number" id="l" placeholder="Total de Créditos">
-            <button class="btn-green" onclick="add()">SALVAR ALTERAÇÕES</button>
-            <div id="lista_admin"></div>
+            <input type="text" id="n" placeholder="Empresa">
+            <input type="text" id="p" placeholder="PIN (6-8 dig)" maxlength="8">
+            <input type="number" id="l" placeholder="Limite">
+            <button class="btn-green" onclick="salvar()">SALVAR / ATUALIZAR</button>
+            <div id="res_adm"></div>
         {% else %}
-            <div id="login_box">
-                <h1>SISTEMA QUANTUM</h1>
+            <div id="login">
+                <h1>QUANTUM LOGIN</h1>
                 <input type="password" id="pin" placeholder="SEU PIN">
-                <button class="btn-blue" onclick="entrar()">ACESSAR PAINEL</button>
+                <button class="btn-blue" onclick="logar()">ENTRAR</button>
             </div>
-            <div id="dash" style="display:none;">
-                <h2 id="c_nome" style="color:var(--blue)"></h2>
-                <p>USO: <b id="uso"></b> / LIMITE: <b id="total"></b></p>
-                <input type="text" id="obs" placeholder="OBSERVAÇÃO">
+            <div id="painel" style="display:none;">
+                <h2 id="emp" style="color:var(--accent)"></h2>
+                <p>Uso: <b id="u"></b> / Limite: <b id="lim"></b></p>
+                <input type="text" id="o" placeholder="Observação">
                 <button class="btn-green" onclick="gerar()">GERAR CHAVE</button>
-                <button class="btn-blue" onclick="imprimir()">🖨️ IMPRIMIR SELECIONADOS</button>
-                <button style="background:#475569" onclick="exportar()">📊 EXPORTAR EXCEL</button>
+                <button class="btn-blue" onclick="window.print()">🖨️ IMPRIMIR CERTIFICADOS</button>
+                <button style="background:#475569" onclick="excel()">📊 EXCEL</button>
                 <br><br>
-                <label><input type="checkbox" onclick="selTudo(this)"> Selecionar Todos</label>
-                <div id="hist_list"></div>
+                <label><input type="checkbox" onclick="tudo(this)"> Selecionar Todos</label>
+                <div id="lista_cli"></div>
             </div>
         {% endif %}
     </div>
-
-    <div id="print_area"></div>
+    <div id="print_area" class="print-only"></div>
 
     <script>
-    let pinAtivo = "";
-
-    // --- FUNÇÕES ADMIN ---
+    // ADMIN
     async function listar() {
-        const k = document.getElementById('mk').value;
-        const res = await fetch('/admin/listar?key=' + k);
-        if(!res.ok) return alert("Chave Admin Incorreta");
-        const dados = await res.json();
-        let h = "<table><tr><th>Empresa</th><th>PIN</th><th>Uso/Limite</th><th>Ação</th></tr>";
-        dados.forEach(c => {
-            h += `<tr><td>${c.n}</td><td>${c.p}</td><td>${c.u}/${c.l}</td>
-            <td><button class="btn-red" onclick="excluir('${c.p}')">Excluir</button></td></tr>`;
-        });
-        document.getElementById('lista_admin').innerHTML = h + "</table>";
+        const k = document.getElementById('ak').value;
+        const r = await fetch('/api/admin/list?k='+k);
+        if(!r.ok) return alert("Erro");
+        const d = await r.json();
+        let h = "<table><tr><th>Empresa</th><th>PIN</th><th>Créditos</th><th>Ação</th></tr>";
+        d.forEach(c => { h += `<tr><td>${c.n}</td><td>${c.p}</td><td>${c.u}/${c.l}</td><td><button class="btn-red" onclick="excluir('${c.p}')">EXCLUIR</button></td></tr>`; });
+        document.getElementById('res_adm').innerHTML = h + "</table>";
     }
-
-    async function add() {
-        const k = document.getElementById('mk').value;
-        const n = document.getElementById('n').value;
-        const p = document.getElementById('p').value;
-        const l = document.getElementById('l').value;
-        if(!n || !p || !l) return alert("Preencha todos os campos");
-        
-        await fetch('/admin/cadastrar', {
-            method:'POST', headers:{'Content-Type':'application/json'},
-            body: JSON.stringify({key:k, n:n, p:p, l:l})
+    async function salvar() {
+        await fetch('/api/admin/save', { method:'POST', headers:{'Content-Type':'application/json'}, 
+            body: JSON.stringify({k:document.getElementById('ak').value, n:document.getElementById('n').value, p:document.getElementById('p').value, l:document.getElementById('l').value}) 
         });
-        alert("Dados salvos!");
         listar();
     }
-
     async function excluir(p) {
-        if(!confirm("Deseja realmente excluir este cliente?")) return;
-        const k = document.getElementById('mk').value;
-        await fetch('/admin/deletar', {
-            method:'DELETE', headers:{'Content-Type':'application/json'},
-            body: JSON.stringify({key:k, pin:p})
-        });
+        if(!confirm("Excluir?")) return;
+        await fetch('/api/admin/delete', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({k:document.getElementById('ak').value, p:p}) });
         listar();
     }
 
-    // --- FUNÇÕES CLIENTE ---
-    async function entrar() {
-        pinAtivo = document.getElementById('pin').value;
-        const res = await fetch('/v1/cliente/dados?pin=' + pinAtivo);
-        if(!res.ok) return alert("PIN Inválido!");
-        const d = await res.json();
-        document.getElementById('login_box').style.display='none';
-        document.getElementById('dash').style.display='block';
-        document.getElementById('c_nome').innerText = d.empresa;
-        document.getElementById('uso').innerText = d.usadas;
-        document.getElementById('total').innerText = d.limite;
-        
+    // CLIENTE
+    let pAtivo = "";
+    async function logar() {
+        pAtivo = document.getElementById('pin').value;
+        const r = await fetch('/api/cli/info?p='+pAtivo);
+        if(!r.ok) return alert("Erro");
+        const d = await r.json();
+        document.getElementById('login').style.display='none';
+        document.getElementById('painel').style.display='block';
+        document.getElementById('emp').innerText = d.n;
+        document.getElementById('u').innerText = d.u;
+        document.getElementById('lim').innerText = d.l;
         let h = "";
-        d.hist.reverse().forEach((t, i) => {
-            let chave = t.split(' | ')[2];
-            h += `<div class="hist-item" id="r-${i}">
-                <input type="checkbox" class="ck" data-key="${chave}" data-full="${t}" onchange="this.parentElement.classList.toggle('selected')">
-                <span style="margin-left:15px">${t}</span>
-            </div>`;
+        d.h.reverse().forEach((t, i) => {
+            h += `<div class="item" id="row-${i}"><input type="checkbox" class="ck" data-key="${t.split(' | ')[2]}" data-full="${t}" onchange="this.parentElement.classList.toggle('selected')"><span style="margin-left:15px">${t}</span></div>`;
         });
-        document.getElementById('hist_list').innerHTML = h;
+        document.getElementById('lista_cli').innerHTML = h;
     }
-
     async function gerar() {
-        const res = await fetch('/v1/cliente/gerar', {
-            method:'POST', headers:{'Content-Type':'application/json'},
-            body: JSON.stringify({pin:pinAtivo, obs:document.getElementById('obs').value})
-        });
-        if(!res.ok) return alert("Erro: Verifique seu limite de créditos.");
-        entrar();
+        await fetch('/api/cli/generate', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({p:pAtivo, o:document.getElementById('o').value}) });
+        logar();
     }
-
-    function selTudo(src) {
-        document.querySelectorAll('.ck').forEach(c => {
-            c.checked = src.checked;
-            c.parentElement.classList.toggle('selected', src.checked);
-        });
+    function tudo(s) { document.querySelectorAll('.ck').forEach(c => { c.checked = s.checked; c.parentElement.classList.toggle('selected', s.checked); }); }
+    function excel() {
+        let csv = "DATA;OBS;CHAVE\\n";
+        document.querySelectorAll('.ck:checked').forEach(c => { csv += c.getAttribute('data-full').replaceAll(" | ", ";") + "\\n"; });
+        const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv'})); a.download = "chaves.csv"; a.click();
     }
-
-    function imprimir() {
-        const selecionados = document.querySelectorAll('.ck:checked');
-        if(selecionados.length === 0) return alert("Selecione as chaves para imprimir!");
-        let html = "";
-        selecionados.forEach(item => {
-            const chave = item.getAttribute('data-key');
-            html += `<div class="certificado"><div class="moldura">
-                <div class="titulo">Certificado de Autenticidade</div>
-                <div class="faixa">${chave}</div>
-                <div class="footer">Este certificado garante a originalidade do software Quantum 2026</div>
-            </div></div>`;
-        });
-        document.getElementById('print_area').innerHTML = html;
-        window.print();
-    }
-
-    function exportar() {
-        let csv = "DATA;LOTE;CHAVE\\n";
+    window.onbeforeprint = () => {
+        let h = "";
         document.querySelectorAll('.ck:checked').forEach(c => {
-            csv += c.getAttribute('data-full').replaceAll(" | ", ";") + "\\n";
+            h += `<div class="cert-page"><div class="cert-box"><h2>Certificado de Autenticidade</h2><div class="cert-key">${c.getAttribute('data-key')}</div><p>Quantum Software 2026 - Original</p></div></div>`;
         });
-        const blob = new Blob([csv], {type:'text/csv'});
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = "chaves_quantum.csv";
-        a.click();
-    }
+        document.getElementById('print_area').innerHTML = h;
+    };
     </script>
 </body>
 </html>
 """
 
 @app.route('/')
-def home(): return render_template_string(HTML_SISTEMA, tipo='login')
+def r_h(): return render_template_string(UI_FINAL, modo='cliente')
 
 @app.route('/painel-secreto-kleber')
-def admin_page(): return render_template_string(HTML_SISTEMA, tipo='admin')
+def r_a(): return render_template_string(UI_FINAL, modo='admin')
 
-@app.route('/admin/listar')
-def list_adm():
-    if request.args.get('key') != ADMIN_KEY: return "Erro", 403
-    conn = get_db_connection(); cur = conn.cursor()
+@app.route('/api/admin/list')
+def api_l():
+    if request.args.get('k') != MASTER_KEY: return "Err", 403
+    conn = connect_db(); cur = conn.cursor()
     cur.execute("SELECT nome_empresa, pin_hash, acessos, limite FROM clientes ORDER BY id DESC")
     r = cur.fetchall(); cur.close(); conn.close()
     return jsonify([{"n": x[0], "p": x[1], "u": x[2], "l": x[3]} for x in r])
 
-@app.route('/admin/cadastrar', methods=['POST'])
-def add_adm():
+@app.route('/api/admin/save', methods=['POST'])
+def api_s():
     d = request.json
-    if d.get('key') != ADMIN_KEY: return "Erro", 403
-    conn = get_db_connection(); cur = conn.cursor()
-    # Atualiza o limite se o PIN já existir (+Créditos)
-    cur.execute('''INSERT INTO clientes (nome_empresa, pin_hash, limite) VALUES (%s, %s, %s)
-                   ON CONFLICT (pin_hash) DO UPDATE SET limite = EXCLUDED.limite, nome_empresa = EXCLUDED.nome_empresa''', 
-                (d['n'], d['p'], d['l']))
+    if d.get('k') != MASTER_KEY: return "Err", 403
+    conn = connect_db(); cur = conn.cursor()
+    cur.execute("INSERT INTO clientes (nome_empresa, pin_hash, limite) VALUES (%s, %s, %s) ON CONFLICT (pin_hash) DO UPDATE SET limite = EXCLUDED.limite, nome_empresa = EXCLUDED.nome_empresa", (d['n'], d['p'], d['l']))
     conn.commit(); cur.close(); conn.close()
     return "OK"
 
-@app.route('/admin/deletar', methods=['DELETE'])
-def del_adm():
+@app.route('/api/admin/delete', methods=['POST'])
+def api_d():
     d = request.json
-    if d.get('key') != ADMIN_KEY: return "Erro", 403
-    conn = get_db_connection(); cur = conn.cursor()
-    cur.execute("DELETE FROM clientes WHERE pin_hash = %s", (d['pin'],))
+    if d.get('k') != MASTER_KEY: return "Err", 403
+    conn = connect_db(); cur = conn.cursor()
+    cur.execute("DELETE FROM clientes WHERE pin_hash = %s", (d['p'],))
     conn.commit(); cur.close(); conn.close()
     return "OK"
 
-@app.route('/v1/cliente/dados')
-def get_cli():
-    pin = request.args.get('pin')
-    conn = get_db_connection(); cur = conn.cursor()
-    cur.execute("SELECT nome_empresa, acessos, limite, historico_chaves FROM clientes WHERE pin_hash = %s", (pin,))
+@app.route('/api/cli/info')
+def api_i():
+    p = request.args.get('p')
+    conn = connect_db(); cur = conn.cursor()
+    cur.execute("SELECT nome_empresa, acessos, limite, historico_chaves FROM clientes WHERE pin_hash = %s", (p,))
     c = cur.fetchone(); cur.close(); conn.close()
-    if c: return jsonify({"empresa": c[0], "usadas": c[1], "limite": c[2], "hist": c[3]})
-    return "Erro", 401
+    if c: return jsonify({"n": c[0], "u": c[1], "l": c[2], "h": c[3]})
+    return "Err", 404
 
-@app.route('/v1/cliente/gerar', methods=['POST'])
-def gen_key():
+@app.route('/api/cli/generate', methods=['POST'])
+def api_g():
     d = request.json
-    conn = get_db_connection(); cur = conn.cursor()
-    cur.execute("SELECT acessos, limite FROM clientes WHERE pin_hash = %s", (d['pin'],))
+    conn = connect_db(); cur = conn.cursor()
+    cur.execute("SELECT acessos, limite FROM clientes WHERE pin_hash = %s", (d['p'],))
     c = cur.fetchone()
     if c and c[0] < c[1]:
-        nk = ''.join(secrets.choice(string.ascii_uppercase + string.digits) for _ in range(30))
-        reg = f"{datetime.datetime.now().strftime('%d/%m/%Y')} | {d.get('obs','GERAL').upper()} | {nk}"
-        cur.execute("UPDATE clientes SET acessos=acessos+1, historico_chaves=array_append(historico_chaves, %s) WHERE pin_hash=%s", (reg, d['pin']))
+        k = ''.join(secrets.choice(string.ascii_uppercase + string.digits) for _ in range(30))
+        t = f"{datetime.datetime.now().strftime('%d/%m/%Y')} | {str(d.get('o','')).upper()} | {k}"
+        cur.execute("UPDATE clientes SET acessos=acessos+1, historico_chaves=array_append(historico_chaves, %s) WHERE pin_hash=%s", (t, d['p']))
         conn.commit(); cur.close(); conn.close()
         return "OK"
-    return "Erro", 403
+    return "Err", 403
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)))
