@@ -5,6 +5,7 @@ from flask_cors import CORS
 app = Flask(__name__)
 CORS(app)
 
+# Chave mestra definida nas variáveis de ambiente do Render
 MASTER_KEY = os.environ.get('ADMIN_KEY') or os.environ.get('admin_key')
 
 def get_db_connection():
@@ -38,11 +39,11 @@ def setup_db():
 CONHECIMENTO = {
     "freqs": ["432Hz", "528Hz", "639Hz", "741Hz", "852Hz", "963Hz"],
     "mantras": [
-        "Eu sou um íman para milagres e abundância.",
-        "Minha vibração está em harmonia com o universo.",
-        "A cura flui através de mim agora.",
-        "Eu confio no processo da vida e na minha intuição.",
-        "A prosperidade é meu estado natural de ser."
+        "A proteção divina envolve este campo energético agora.",
+        "Caminhos abertos e prosperidade fluindo em abundância.",
+        "Toda negatividade é transmutada em luz pura.",
+        "A saúde perfeita se manifesta em cada célula.",
+        "Harmonia cósmica estabelecida neste ambiente."
     ]
 }
 
@@ -51,56 +52,39 @@ HTML_SISTEMA = """
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>QUANTUM SEED - ELITE</title>
+    <title>QUANTUM SEED - ELITE VIBRACIONAL</title>
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Montserrat:wght@300;400;600&display=swap" rel="stylesheet">
     <style>
-        :root { --gold: #b38b4d; --bg: #fdfcf9; --card: #ffffff; --text: #2c2c2c; --border: #eaddca; }
+        :root { --gold: #b38b4d; --bg: #fdfcf9; --text: #1a1a1a; --border: #eaddca; }
         body { background: var(--bg); color: var(--text); font-family: 'Montserrat', sans-serif; margin: 0; padding: 20px; }
         
-        .glass-card { background: var(--card); border: 1px solid var(--border); border-radius: 20px; padding: 25px; box-shadow: 0 10px 30px rgba(179,139,77,0.1); }
+        .glass-card { background: #fff; border: 1px solid var(--border); border-radius: 20px; padding: 25px; box-shadow: 0 10px 30px rgba(0,0,0,0.05); margin-bottom: 20px; }
         h1, h2 { font-family: 'Cinzel', serif; color: var(--gold); text-align: center; }
         
-        input, select { width: 100%; padding: 12px; margin: 8px 0; background: #fff; border: 1px solid var(--border); color: #333; border-radius: 8px; box-sizing: border-box; font-size: 16px; }
-        .btn { padding: 14px 20px; border-radius: 8px; border: none; cursor: pointer; font-weight: bold; transition: 0.3s; text-transform: uppercase; font-size: 13px; }
-        .btn-gold { background: var(--gold); color: white; width: 100%; box-shadow: 0 4px 15px rgba(179,139,77,0.3); }
-        .btn-gold:hover { background: #8e6d3a; transform: translateY(-1px); }
-
-        /* Admin Table */
-        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-        th { color: var(--gold); border-bottom: 2px solid var(--gold); padding: 10px; text-align: left; }
-        td { padding: 12px; border-bottom: 1px solid var(--border); }
-
-        /* Cliente Luxo */
-        .energy-bar { background: #eee; height: 12px; border-radius: 6px; margin: 15px 0; overflow: hidden; border: 1px solid var(--border); }
-        .energy-fill { height: 100%; background: linear-gradient(90deg, #d4af37, #b38b4d); width: 0%; transition: 1.5s cubic-bezier(0.1, 0, 0.3, 1); }
+        input, select { width: 100%; padding: 14px; margin: 8px 0; border: 1px solid var(--border); border-radius: 8px; box-sizing: border-box; font-size: 16px; }
+        .btn { padding: 15px 20px; border-radius: 8px; border: none; cursor: pointer; font-weight: bold; text-transform: uppercase; transition: 0.3s; }
+        .btn-gold { background: var(--gold); color: white; width: 100%; font-family: 'Cinzel'; }
+        .btn-gold:hover { background: #8e6d3a; }
         
-        .history-item { background: #fff; border: 1px solid var(--border); padding: 15px; margin: 10px 0; border-radius: 12px; display: flex; align-items: center; }
-        .history-item:hover { border-color: var(--gold); background: #fdfaf5; }
+        /* Dashboard Admin */
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th { color: var(--gold); border-bottom: 2px solid var(--gold); padding: 10px; text-align: left; font-size: 12px; }
+        td { padding: 12px; border-bottom: 1px solid var(--border); font-size: 14px; }
 
-        /* CERTIFICADO - CORRIGIDO PARA IMPRESSÃO */
+        /* Dashboard Cliente */
+        .energy-bar { background: #eee; height: 12px; border-radius: 6px; margin: 15px 0; overflow: hidden; border: 1px solid var(--border); }
+        .energy-fill { height: 100%; background: linear-gradient(90deg, #d4af37, var(--gold)); width: 0%; transition: 1.5s ease; }
+        .history-item { background: #fff; border: 1px solid var(--border); padding: 15px; margin: 10px 0; border-radius: 12px; display: flex; align-items: center; }
+
+        /* CERTIFICADO - CONFIGURAÇÃO DE IMPRESSÃO */
         #print_area { display: none; }
         @media print {
-            body { background: white !important; padding: 0; margin: 0; }
+            body { background: white !important; }
             .no-print { display: none !important; }
             #print_area { display: block !important; width: 100%; }
-            .cert-page { 
-                height: 100vh; 
-                display: flex; 
-                justify-content: center; 
-                align-items: center; 
-                page-break-after: always;
-                background: white !important;
-            }
-            .cert-box { 
-                border: 15px double #b38b4d; 
-                width: 80%; 
-                padding: 40px; 
-                text-align: center; 
-                color: #1a1a1a !important; 
-                font-family: 'Cinzel', serif;
-                background: white !important;
-            }
-            .cert-freq { font-size: 42px; font-weight: bold; color: #b38b4d; margin: 20px 0; border-top: 2px solid #b38b4d; border-bottom: 2px solid #b38b4d; padding: 15px 0; }
+            .cert-page { height: 100vh; display: flex; justify-content: center; align-items: center; page-break-after: always; background: white; }
+            .cert-box { border: 12px double var(--gold); width: 85%; padding: 50px; text-align: center; color: black; font-family: 'Cinzel', serif; background: white; }
+            .cert-val { font-size: 42px; font-weight: bold; color: var(--gold); margin: 25px 0; border-top: 2px solid var(--gold); border-bottom: 2px solid var(--gold); padding: 15px 0; }
         }
     </style>
 </head>
@@ -108,47 +92,46 @@ HTML_SISTEMA = """
     <div class="no-print" style="max-width: 900px; margin: auto;">
         {% if modo == 'admin' %}
             <div class="glass-card">
-                <h1>GESTÃO MASTER</h1>
-                <div style="text-align:center"><input type="password" id="ak" placeholder="ADMIN_KEY" style="max-width:300px"></div>
-                <button class="btn btn-gold" onclick="listar()" style="max-width:200px; display:block; margin: 10px auto;">SINCRONIZAR</button>
+                <h1>PAINEL MASTER QUANTUM</h1>
+                <input type="password" id="ak" placeholder="CHAVE DE ACESSO ADMIN" style="max-width:300px; display:block; margin:auto; text-align:center;">
+                <button class="btn btn-gold" onclick="listar()" style="max-width:200px; display:block; margin: 15px auto;">SINCRONIZAR REDE</button>
+                
                 <div id="lista_admin"></div>
-                <hr style="border:0; border-top:1px solid var(--border); margin:30px 0;">
-                <h3>ADICIONAR NOVO TERAPEUTA</h3>
-                <input type="text" id="n" placeholder="Nome Completo">
-                <input type="text" id="p" placeholder="Definir PIN (6-8 dig)">
-                <input type="number" id="l" placeholder="Créditos Iniciais">
+
+                <hr style="border:0; border-top:1px solid var(--border); margin:40px 0;">
+                
+                <h2>GERENCIAR TERAPEUTA</h2>
+                <input type="text" id="n" placeholder="Nome do Cliente/Terapeuta">
+                <input type="text" id="p" placeholder="PIN de Acesso (6-8 caracteres)">
+                <input type="number" id="l" placeholder="Limite de Créditos">
                 <select id="st">
                     <option value="Ativo">Status: ATIVO</option>
                     <option value="VIP">Status: VIP (ILIMITADO)</option>
                     <option value="Bloqueado">Status: BLOQUEADO</option>
                 </select>
-                <button class="btn btn-gold" onclick="salvar()">CADASTRAR E ATIVAR</button>
+                <button class="btn btn-gold" onclick="salvar()">SALVAR CONFIGURAÇÃO</button>
             </div>
         {% else %}
-            <div class="glass-card" style="max-width:450px; margin: auto;">
+            <div class="glass-card" style="max-width: 450px; margin: auto;">
                 <h1>QUANTUM SEED</h1>
                 <div id="login_area">
-                    <p style="text-align:center; font-size:12px; opacity:0.7;">ACESSO AO PORTAL VIBRACIONAL</p>
-                    <input type="password" id="pin" placeholder="Seu Código PIN" maxlength="8">
-                    <button class="btn btn-gold" onclick="logar()">ENTRAR NO SISTEMA</button>
+                    <input type="password" id="pin" placeholder="PIN DE ACESSO" maxlength="8">
+                    <button class="btn btn-gold" onclick="logar()">SINTONIZAR PORTAL</button>
                 </div>
                 <div id="dash_area" style="display:none;">
-                    <h2 id="nome_cli" style="font-size:20px; margin-bottom:5px;"></h2>
+                    <h2 id="nome_cli" style="font-size:18px; margin-bottom:5px;"></h2>
                     <div style="display:flex; justify-content:space-between; font-size:11px; font-weight:600;">
-                        <span>ENERGIA DISPONÍVEL</span>
+                        <span>FLUXO DE ENERGIA</span>
                         <span id="txt_saldo"></span>
                     </div>
                     <div class="energy-bar"><div id="fill" class="energy-fill"></div></div>
                     
-                    <input type="text" id="obs" placeholder="Nome do Paciente / Intenção">
-                    <button class="btn btn-gold" id="btn_gerar" onclick="gerar()">GERAR ATIVAÇÃO QUÂNTICA</button>
+                    <input type="text" id="intencao" placeholder="DESCREVA A INTENÇÃO CÓSMICA">
+                    <button class="btn btn-gold" id="btn_gerar" onclick="gerar()">MANIFESTAR INTENÇÃO</button>
                     
-                    <button onclick="window.print()" style="background:none; border:none; color:var(--gold); width:100%; margin-top:20px; cursor:pointer; font-weight:bold; text-decoration:underline;">
-                        IMPRIMIR CERTIFICADOS SELECIONADOS
-                    </button>
+                    <button onclick="window.print()" style="background:none; border:none; color:var(--gold); width:100%; margin-top:20px; cursor:pointer; font-weight:bold; text-decoration:underline;">IMPRIMIR CERTIFICADOS SELECIONADOS</button>
                     
-                    <h4 style="margin-top:30px; border-bottom:1px solid var(--border); padding-bottom:5px;">Histórico Recente</h4>
-                    <div id="lista_cli"></div>
+                    <div id="lista_cli" style="margin-top:25px;"></div>
                 </div>
             </div>
         {% endif %}
@@ -157,20 +140,20 @@ HTML_SISTEMA = """
     <div id="print_area"></div>
 
     <script>
-    // JS DO ADMIN
+    // --- LÓGICA ADMIN ---
     async function listar() {
         const k = document.getElementById('ak').value;
         const res = await fetch(`/api/admin/list?k=${k}`);
-        if(!res.ok) return alert("Chave incorreta.");
+        if(!res.ok) return alert("Acesso Negado.");
         const data = await res.json();
-        let h = "<table><tr><th>NOME</th><th>SALDO</th><th>AÇÕES</th></tr>";
+        let h = "<table><tr><th>TERAPEUTA</th><th>STATUS/SALDO</th><th>AÇÕES</th></tr>";
         data.forEach(c => {
             h += `<tr>
                 <td><b>${c.n}</b><br><small>${c.p}</small></td>
-                <td>${c.u}/${c.l}<br><small>${c.s}</small></td>
+                <td>${c.s}<br>${c.u}/${c.l}</td>
                 <td>
-                    <button class="btn" style="background:#eee; color:#333; padding:5px 10px;" onclick="addCr('${c.p}',50)">+50</button>
-                    <button class="btn" style="background:#ffeded; color:red; padding:5px 10px;" onclick="remover('${c.p}')">X</button>
+                    <button class="btn" style="background:#f0f0f0; padding:5px 10px;" onclick="addCr('${c.p}',50)">+50</button>
+                    <button class="btn" style="background:#ffebee; color:red; padding:5px 10px;" onclick="remover('${c.p}')">X</button>
                 </td>
             </tr>`;
         });
@@ -185,7 +168,7 @@ HTML_SISTEMA = """
     async function salvar() {
         const payload = { k:document.getElementById('ak').value, n:document.getElementById('n').value, p:document.getElementById('p').value, l:parseInt(document.getElementById('l').value), s:document.getElementById('st').value };
         await fetch('/api/admin/save', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) });
-        alert("Salvo!"); listar();
+        listar();
     }
 
     async function remover(pin) {
@@ -195,18 +178,17 @@ HTML_SISTEMA = """
         }
     }
 
-    // JS DO CLIENTE
+    // --- LÓGICA CLIENTE ---
     async function logar() {
         const p = document.getElementById('pin').value;
-        const res = await fetch(`/api/cli/info?p=${p}`, {cache: "no-store"});
-        if(!res.ok) return alert("PIN Inválido ou bloqueado.");
+        const res = await fetch(`/api/cli/info?p=${p}`);
+        if(!res.ok) return alert("PIN Inválido.");
         const d = await res.json();
-        if(d.s === 'Bloqueado') return alert("Acesso suspenso.");
+        if(d.s === 'Bloqueado') return alert("Acesso Bloqueado.");
 
         document.getElementById('login_area').style.display='none';
         document.getElementById('dash_area').style.display='block';
         document.getElementById('nome_cli').innerText = d.n;
-        
         const saldo = (d.s === 'VIP') ? 'ILIMITADO' : (d.l - d.u);
         document.getElementById('txt_saldo').innerText = saldo;
         document.getElementById('fill').style.width = (d.s === 'VIP') ? '100%' : ((d.l-d.u)/d.l*100) + "%";
@@ -215,24 +197,22 @@ HTML_SISTEMA = """
         if(d.h) d.h.reverse().forEach(item => {
             const pts = item.split(' | ');
             h += `<div class="history-item">
-                <input type="checkbox" class="ck" data-full="${item}" style="margin-right:12px; width:18px; height:18px;">
-                <div style="flex-grow:1">
-                    <div style="font-weight:700;">${pts[1]}</div>
-                    <div style="font-size:11px; color:#b38b4d;">${pts[2]} • ${pts[0]}</div>
+                <input type="checkbox" class="ck" data-full="${item}" style="margin-right:12px; width:20px; height:20px;">
+                <div>
+                    <div style="font-weight:700; color:var(--gold);">${pts[1]}</div>
+                    <div style="font-size:11px;">${pts[2]} • Validade: ${pts[4]}</div>
                 </div>
             </div>`;
         });
-        document.getElementById('lista_cli').innerHTML = h || "<p style='font-size:12px; opacity:0.5;'>Nenhuma ativação.</p>";
+        document.getElementById('lista_cli').innerHTML = h;
     }
 
     async function gerar() {
         const p = document.getElementById('pin').value;
-        const o = document.getElementById('obs').value || "GERAL";
-        const btn = document.getElementById('btn_gerar');
-        btn.disabled = true;
-        const res = await fetch('/api/cli/generate', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({p:p, o:o}) });
-        if(res.ok) { document.getElementById('obs').value = ""; logar(); } else { alert("Sem saldo."); }
-        btn.disabled = false;
+        const i = document.getElementById('intencao').value;
+        if(!i) return alert("Defina a Intenção Cósmica.");
+        const res = await fetch('/api/cli/generate', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({p:p, i:i}) });
+        if(res.ok) { document.getElementById('intencao').value = ""; logar(); } else { alert("Saldo insuficiente."); }
     }
 
     window.onbeforeprint = () => {
@@ -240,13 +220,14 @@ HTML_SISTEMA = """
         document.querySelectorAll('.ck:checked').forEach(c => {
             const p = c.getAttribute('data-full').split(' | ');
             h += `<div class="cert-page"><div class="cert-box">
-                <p style="letter-spacing:5px; font-size:14px; margin:0;">CERTIFICADO DE SINTONIA</p>
-                <h1 style="font-size:35px; color:#000; margin:10px 0;">QUANTUM SEED</h1>
-                <p style="font-size:18px; margin-top:30px;">Frequência Manifestada para:</p>
+                <p style="letter-spacing:5px; font-size:14px;">CONSAGRAÇÃO VIBRACIONAL</p>
+                <h1 style="font-size:40px; margin:15px 0;">QUANTUM SEED</h1>
+                <p style="font-size:18px; margin-top:35px;">Intenção Cósmica Manifestada:</p>
                 <h2 style="font-size:32px; color:#b38b4d;">${p[1]}</h2>
-                <div class="cert-freq">${p[2]}</div>
-                <p style="font-style:italic; font-size:20px;">"${p[3]}"</p>
-                <p style="margin-top:40px; font-size:12px;">Sintonia válida por 21 dias. Expira em: ${p[4]}</p>
+                <div class="cert-val">${p[2]}</div>
+                <p style="font-style:italic; font-size:22px; padding: 0 20px;">"${p[3]}"</p>
+                <p style="margin-top:50px; font-size:15px;">Ciclo de Ativação Válido até: <b>${p[4]}</b></p>
+                <p style="font-size:10px; opacity:0.6; margin-top:15px;">A renovação deve ser feita ao fim do ciclo para manutenção da egrégora.</p>
             </div></div>`;
         });
         document.getElementById('print_area').innerHTML = h;
@@ -319,10 +300,16 @@ def api_g():
     cur.execute("SELECT acessos, limite, status FROM clientes WHERE pin_hash = %s", (d['p'],))
     c = cur.fetchone()
     if c and (c[2] == 'VIP' or c[0] < c[1]):
+        intencao_texto = str(d.get('i','GERAL')).upper()
+        # LÓGICA DE DIAS: Saúde 90, Outros 180
+        dias = 180
+        if any(x in intencao_texto for x in ["SAUDE", "CURA", "ENFERMO", "HOSPITAL", "SAÚDE"]):
+            dias = 90
+            
         f = random.choice(CONHECIMENTO["freqs"])
         m = random.choice(CONHECIMENTO["mantras"])
-        val = (datetime.datetime.now() + datetime.timedelta(days=21)).strftime('%d/%m/%Y')
-        res = f"{datetime.datetime.now().strftime('%d/%m/%Y')} | {str(d.get('o','GERAL')).upper()} | {f} | {m} | {val}"
+        val = (datetime.datetime.now() + datetime.timedelta(days=dias)).strftime('%d/%m/%Y')
+        res = f"{datetime.datetime.now().strftime('%d/%m/%Y')} | {intencao_texto} | {f} | {m} | {val}"
         cur.execute("UPDATE clientes SET acessos=acessos+1, historico_chaves=array_append(historico_chaves, %s) WHERE pin_hash=%s", (res, d['p']))
         conn.commit(); cur.close(); conn.close()
         return "OK"
