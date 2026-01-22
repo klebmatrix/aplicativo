@@ -1,46 +1,198 @@
-import os, secrets, string, psycopg2, datetime
+import os
+import secrets
+import string
+import psycopg2
+from datetime import datetime
 from flask import Flask, request, jsonify, render_template_string
 from flask_cors import CORS
 
 app = Flask(__name__)
-CORS(app)
 
-# Busca a chave (tenta minúsculo e maiúsculo para não ter erro)
-admin_key_env = os.environ.get('admin_key') or os.environ.get('ADMIN_KEY')
+# CONFIGURAÇÃO DE CORS PARA LIBERAR A EXTENSÃO
+# O parâmetro 'origins': '*' permite que a extensão Chrome se conecte sem bloqueios
+CORS(app, resources={r"/*": {"origins": "*"}})
+
+admin_key = os.environ.get('admin_key')
 
 def get_db_connection():
-    # Busca a URL do banco (tenta todas as formas que o Render usa)
-    url = os.environ.get('DATABASE_URL') or os.environ.get('database_url')
-    if not url: 
-        print("ERRO: DATABASE_URL não encontrada no Render!")
-        return None
-    
-    # Correção para o SQLAlchemy/Psycopg2
-    if url.startswith("postgres://"):
-        url = url.replace("postgres://", "postgresql://", 1)
-    
-    try:
-        return psycopg2.connect(url, sslmode='require')
-    except Exception as e:
-        print(f"ERRO DE CONEXÃO: {e}")
-        return None
+    url = os.environ.get('DATABASE_URL')
+    if url and url.startswith("postgres://"):
+        url = url.replace("postgres://", "postgresql://", 1)
+    return psycopg2.connect(url, sslmode='require')
 
-@app.before_request
-def init_db():
-    conn = get_db_connection()
-    if conn:
-        cur = conn.cursor()
-        cur.execute('''
-            CREATE TABLE IF NOT EXISTS clientes (
-                id SERIAL PRIMARY KEY,
-                nome_empresa TEXT NOT NULL,
-                pin_hash TEXT UNIQUE NOT NULL,
-                limite INTEGER DEFAULT 100,
-                acessos INTEGER DEFAULT 0,
-                historico_chaves TEXT[] DEFAULT '{}'
-            );
-        ''')
-        conn.commit()
-        cur.close(); conn.close()
+def generate_quantum_key(length=30):
+    chars = string.ascii_uppercase + string.digits
+    return ''.join(secrets.choice(chars) for _ in range(length))
 
-# ... (restante do HTML permanece o mesmo do anterior) ...
+HTML_SISTEMA = """
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>KEYQUANTUM | Sistema Oficial</title>
+    <style>
+        body { background: #0b1120; color: white; font-family: sans-serif; text-align: center; padding: 20px; }
+        .container { background: #1e293b; padding: 30px; border-radius: 20px; display: inline-block; width: 95%; max-width: 600px; border: 1px solid #334155; }
+        h1 { color: #38bdf8; letter-spacing: 2px; }
+        input { padding: 12px; margin: 10px 0; background: #0f172a; border: 1px solid #334155; color: white; border-radius: 8px; width: 85%; }
+        button { padding: 12px 25px; background: #0284c7; border: none; color: white; cursor: pointer; border-radius: 8px; font-weight: bold; }
+        .btn-main { background: #22c55e; width: 90%; font-size: 1.1rem; margin-top: 15px; }
+        .card { background: #0f172a; padding: 20px; border-radius: 15px; text-align: left; margin-top: 20px; border-top: 4px solid #38bdf8; }
+        .key-display { background: #ffffff; color: #0f172a; padding: 15px; font-family: monospace; border-radius: 8px; margin: 15px 0; word-break: break-all; font-weight: bold; text-align: center; font-size: 1.2rem; }
+        .hist-item { background: #1e293b; padding: 12px; margin-top: 10px; border-radius: 8px; font-size: 11px; border: 1px solid #334155; }
+        table { width: 100%; margin-top: 20px; border-collapse: collapse; font-size: 13px; }
+        th, td { border: 1px solid #334155; padding: 10px; text-align: left; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        {% if tipo == 'admin' %}
+            <h2 style="color:#38bdf8">ADMIN | KEYQUANTUM</h2>
+            <input type="password" id="mestre" placeholder="Chave Mestre">
+            <button onclick="listar()">LISTAR CLIENTES</button>
+            <hr style="border:0; border-top:1px solid #334155; margin:30px 0;">
+            <input type="text" id="n" placeholder="Nome Empresa">
+            <input type="text" id="p" placeholder="PIN de 6 dígitos">
+            <input type="number" id="l" placeholder="Créditos" value="10">
+            <button onclick="add()" style="background:#22c55e; width: 85%;">ATIVAR</button>
+            <div id="lista_admin"></div>
+        {% else %}
+            <h1>KEYQUANTUM</h1>
+            <div id="login_area">
+                <input type="password" id="pin" placeholder="DIGITE SEU PIN">
+                <button onclick="entrar_painel()" style="width:85%">ENTRAR NO PAINEL</button>
+            </div>
+            <div id="cliente_dashboard" style="display:none;">
+                <div class="card">
+                    <h2 id="msg_boas_vindas" style="margin:0; color:#38bdf8"></h2>
+                    <p>Saldo: <b id="uso">0</b> / <b id="total">0</b></p>
+                    <input type="text" id="obs_input" placeholder="Observação / Lote" style="width:90%">
+                    <button class="btn-main" onclick="gerar_chave()">GERAR CHAVE (30 DÍGITOS)</button>
+                    <div id="area_chave_nova"></div>
+                    <h4 style="margin-top:25px; color:#94a3b8">HISTÓRICO:</h4>
+                    <div id="historico_lista"></div>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+
+    <script>
+    let pin_atual = "";
+    async function entrar_painel() {
+        pin_atual = document.getElementById('pin').value;
+        const res = await fetch('/v1/cliente/dados?pin=' + pin_atual);
+        if(res.ok) { await atualizar_dados_cliente(); } else { alert("PIN Inválido!"); }
+    }
+    async function atualizar_dados_cliente() {
+        const res = await fetch('/v1/cliente/dados?pin=' + pin_atual);
+        const d = await res.json();
+        document.getElementById('login_area').style.display = 'none';
+        document.getElementById('cliente_dashboard').style.display = 'block';
+        document.getElementById('msg_boas_vindas').innerText = "Olá, " + d.empresa;
+        document.getElementById('uso').innerText = d.usadas;
+        document.getElementById('total').innerText = d.limite;
+        let histHtml = "";
+        d.hist.reverse().forEach(h => {
+            histHtml += `<div class="hist-item">${h} <button onclick="navigator.clipboard.writeText('${h.split(' | ')[2]}');alert('Copiado')">COPIAR</button></div>`;
+        });
+        document.getElementById('historico_lista').innerHTML = histHtml;
+    }
+    async function gerar_chave() {
+        const obs = document.getElementById('obs_input').value || "WEB";
+        const res = await fetch('/v1/cliente/gerar', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ pin: pin_atual, obs: obs })
+        });
+        const d = await res.json();
+        if(res.ok) {
+            document.getElementById('area_chave_nova').innerHTML = `<div class="key-display">${d.key}</div>`;
+            await atualizar_dados_cliente();
+        } else { alert("Sem créditos!"); }
+    }
+    async function add() {
+        const res = await fetch('/admin/cadastrar', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({key: document.getElementById('mestre').value, n: document.getElementById('n').value, p: document.getElementById('p').value, l: document.getElementById('l').value})
+        });
+        const d = await res.json(); alert(d.msg || d.erro); listar();
+    }
+    async function listar() {
+        const k = document.getElementById('mestre').value;
+        const res = await fetch('/admin/listar?key=' + k);
+        const dados = await res.json();
+        let html = "<table><tr><th>Empresa</th><th>PIN</th><th>Ação</th></tr>";
+        dados.forEach(c => { html += `<tr><td>${c.n}</td><td>${c.p}</td><td><button onclick="apagar('${c.p}')">DEL</button></td></tr>`; });
+        document.getElementById('lista_admin').innerHTML = html + "</table>";
+    }
+    async function apagar(p) {
+        if(!confirm("Apagar?")) return;
+        await fetch('/admin/deletar', {method: 'DELETE', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({key: document.getElementById('mestre').value, pin: p})});
+        listar();
+    }
+    </script>
+</body>
+</html>
+"""
+
+@app.route('/')
+def home(): return render_template_string(HTML_SISTEMA, tipo='login')
+
+@app.route('/painel-secreto-kleber')
+def admin_page(): return render_template_string(HTML_SISTEMA, tipo='admin')
+
+@app.route('/v1/cliente/dados')
+def get_dados():
+    pin = request.args.get('pin')
+    conn = get_db_connection(); cur = conn.cursor()
+    cur.execute("SELECT nome_empresa, acessos, limite, historico_chaves FROM clientes WHERE pin_hash = %s", (pin,))
+    c = cur.fetchone(); cur.close(); conn.close()
+    if c: return jsonify({"empresa": c[0], "usadas": c[1], "limite": c[2], "hist": c[3]})
+    return jsonify({"erro": "n"}), 404
+
+@app.route('/v1/cliente/gerar', methods=['POST'])
+def gerar():
+    data = request.json
+    pin = data.get('pin')
+    obs = data.get('obs', 'S/ OBS').upper()
+    conn = get_db_connection(); cur = conn.cursor()
+    cur.execute("SELECT acessos, limite FROM clientes WHERE pin_hash = %s", (pin,))
+    c = cur.fetchone()
+    if c and c[0] < c[1]:
+        nk = generate_quantum_key(30)
+        registro = f"{datetime.now().strftime('%d/%m %H:%M')} | {obs} | {nk}"
+        cur.execute("UPDATE clientes SET acessos=acessos+1, historico_chaves=array_append(historico_chaves, %s) WHERE pin_hash=%s", (registro, pin))
+        conn.commit(); cur.close(); conn.close()
+        return jsonify({"key": nk})
+    cur.close(); conn.close()
+    return jsonify({"erro": "Full"}), 403
+
+@app.route('/admin/cadastrar', methods=['POST'])
+def add():
+    d = request.json
+    if not ADMIN_KEY or d.get('key') != ADMIN_KEY: return jsonify({"erro": "Erro"}), 403
+    conn = get_db_connection(); cur = conn.cursor()
+    cur.execute("INSERT INTO clientes (nome_empresa, pin_hash, limite, historico_chaves) VALUES (%s, %s, %s, '{}')", (d['n'], d['p'], d['l']))
+    conn.commit(); cur.close(); conn.close()
+    return jsonify({"msg": "OK"})
+
+@app.route('/admin/listar')
+def list_all():
+    if not ADMIN_KEY or request.args.get('key') != ADMIN_KEY: return jsonify([]), 403
+    conn = get_db_connection(); cur = conn.cursor()
+    cur.execute("SELECT nome_empresa, pin_hash, COALESCE(acessos,0), COALESCE(limite,0) FROM clientes ORDER BY id DESC")
+    r = cur.fetchall(); cur.close(); conn.close()
+    return jsonify([{"n": x[0], "p": x[1], "u": x[2], "l": x[3]} for x in r])
+
+@app.route('/admin/deletar', methods=['DELETE'])
+def deletar_cli():
+    d = request.json
+    if not ADMIN_KEY or d.get('key') != ADMIN_KEY: return jsonify({"erro": "Erro"}), 403
+    conn = get_db_connection(); cur = conn.cursor()
+    cur.execute("DELETE FROM clientes WHERE pin_hash = %s", (d.get('pin'),))
+    conn.commit(); cur.close(); conn.close()
+    return jsonify({"msg": "OK"})
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)))
