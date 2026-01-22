@@ -5,17 +5,14 @@ from flask_cors import CORS
 app = Flask(__name__)
 CORS(app)
 
-# Pega as chaves do Render
 ADMIN_KEY = os.environ.get('admin_key') or os.environ.get('ADMIN_KEY')
 
 def get_db_connection():
     url = os.environ.get('DATABASE_URL')
     if url and url.startswith("postgres://"):
         url = url.replace("postgres://", "postgresql://", 1)
-    try:
-        return psycopg2.connect(url, sslmode='require')
-    except:
-        return None
+    try: return psycopg2.connect(url, sslmode='require')
+    except: return None
 
 @app.before_request
 def init_db():
@@ -32,46 +29,96 @@ def init_db():
                 historico_chaves TEXT[] DEFAULT '{}'
             );
         ''')
-        conn.commit()
-        cur.close(); conn.close()
+        conn.commit(); cur.close(); conn.close()
 
 HTML_SISTEMA = """
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>SISTEMA QUANTUM 2026</title>
+    <title>SISTEMA QUANTUM</title>
     <style>
-        :root { --blue: #38bdf8; --dark: #0b1120; --card: #1e293b; }
-        body { background: var(--dark); color: white; font-family: sans-serif; padding: 20px; }
-        .container { max-width: 900px; margin: auto; background: var(--card); padding: 25px; border-radius: 15px; }
-        input, select { padding: 10px; margin: 5px; background: #0f172a; border: 1px solid #334155; color: white; border-radius: 5px; }
-        button { padding: 10px 15px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; color: white; }
+        :root { --blue: #38bdf8; --dark: #0b1120; }
+        body { background: var(--dark); color: white; font-family: sans-serif; margin: 0; padding: 20px; }
+        .no-print { max-width: 900px; margin: auto; background: #1e293b; padding: 25px; border-radius: 15px; }
+        input { padding: 10px; margin: 5px; background: #0f172a; border: 1px solid #334155; color: white; border-radius: 5px; }
+        button { padding: 10px 15px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; color: white; margin: 5px; }
         .btn-green { background: #22c55e; } .btn-blue { background: #0284c7; } .btn-red { background: #ef4444; }
-        .hist-item { background: #0f172a; padding: 10px; margin: 5px 0; border-radius: 8px; display: flex; align-items: center; }
-        .hist-item.selected { border: 1px solid var(--blue); background: #1e293b; }
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-        th, td { border: 1px solid #334155; padding: 10px; text-align: left; }
+        
+        /* Estilo da Lista no Navegador */
+        .hist-item { background: #0f172a; padding: 15px; margin: 10px 0; border-radius: 8px; display: flex; align-items: center; border: 1px solid #334155; }
+        .hist-item.selected { border-color: var(--blue); background: #1e293b; }
+
+        /* --- MODELO DO CERTIFICADO (PARA IMPRESSÃO) --- */
+        .certificado-container { display: none; } /* Esconde no navegador */
+
         @media print {
-            .no-print, button, input, h1 { display: none !important; }
-            .hist-item:not(.selected) { display: none !important; }
-            body { background: white; color: black; }
-            .hist-item { border: 1px solid black; }
+            @page { size: landscape; margin: 0; }
+            body { background: white !important; padding: 0; margin: 0; }
+            .no-print { display: none !important; }
+            
+            .certificado-container { 
+                display: block !important;
+                page-break-after: always;
+                height: 90vh;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                align-items: center;
+                padding: 40px;
+            }
+
+            .moldura {
+                border: 10px solid black;
+                width: 90%;
+                height: 250px;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                align-items: center;
+                position: relative;
+            }
+
+            .cert-titulo {
+                font-size: 24px;
+                font-weight: bold;
+                color: black;
+                margin-bottom: 30px;
+                text-transform: uppercase;
+            }
+
+            .cert-faixa {
+                background: #f0f0f0 !important;
+                width: 100%;
+                padding: 15px 0;
+                text-align: center;
+                font-family: monospace;
+                font-size: 22px;
+                font-weight: bold;
+                color: black;
+                letter-spacing: 2px;
+            }
+
+            .cert-subtitulo {
+                font-size: 14px;
+                color: black;
+                margin-top: 20px;
+            }
         }
     </style>
 </head>
 <body>
-    <div class="container">
+
+    <div class="no-print">
         {% if tipo == 'admin' %}
             <h1>PAINEL MASTER</h1>
             <input type="password" id="mk" placeholder="Chave Admin">
-            <button class="btn-blue" onclick="listar()">ATUALIZAR LISTA</button>
+            <button class="btn-blue" onclick="listar()">LISTAR</button>
             <hr>
-            <h3>NOVO CLIENTE / EDITAR</h3>
             <input type="text" id="n" placeholder="Empresa">
             <input type="text" id="p" placeholder="PIN (6-8 dig)" maxlength="8">
-            <input type="number" id="l" placeholder="Créditos" value="100">
-            <button class="btn-green" onclick="add()">SALVAR/ATUALIZAR</button>
+            <input type="number" id="l" placeholder="Créditos">
+            <button class="btn-green" onclick="add()">SALVAR</button>
             <div id="lista_admin"></div>
         {% else %}
             <div id="login_box">
@@ -81,70 +128,44 @@ HTML_SISTEMA = """
             </div>
             <div id="dash" style="display:none;">
                 <h2 id="c_nome"></h2>
-                <p>Uso: <b id="uso"></b> / Limite: <b id="total"></b></p>
-                <div class="no-print">
-                    <input type="text" id="obs" placeholder="Observação">
-                    <button class="btn-green" onclick="gerar()">GERAR CHAVE</button>
-                    <button class="btn-blue" onclick="window.print()">🖨️ IMPRIMIR SELECIONADOS</button>
-                    <button style="background:#475569" onclick="exportar()">📊 EXCEL</button>
-                    <br><br>
-                    <label><input type="checkbox" onclick="selTudo(this)"> Selecionar Todos</label>
-                </div>
+                <p>Status: <b id="uso"></b> / <b id="total"></b></p>
+                <input type="text" id="obs" placeholder="Observação do Certificado">
+                <button class="btn-green" onclick="gerar()">GERAR NOVA CHAVE</button>
+                <button class="btn-blue" onclick="imprimir()">🖨️ IMPRIMIR CERTIFICADO (PDF)</button>
+                <br><br>
+                <label><input type="checkbox" onclick="selTudo(this)"> Selecionar Todos</label>
                 <div id="hist_list"></div>
             </div>
         {% endif %}
     </div>
 
-    <script>
-    // --- ADMIN ---
-    async function listar() {
-        const k = document.getElementById('mk').value;
-        const res = await fetch('/admin/listar?key=' + k);
-        if(!res.ok) return alert("Erro de acesso");
-        const dados = await res.json();
-        let h = "<table><tr><th>Empresa</th><th>PIN</th><th>Uso/Limite</th><th>Ações</th></tr>";
-        dados.forEach(c => {
-            h += `<tr><td>${c.n}</td><td>${c.p}</td><td>${c.u}/${c.l}</td>
-            <td><button class="btn-red" onclick="excluir('${c.p}')">Excluir</button></td></tr>`;
-        });
-        document.getElementById('lista_admin').innerHTML = h + "</table>";
-    }
-    async function add() {
-        const k = document.getElementById('mk').value;
-        await fetch('/admin/cadastrar', {
-            method:'POST', headers:{'Content-Type':'application/json'},
-            body: JSON.stringify({key:k, n:document.getElementById('n').value, p:document.getElementById('p').value, l:document.getElementById('l').value})
-        });
-        listar();
-    }
-    async function excluir(p) {
-        if(!confirm("Deletar cliente?")) return;
-        const k = document.getElementById('mk').value;
-        await fetch('/admin/deletar', {method:'DELETE', headers:{'Content-Type':'application/json'}, body:JSON.stringify({key:k, pin:p})});
-        listar();
-    }
+    <div id="print_area"></div>
 
-    // --- CLIENTE ---
+    <script>
     let pinAtivo = "";
+
     async function entrar() {
         pinAtivo = document.getElementById('pin').value;
         const res = await fetch('/v1/cliente/dados?pin=' + pinAtivo);
-        if(!res.ok) return alert("PIN incorreto");
+        if(!res.ok) return alert("PIN Inválido");
         const d = await res.json();
         document.getElementById('login_box').style.display='none';
         document.getElementById('dash').style.display='block';
         document.getElementById('c_nome').innerText = d.empresa;
         document.getElementById('uso').innerText = d.usadas;
         document.getElementById('total').innerText = d.limite;
+        
         let h = "";
         d.hist.reverse().forEach((t, i) => {
+            let chaveOnly = t.split(' | ')[2];
             h += `<div class="hist-item" id="r-${i}">
-                <input type="checkbox" class="ck" onchange="document.getElementById('r-${i}').classList.toggle('selected')">
-                <span style="margin-left:10px">${t}</span>
+                <input type="checkbox" class="ck" data-key="${chaveOnly}" onchange="this.parentElement.classList.toggle('selected')">
+                <span style="margin-left:15px">${t}</span>
             </div>`;
         });
         document.getElementById('hist_list').innerHTML = h;
     }
+
     async function gerar() {
         await fetch('/v1/cliente/gerar', {
             method:'POST', headers:{'Content-Type':'application/json'},
@@ -152,22 +173,62 @@ HTML_SISTEMA = """
         });
         entrar();
     }
+
     function selTudo(src) {
         document.querySelectorAll('.ck').forEach(c => {
             c.checked = src.checked;
             c.parentElement.classList.toggle('selected', src.checked);
         });
     }
-    function exportar() {
-        let csv = "DATA;LOTE;CHAVE\\n";
-        document.querySelectorAll('.hist-item.selected span').forEach(s => {
-            csv += s.innerText.replaceAll(" | ", ";") + "\\n";
+
+    function imprimir() {
+        const selecionados = document.querySelectorAll('.ck:checked');
+        if(selecionados.length === 0) return alert("Selecione ao menos uma chave!");
+
+        let htmlFinal = "";
+        selecionados.forEach(item => {
+            const chave = item.getAttribute('data-key');
+            htmlFinal += `
+                <div class="certificado-container">
+                    <div class="moldura">
+                        <div class="cert-titulo">Certificado de Autenticidade</div>
+                        <div class="cert-faixa">------- ${chave} .........</div>
+                        <div class="cert-subtitulo">Assinatura Digital de 30 Caracteres</div>
+                    </div>
+                </div>
+            `;
         });
-        const blob = new Blob([csv], {type:'text/csv'});
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = "relatorio.csv";
-        a.click();
+
+        document.getElementById('print_area').innerHTML = htmlFinal;
+        window.print();
+    }
+
+    // --- ADMIN ---
+    async function listar() {
+        const k = document.getElementById('mk').value;
+        const res = await fetch('/admin/listar?key=' + k);
+        const dados = await res.json();
+        let h = "<table>";
+        dados.forEach(c => {
+            h += `<tr><td>${c.n}</td><td>${c.p}</td><td>${c.u}/${c.l}</td>
+            <td><button class="btn-red" onclick="excluir('${c.p}')">Excluir</button></td></tr>`;
+        });
+        document.getElementById('lista_admin').innerHTML = h + "</table>";
+    }
+
+    async function add() {
+        await fetch('/admin/cadastrar', {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({key:document.getElementById('mk').value, n:document.getElementById('n').value, p:document.getElementById('p').value, l:document.getElementById('l').value})
+        });
+        listar();
+    }
+
+    async function excluir(p) {
+        if(confirm("Excluir?")) {
+            await fetch('/admin/deletar', {method:'DELETE', headers:{'Content-Type':'application/json'}, body:JSON.stringify({key:document.getElementById('mk').value, pin:p})});
+            listar();
+        }
     }
     </script>
 </body>
@@ -193,10 +254,8 @@ def add_adm():
     d = request.json
     if d.get('key') != ADMIN_KEY: return "Erro", 403
     conn = get_db_connection(); cur = conn.cursor()
-    # ON CONFLICT: Se o PIN já existir, ele atualiza o Limite (+Créditos)
     cur.execute('''INSERT INTO clientes (nome_empresa, pin_hash, limite) VALUES (%s, %s, %s)
-                   ON CONFLICT (pin_hash) DO UPDATE SET limite = EXCLUDED.limite, nome_empresa = EXCLUDED.nome_empresa''', 
-                (d['n'], d['p'], d['l']))
+                   ON CONFLICT (pin_hash) DO UPDATE SET limite = EXCLUDED.limite''', (d['n'], d['p'], d['l']))
     conn.commit(); cur.close(); conn.close()
     return "OK"
 
@@ -225,12 +284,12 @@ def gen_key():
     cur.execute("SELECT acessos, limite FROM clientes WHERE pin_hash = %s", (d['pin'],))
     c = cur.fetchone()
     if c and c[0] < c[1]:
-        nk = ''.join(secrets.choice(string.ascii_uppercase + string.digits) for _ in range(15))
-        reg = f"{datetime.datetime.now().strftime('%d/%m/%Y %H:%M')} | {d.get('obs','GERAL').upper()} | {nk}"
+        nk = ''.join(secrets.choice(string.ascii_uppercase + string.digits) for _ in range(30))
+        reg = f"{datetime.datetime.now().strftime('%d/%m/%Y')} | {d.get('obs','').upper()} | {nk}"
         cur.execute("UPDATE clientes SET acessos=acessos+1, historico_chaves=array_append(historico_chaves, %s) WHERE pin_hash=%s", (reg, d['pin']))
         conn.commit(); cur.close(); conn.close()
         return "OK"
-    return "Limite atingido", 403
+    return "Erro", 403
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)))
