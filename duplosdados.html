@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Dado Híbrido 3D - Gerador de PIN</title>
+    <style>
+        body {
+            background: radial-gradient(circle, #1a1a2e 0%, #020205 100%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            overflow: hidden;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #00ff88;
+        }
+
+        @keyframes constantSpin {
+            from { transform: rotateX(0deg) rotateY(0deg); }
+            to { transform: rotateX(360deg) rotateY(1440deg); }
+        }
+
+        .scene {
+            width: 220px;
+            height: 220px;
+            perspective: 1200px;
+            cursor: pointer;
+            margin-bottom: 40px;
+        }
+
+        .cube {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            transform-style: preserve-3d;
+            animation: constantSpin 3s linear infinite;
+        }
+
+        .cube.stopping {
+            animation: none;
+            transition: transform 1.5s cubic-bezier(0.15, 0.85, 0.35, 1);
+        }
+
+        .face {
+            position: absolute;
+            width: 220px;
+            height: 220px;
+            background: #fff;
+            border: 5px solid #00ff88;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 7rem;
+            font-weight: bold;
+            color: #121212;
+            box-shadow: inset 0 0 30px rgba(0, 255, 136, 0.4);
+            border-radius: 25px;
+            backface-visibility: hidden;
+        }
+
+        /* Faces: Mistura de Letras e Números */
+        .front  { transform: rotateY(0deg) translateZ(110px); }
+        .back   { transform: rotateY(180deg) translateZ(110px); }
+        .right  { transform: rotateY(90deg) translateZ(110px); }
+        .left   { transform: rotateY(-90deg) translateZ(110px); }
+        .top    { transform: rotateX(90deg) translateZ(110px); }
+        .bottom { transform: rotateX(-90deg) translateZ(110px); }
+
+        .container-pin {
+            text-align: center;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 20px;
+            border-radius: 15px;
+            border: 1px solid rgba(0, 255, 136, 0.3);
+            min-width: 300px;
+        }
+
+        .pin-display {
+            font-size: 2.5rem;
+            letter-spacing: 10px;
+            margin: 15px 0;
+            color: #fff;
+            text-shadow: 0 0 10px #00ff88;
+            height: 60px;
+        }
+
+        .btn-reset {
+            background: transparent;
+            border: 1px solid #ff4444;
+            color: #ff4444;
+            padding: 5px 15px;
+            cursor: pointer;
+            border-radius: 5px;
+            font-size: 0.8rem;
+            transition: 0.3s;
+        }
+
+        .btn-reset:hover { background: #ff4444; color: white; }
+
+        .msg { margin-bottom: 10px; text-transform: uppercase; font-size: 0.9rem; letter-spacing: 1px; }
+    </style>
+</head>
+<body>
+
+    <p class="msg" id="status">Clique no dado para PARAR</p>
+
+    <div class="scene" onclick="toggleDice()">
+        <div class="cube" id="cube">
+            <div class="face front">A</div>
+            <div class="face back">7</div>
+            <div class="face right">B</div>
+            <div class="face left">3</div>
+            <div class="face top">C</div>
+            <div class="face bottom">9</div>
+        </div>
+    </div>
+
+    <div class="container-pin">
+        <div class="msg">Seu PIN atual:</div>
+        <div class="pin-display" id="pinDisplay">------</div>
+        <button class="btn-reset" onclick="resetPin()">Limpar PIN</button>
+    </div>
+
+    <script>
+        let isSpinning = true;
+        let currentPin = "";
+        const cube = document.getElementById('cube');
+        const status = document.getElementById('status');
+        const pinDisplay = document.getElementById('pinDisplay');
+
+        // Mapeamento das faces para os valores reais
+        const faces = ["A", "7", "B", "3", "C", "9"];
+        const rotations = [
+            { x: 0, y: 0 },       // A
+            { x: 180, y: 0 },     // 7
+            { x: 0, y: -90 },     // B
+            { x: 0, y: 90 },      // 3
+            { x: -90, y: 0 },     // C
+            { x: 90, y: 0 }       // 9
+        ];
+
+        function toggleDice() {
+            if (isSpinning) stopDice();
+            else startDice();
+        }
+
+        function stopDice() {
+            isSpinning = false;
+            status.innerText = "Sorteando...";
+            
+            const computedStyle = window.getComputedStyle(cube);
+            const matrix = computedStyle.getPropertyValue('transform');
+            
+            cube.classList.add('stopping');
+            cube.style.transform = matrix;
+
+            const randomIndex = Math.floor(Math.random() * 6);
+            const result = rotations[randomIndex];
+            const charSorteado = faces[randomIndex];
+
+            setTimeout(() => {
+                cube.style.transform = `rotateX(${result.x + 720}deg) rotateY(${result.y + 720}deg)`;
+            }, 50);
+
+            // Adiciona ao PIN após a animação de parada
+            setTimeout(() => {
+                if (currentPin.length < 8) {
+                    currentPin += charSorteado;
+                    updateDisplay();
+                }
+                status.innerText = "Clique para GIRAR NOVAMENTE";
+            }, 1500);
+        }
+
+        function startDice() {
+            isSpinning = true;
+            status.innerText = "Clique no dado para PARAR";
+            cube.classList.remove('stopping');
+            cube.style.transform = '';
+        }
+
+        function updateDisplay() {
+            pinDisplay.innerText = currentPin;
+            if (currentPin.length >= 6) {
+                pinDisplay.style.color = "#00ff88"; // PIN válido
+            }
+        }
+
+        function resetPin() {
+            currentPin = "";
+            pinDisplay.innerText = "------";
+            pinDisplay.style.color = "#fff";
+        }
+    </script>
+</body>
+</html>
