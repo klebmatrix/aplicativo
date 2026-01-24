@@ -1,11 +1,6 @@
 streamlit
-
 numpy
-
 cryptography
-
 fpdf
-
 scipy
-
 pandas
