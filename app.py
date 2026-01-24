@@ -21,7 +21,7 @@ def validar_acesso(pin_digitado):
     except:
         return "erro_token"
 
-# --- 2. MOTOR DE PDF (FPDF2) ---
+# --- 2. MOTOR DE PDF ---
 class PDF(FPDF):
     def header(self):
         self.set_font('helvetica', 'B', 14)
@@ -30,7 +30,6 @@ class PDF(FPDF):
 
 def gerar_pdf_atividades(titulo, questoes, respostas):
     pdf = PDF()
-    # Página 1: Exercícios
     pdf.add_page()
     pdf.set_font("helvetica", 'B', 12)
     pdf.cell(0, 10, f"LISTA: {titulo.upper()}", ln=True)
@@ -39,7 +38,6 @@ def gerar_pdf_atividades(titulo, questoes, respostas):
         pdf.multi_cell(0, 10, txt=q)
         pdf.ln(2)
     
-    # Página 2: Gabarito
     pdf.add_page()
     pdf.set_font("helvetica", 'B', 12)
     pdf.cell(0, 10, "GABARITO OFICIAL", ln=True)
@@ -47,7 +45,7 @@ def gerar_pdf_atividades(titulo, questoes, respostas):
     for r in respostas:
         pdf.multi_cell(0, 10, txt=r)
     
-    return pdf.output() # Retorna bytes prontos para o Streamlit
+    return pdf.output()
 
 # --- 3. CONFIGURAÇÃO ---
 st.set_page_config(page_title="Math Precision Lab", layout="wide")
@@ -84,8 +82,7 @@ with st.container(key=f"sec_{menu.lower().replace(' ', '_')}"):
             b = c2.number_input("b:", value=40, step=1, key="alg_b")
             c_eq = c3.number_input("Igual a c:", value=50, step=1, key="alg_c")
             if a != 0 and st.button("Calcular"):
-                x = (c_eq - b) / a
-                st.success(f"Resultado: x = {x}")
+                st.success(f"Resultado: x = {(c_eq - b) / a}")
 
         elif sub == "2º Grau (Bhaskara)":
             c1, c2, c3 = st.columns(3)
@@ -107,11 +104,9 @@ with st.container(key=f"sec_{menu.lower().replace(' ', '_')}"):
             q, g = [], []
             for i in range(qtd):
                 ra, rx = random.randint(1,10), random.randint(1,10)
-                rb = random.randint(1,20)
-                rc = (ra * rx) + rb
+                rb = random.randint(1,20); rc = (ra * rx) + rb
                 q.append(f"{i+1}) Resolva a equacao: {ra}x + {rb} = {rc}")
                 g.append(f"{i+1}) x = {rx}")
-            
             pdf_bytes = gerar_pdf_atividades("Algebra", q, g)
             st.download_button("📥 Baixar PDF das Atividades", pdf_bytes, "atividades_algebra.pdf", "application/pdf")
 
@@ -124,27 +119,15 @@ with st.container(key=f"sec_{menu.lower().replace(' ', '_')}"):
             v = (4/3) * np.pi * (med**3)
             st.metric("Volume da Esfera", f"{v:.4f}")
             st.latex(r"V = \frac{4}{3} \pi r^3")
-            # 
-
-[Image of the formula for the volume of a sphere]
-
         elif fig == "Cilindro":
             h = st.number_input("Altura:", 10.0, key="geo_h")
             v = np.pi * (med**2) * h
             st.metric("Volume do Cilindro", f"{v:.4f}")
             st.latex(r"V = \pi r^2 h")
-            # 
-
-[Image of the formula for the volume of a cylinder]
-
         elif fig == "Cubo":
             v = med**3
             st.metric("Volume do Cubo", f"{v}")
             st.latex(r"V = L^3")
-            # 
-
-[Image of the formula for the volume of a cube]
-
 
         if st.button("Gerar PDF desta Geometria"):
             q_geo = [f"1) Calcule o volume de um(a) {fig} com raio/lado {med}."]
