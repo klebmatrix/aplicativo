@@ -64,11 +64,10 @@ if st.sidebar.button("Sair"):
     st.session_state.logado = False
     st.rerun()
 
-# --- 5. SISTEMAS LINEARES (O MARAVILHOSO) ---
+# --- 5. SISTEMAS LINEARES ---
 if menu == "Sistemas":
-    st.header("📏 Sistemas Lineares (Matriz $Ax=B$)")
+    st.header("📏 Sistemas Lineares (Matriz Ax=B)")
     st.latex(r"A \cdot X = B")
-    
     ordem = st.slider("Ordem do Sistema:", 2, 4, 2)
     
     mat_A, vec_B = [], []
@@ -97,7 +96,6 @@ elif menu == "Geometria":
     tab1, tab2 = st.tabs(["Teorema de Pitágoras", "Área do Triângulo"])
     with tab1:
         st.latex(r"a^2 + b^2 = c^2")
-        
         c1, c2 = st.columns(2)
         ca = c1.number_input("Cateto A:", 3.0, key="geo_ca")
         cb = c2.number_input("Cateto B:", 4.0, key="geo_cb")
@@ -105,10 +103,6 @@ elif menu == "Geometria":
             st.success(f"Hipotenusa: {np.sqrt(ca**2 + cb**2):.2f}")
     with tab2:
         st.latex(r"A = \frac{b \cdot h}{2}")
-        
-
-[Image of the area of a triangle formula]
-
         b_geo = st.number_input("Base:", 10.0, key="geo_b")
         h_geo = st.number_input("Altura:", 5.0, key="geo_h")
         if st.button("Calcular Área"):
