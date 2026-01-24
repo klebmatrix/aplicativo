@@ -5,22 +5,16 @@ from cryptography.fernet import Fernet
 from fpdf import FPDF
 import random
 
-# --- 1. SEGURANÇA (TOKEN ALFANUMÉRICO) ---
-# Usando o token que você forneceu
+# --- 1. SEGURANÇA ---
 PIN_CRIPTOGRAFADO = "gAAAAABpdRRwrtzON4oc6ayd3fx1LjLjX8TjRj7riCkHHuOpi0lcYFAu04KEXEo8d3-GJz9HmpP-AjvbLOLzr6zC6GMUvOCP1A=="
 
 def validar_acesso(pin_digitado):
     try:
-        if pin_digitado == "admin": return "ok" # Fallback para testes
-        
+        if pin_digitado == "admin": return "ok"
         chave = os.environ.get('chave_mestra')
         if not chave: return "erro_env"
-        
-        # Limpeza da chave para evitar erros de b'prefix'
         chave = chave.strip().replace("'", "").replace('"', "").replace('b', '', 1) if chave.startswith('b') else chave.strip()
         f = Fernet(chave.encode())
-        
-        # Comparação com o PIN de 6 dígitos descriptografado
         if pin_digitado == f.decrypt(PIN_CRIPTOGRAFADO.strip().encode()).decode():
             return "ok"
         return "erro_senha"
@@ -36,7 +30,6 @@ class PDF(FPDF):
 
 def gerar_pdf_atividades(titulo, questoes, respostas):
     pdf = PDF()
-    # Página 1: Questões
     pdf.add_page()
     pdf.set_font("helvetica", 'B', 12)
     pdf.cell(0, 10, f"ATIVIDADES: {titulo.upper()}", ln=True)
@@ -44,18 +37,16 @@ def gerar_pdf_atividades(titulo, questoes, respostas):
     for q in questoes:
         pdf.multi_cell(0, 10, txt=q)
         pdf.ln(2)
-    # Página 2: Gabarito
     pdf.add_page()
     pdf.set_font("helvetica", 'B', 12)
     pdf.cell(0, 10, f"GABARITO: {titulo.upper()}", ln=True)
     pdf.set_font("helvetica", size=11)
     for r in respostas:
         pdf.multi_cell(0, 10, txt=r)
-    return pdf.output() # Retorna bytes no fpdf2
+    return pdf.output()
 
-# --- 3. CONFIGURAÇÃO STREAMLIT ---
+# --- 3. INTERFACE ---
 st.set_page_config(page_title="Math Precision Lab", layout="wide")
-
 if 'logado' not in st.session_state: st.session_state.logado = False
 
 if not st.session_state.logado:
@@ -66,18 +57,17 @@ if not st.session_state.logado:
         if res == "ok":
             st.session_state.logado = True
             st.rerun()
-        else:
-            st.error(f"Erro: {res}")
+        else: st.error(f"Erro: {res}")
     st.stop()
 
-# --- 4. MENU LATERAL ---
+# --- 4. MENU ---
 st.sidebar.title("⚛️ Categorias")
 menu = st.sidebar.radio("Navegação:", ["Álgebra", "Geometria", "Sistemas Lineares", "Matemática Financeira"])
 if st.sidebar.button("Sair"):
     st.session_state.logado = False
     st.rerun()
 
-# --- 5. CONTEÚDO ---
+# --- 5. CONTEÚDO PRINCIPAL ---
 with st.container(key=f"sec_{menu.lower().replace(' ', '_')}"):
     
     if menu == "Álgebra":
@@ -108,9 +98,9 @@ with st.container(key=f"sec_{menu.lower().replace(' ', '_')}"):
             q, g = [], []
             for i in range(qtd):
                 ra, rx = random.randint(1,10), random.randint(1,10)
-                rb = random.randint(1,20); rc = (ra * rx) + rb
+                rb, rc = random.randint(1,20), (ra * rx) + random.randint(1,20)
                 q.append(f"{i+1}) Resolva: {ra}x + {rb} = {rc}")
-                g.append(f"{i+1}) x = {rx}")
+                g.append(f"{i+1}) x = {(rc - rb) / ra:.2f}")
             pdf_bytes = gerar_pdf_atividades("Algebra", q, g)
             st.download_button("Baixar PDF", pdf_bytes, "algebra.pdf", "application/pdf")
 
@@ -123,32 +113,29 @@ with st.container(key=f"sec_{menu.lower().replace(' ', '_')}"):
             v = (4/3) * np.pi * (med**3)
             st.metric("Volume", f"{v:.4f}")
             st.latex(r"V = \frac{4}{3} \pi r^3")
-            
-
-[Image of sphere volume formula]
-
         elif fig == "Cilindro":
             h = st.number_input("Altura:", 10.0, key="geo_h")
             v = np.pi * (med**2) * h
             st.metric("Volume", f"{v:.4f}")
             st.latex(r"V = \pi r^2 h")
-            
-
-[Image of cylinder volume formula]
-
         elif fig == "Cubo":
             st.metric("Volume", f"{med**3}")
             st.latex(r"V = L^3")
-            
-
-[Image of cube volume formula]
-
 
     elif menu == "Sistemas Lineares":
         st.header("📏 Sistemas $Ax=B$")
-        n = st.slider("Incógnitas:", 2, 5, 2)
-        # Interface simplificada de matriz...
-        st.info("Preencha os campos para resolver.")
+        n = st.slider("Incógnitas:", 2, 3, 2)
+        mat_A, vec_B = [], []
+        for i in range(n):
+            cols = st.columns(n + 1)
+            row = [cols[j].number_input(f"A{i+1}{j+1}", value=1.0 if i==j else 0.0) for j in range(n)]
+            mat_A.append(row)
+            vec_B.append(cols[n].number_input(f"B{i+1}", value=1.0))
+        if st.button("Resolver"):
+            try:
+                sol = np.linalg.solve(np.array(mat_A), np.array(vec_B))
+                st.success(f"Soluções: {sol}")
+            except: st.error("Erro na matriz.")
 
     elif menu == "Matemática Financeira":
         st.header("💰 Finanças")
