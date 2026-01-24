@@ -1,6 +1,11 @@
 streamlit
+
 numpy
+
 cryptography
-scipy
-pandas
+
 fpdf
+
+scipy
+
+pandas
