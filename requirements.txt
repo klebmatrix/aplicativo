@@ -1,6 +1,4 @@
 streamlit
-cryptography
-sympy
 numpy
-
-
+cryptography
+scipy
