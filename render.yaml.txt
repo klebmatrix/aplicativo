@@ -1,9 +1,11 @@
 services:
   - type: web
-    name: quantum-app
-    env: python
+    name: aplicativo-quantico
+    runtime: python
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn app:app
+    startCommand: python -m streamlit run app.py
     envVars:
-      - key: MEU_PIN
-        value: 123456 # Substitua pelo seu PIN de 6 dígitos
+      - key: CHAVE_MESTRA
+        sync: false # Isso indica que você vai preencher o valor manualmente no painel para segurança
+      - key: PYTHON_VERSION
+        value: 3.11.0
