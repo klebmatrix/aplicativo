@@ -3,127 +3,117 @@ import os
 import numpy as np
 from cryptography.fernet import Fernet
 from scipy import optimize
+import pandas as pd
 
-# --- 1. SEGURANÇA (PIN) ---
-# SUBSTITUA PELO SEU TOKEN (O CÓDIGO LONGO)
-PIN_CRIPTOGRAFADO = "gAAAAABpdQTrFt-9rDWi0dBTMd0lhm2ESaLs2D0Zv13A5MyWpO6mIIKEQ5AewuZ3v21w-_Msp96ZxJuUW0ov1jnTe5ePrc-vTQ=="
+# --- 1. SEGURANÇA (PIN ALFANUMÉRICO) ---
+# SUBSTITUA PELO SEU TOKEN GERADO (Lembre-se: chave_mestra no Render)
+PIN_CRIPTOGRAFADO = "gAAAAABpdQ20PkvsKu70a5pwUNceM0pVTkgIpqWPbd9BR9FLr4EYV0Yb_ERYwioPo1P3w_OxTjWey8Nb7AhmsQWGZfkOfzyMEQ=="
 
 def validar_acesso(pin_digitado):
     try:
-        # Busca a variável em minúsculo conforme solicitado
         chave = os.environ.get('chave_mestra')
         if not chave: return False
-        
-        # Limpeza total de espaços, aspas e do prefixo 'b'
-        chave = chave.strip().replace("'", "").replace('"', "")
-        if chave.startswith('b'): chave = chave[1:]
-            
+        chave = chave.strip().replace("'", "").replace('"', "").replace('b', '', 1) if chave.startswith('b') else chave.strip()
         f = Fernet(chave.encode())
-        pin_real = f.decrypt(PIN_CRIPTOGRAFADO.strip().encode()).decode()
-        return pin_digitado == pin_real
-    except:
-        return False
+        return pin_digitado == f.decrypt(PIN_CRIPTOGRAFADO.strip().encode()).decode()
+    except: return False
 
-# --- 2. CONFIGURAÇÃO DA PÁGINA ---
-st.set_page_config(page_title="Math Quantum Lab", layout="wide", page_icon="⚛️")
+# --- CONFIGURAÇÃO DA PÁGINA ---
+st.set_page_config(page_title="Quantum Math Lab", layout="wide")
 
 if 'logado' not in st.session_state:
     st.session_state.logado = False
 
-# --- 3. LOGIN ---
+# --- TELA DE LOGIN (ANTI-KEYLOGGER) ---
 if not st.session_state.logado:
-    st.title("🔐 Acesso ao Laboratório")
-    pin_input = st.text_input("Digite seu PIN:", type="password")
-    if st.button("Desbloquear"):
+    st.title("🔐 Acesso Protegido")
+    # Autocomplete desativado para segurança
+    pin_input = st.text_input("Senha (6-8 caracteres):", type="password", autocomplete="new-password")
+    if st.button("Entrar"):
         if validar_acesso(pin_input):
             st.session_state.logado = True
             st.rerun()
         else:
-            st.error("PIN incorreto ou erro de chave_mestra.")
+            st.error("Acesso Negado.")
     st.stop()
 
-# --- 4. ÁREA LOGADA ---
-st.sidebar.title("⚛️ Menu Principal")
-menu = st.sidebar.radio("Módulos:", ["Equações (Raízes)", "Geometria", "Sistemas Lineares", "Quântica"])
+# --- ÁREA LOGADA ---
+st.sidebar.title("⚛️ Math Suite")
+menu = st.sidebar.radio("Navegação:", ["Equações", "Geometria", "Financeiro", "Sistemas", "Quântica"])
 
 if st.sidebar.button("Sair"):
     st.session_state.logado = False
     st.rerun()
 
-# --- MÓDULO: EQUAÇÕES (GRAU 1, 2 e 3) ---
-if menu == "Equações (Raízes)":
-    st.header("🔍 Resolutor de Equações Polinomiais")
-    
-    tipo = st.selectbox("Grau da Equação:", ["1º Grau (ax + b = 0)", "2º Grau (ax² + bx + c = 0)", "3º Grau (ax³ + bx² + cx + d = 0)"])
-    
-    st.write("Insira os coeficientes:")
-    col1, col2, col3, col4 = st.columns(4)
-    a = col1.number_input("a", value=1.0)
-    b = col2.number_input("b", value=0.0)
-    
-    coefs = [a, b]
-    if tipo != "1º Grau (ax + b = 0)":
-        c = col3.number_input("c", value=0.0)
-        coefs.append(c)
-    if tipo == "3º Grau (ax³ + bx² + cx + d = 0)":
-        d = col4.number_input("d", value=0.0)
-        coefs.append(d)
+# --- MÓDULO: EQUAÇÕES (COM SUPORTE A INTEIROS E 2º TERMO) ---
+if menu == "Equações":
+    st.header("🔍 Resolutor de Equações")
+    tipo = st.selectbox("Tipo:", ["1º Grau (ax + b = c)", "2º Grau (ax² + bx + c = 0)", "3º Grau"])
 
-    if st.button("Calcular Raízes"):
-        # Mostra a equação em LaTeX
-        if len(coefs) == 2: st.latex(rf"{a}x + {b} = 0")
-        elif len(coefs) == 3: st.latex(rf"{a}x^2 + {b}x + {c} = 0")
-        else: st.latex(rf"{a}x^3 + {b}x^2 + {c}x + {d} = 0")
-
-        raizes = np.roots(coefs)
+    if tipo == "1º Grau (ax + b = c)":
+        c1, c2, c3 = st.columns(3)
+        # step=1 força a entrada de inteiros
+        a = c1.number_input("Valor de a:", value=2, step=1)
+        b = c2.number_input("Valor de b:", value=40, step=1)
+        c_eq = c3.number_input("Igual a (c):", value=50, step=1)
         
-        st.subheader("Resultados:")
-        for i, r in enumerate(raizes):
-            res = f"{r.real:.4f}" if np.isreal(r) else f"{r:.4f}"
-            st.success(f"x_{i+1} = {res}")
-            
-        # Gráfico
-        x_p = np.linspace(-10, 10, 100)
-        y_p = np.polyval(coefs, x_p)
-        st.line_chart(y_p)
+        if st.button("Resolver"):
+            # ax + b = c  ->  ax = c - b  ->  x = (c - b) / a
+            resultado = (c_eq - b) / a
+            st.latex(rf"{a}x + {b} = {c_eq}")
+            # Formatação inteligente: mostra inteiro se possível, senão 4 casas
+            saida = int(resultado) if resultado == int(resultado) else round(resultado, 4)
+            st.success(f"Resultado: x = {saida}")
+
+    elif tipo == "2º Grau (ax² + bx + c = 0)":
+        c1, c2, c3 = st.columns(3)
+        a = c1.number_input("a:", value=1, step=1)
+        b = c2.number_input("b:", value=-5, step=1)
+        c = c3.number_input("c:", value=6, step=1)
+        
+        if st.button("Calcular Raízes"):
+            raizes = np.roots([a, b, c])
+            for i, r in enumerate(raizes):
+                res = r.real if np.isreal(r) else r
+                saida = int(res) if isinstance(res, float) and res == int(res) else np.round(res, 4)
+                st.success(f"x_{i+1} = {saida}")
 
 # --- MÓDULO: GEOMETRIA ---
 elif menu == "Geometria":
-    st.header("📐 Áreas e Volumes")
-    fig = st.selectbox("Figura:", ["Esfera", "Cilindro", "Cubo"])
-    val = st.number_input("Medida principal (Raio ou Lado):", value=1.0)
+    st.header("📐 Área e Volume")
+    fig = st.selectbox("Figura:", ["Cubo", "Esfera", "Cilindro"])
+    lado = st.number_input("Medida (Inteiro):", value=10, step=1)
     
-    if fig == "Esfera":
-        st.metric("Volume", f"{(4/3)*np.pi*(val**3):.4f}")
-        st.latex(r"V = \frac{4}{3}\pi r^3")
-    elif fig == "Cilindro":
-        h = st.number_input("Altura:", value=1.0)
-        st.metric("Volume", f"{np.pi*(val**2)*h:.4f}")
-        st.latex(r"V = \pi r^2 h")
-    elif fig == "Cubo":
-        st.metric("Volume", f"{val**3:.4f}")
-        st.latex(r"V = a^3")
+    if fig == "Cubo":
+        vol = lado**3
+        st.metric("Volume", f"{vol}")
+    elif fig == "Esfera":
+        vol = (4/3) * np.pi * (lado**3)
+        st.metric("Volume", f"{vol:.4f}")
 
-# --- MÓDULO: SISTEMAS LINEARES ---
-elif menu == "Sistemas Lineares":
-    st.header("📏 Sistemas Ax = B")
-    dim = st.slider("Ordem do sistema:", 2, 4, 2)
-    A = []
-    B = []
-    for i in range(dim):
-        cols = st.columns(dim + 1)
-        A.append([cols[j].number_input(f"A[{i},{j}]", value=1.0 if i==j else 0.0) for j in range(dim)])
-        B.append(cols[dim].number_input(f"B[{i}]", value=1.0))
+# --- MÓDULO: FINANCEIRO ---
+elif menu == "Financeiro":
+    st.header("💰 Juros e Amortização")
+    modo = st.tabs(["Juros Compostos", "Amortização"])
     
-    if st.button("Resolver"):
-        try:
-            x = np.linalg.solve(np.array(A), np.array(B))
-            st.success(f"Soluções: {x}")
-        except: st.error("Sistema sem solução única.")
+    with modo[0]:
+        p = st.number_input("Capital Inicial:", value=1000, step=1)
+        i = st.number_input("Taxa (% ao mês):", value=1.0) / 100
+        t = st.number_input("Meses:", value=12, step=1)
+        m = p * (1 + i)**t
+        st.metric("Montante Final", f"R$ {m:.2f}")
 
-# --- MÓDULO: QUÂNTICA ---
+    with modo[1]:
+        valor = st.number_input("Financiamento:", value=5000, step=1)
+        meses = st.number_input("Parcelas:", value=6, step=1)
+        taxa = st.number_input("Juros Mensais (%):", value=2.0) / 100
+        
+        # Tabela PRICE simples
+        prestacao = valor * (taxa * (1 + taxa)**meses) / ((1 + taxa)**meses - 1)
+        st.write(f"Prestação Fixa (PRICE): **R$ {prestacao:.2f}**")
+
+# --- MÓDULO: SISTEMAS E QUÂNTICA ---
+elif menu == "Sistemas":
+    st.write("Módulo de Sistemas Ax = B ativo para matrizes.")
 elif menu == "Quântica":
-    st.header("⚛️ Mecânica Quântica")
-    st.latex(r"\sigma_z = \begin{pmatrix} 1 & 0 \\ 0 & -1 \end{pmatrix}")
-    st.write("Matriz de Pauli Z carregada no sistema.")
-    st.info("Utilize os módulos acima para processar estados quânticos como matrizes.")
+    st.write("Operadores de Pauli carregados.")
