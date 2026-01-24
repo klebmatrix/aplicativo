@@ -2,118 +2,88 @@ import streamlit as st
 import os
 import numpy as np
 from cryptography.fernet import Fernet
-from scipy import optimize
 import pandas as pd
+from fpdf import FPDF
+import random
 
-# --- 1. SEGURANÇA (PIN ALFANUMÉRICO) ---
-# SUBSTITUA PELO SEU TOKEN GERADO (Lembre-se: chave_mestra no Render)
+# --- SEGURANÇA ---
 PIN_CRIPTOGRAFADO = "gAAAAABpdRRwrtzON4oc6ayd3fx1LjLjX8TjRj7riCkHHuOpi0lcYFAu04KEXEo8d3-GJz9HmpP-AjvbLOLzr6zC6GMUvOCP1A=="
 
 def validar_acesso(pin_digitado):
     try:
         chave = os.environ.get('chave_mestra')
-        if not chave: return False
+        if not chave: return "erro_env"
         chave = chave.strip().replace("'", "").replace('"', "").replace('b', '', 1) if chave.startswith('b') else chave.strip()
         f = Fernet(chave.encode())
-        return pin_digitado == f.decrypt(PIN_CRIPTOGRAFADO.strip().encode()).decode()
-    except: return False
+        return "ok" if pin_digitado == f.decrypt(PIN_CRIPTOGRAFADO.strip().encode()).decode() else "erro_senha"
+    except: return "erro_token"
 
-# --- CONFIGURAÇÃO DA PÁGINA ---
-st.set_page_config(page_title="Quantum Math Lab", layout="wide")
+# --- FUNÇÃO GERADORA DE PDF ---
+def gerar_pdf(titulo, conteudo):
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_font("Arial", "B", 16)
+    pdf.cell(200, 10, txt=titulo, ln=True, align='C')
+    pdf.set_font("Arial", size=12)
+    pdf.ln(10)
+    for linha in conteudo:
+        pdf.multi_cell(0, 10, txt=linha)
+    return pdf.output(dest='S').encode('latin-1')
 
-if 'logado' not in st.session_state:
-    st.session_state.logado = False
+# --- CONFIGURAÇÃO ---
+st.set_page_config(page_title="Math Master Pro", layout="wide")
+if 'logado' not in st.session_state: st.session_state.logado = False
 
-# --- TELA DE LOGIN (ANTI-KEYLOGGER) ---
 if not st.session_state.logado:
-    st.title("🔐 Acesso Protegido")
-    # Autocomplete desativado para segurança
-    pin_input = st.text_input("Senha (6-8 caracteres):", type="password", autocomplete="new-password")
+    st.title("🔐 Autenticação")
+    pin = st.text_input("Senha:", type="password")
     if st.button("Entrar"):
-        if validar_acesso(pin_input):
-            st.session_state.logado = True
-            st.rerun()
-        else:
-            st.error("Acesso Negado.")
+        res = validar_acesso(pin)
+        if res == "ok": st.session_state.logado = True; st.rerun()
+        else: st.error(f"Erro: {res}")
     st.stop()
 
-# --- ÁREA LOGADA ---
-st.sidebar.title("⚛️ Math Suite")
-menu = st.sidebar.radio("Navegação:", ["Equações", "Geometria", "Financeiro", "Sistemas", "Quântica"])
+# --- MENU ---
+menu = st.sidebar.radio("Módulos:", ["Equações", "Sistemas", "Finanças", "Gerador de Atividades"])
 
-if st.sidebar.button("Sair"):
-    st.session_state.logado = False
-    st.rerun()
-
-# --- MÓDULO: EQUAÇÕES (COM SUPORTE A INTEIROS E 2º TERMO) ---
+# --- MÓDULO: EQUAÇÕES (COM PDF) ---
 if menu == "Equações":
     st.header("🔍 Resolutor de Equações")
-    tipo = st.selectbox("Tipo:", ["1º Grau (ax + b = c)", "2º Grau (ax² + bx + c = 0)", "3º Grau"])
-
-    if tipo == "1º Grau (ax + b = c)":
-        c1, c2, c3 = st.columns(3)
-        # step=1 força a entrada de inteiros
-        a = c1.number_input("Valor de a:", value=2, step=1)
-        b = c2.number_input("Valor de b:", value=40, step=1)
-        c_eq = c3.number_input("Igual a (c):", value=50, step=1)
-        
-        if st.button("Resolver"):
-            # ax + b = c  ->  ax = c - b  ->  x = (c - b) / a
-            resultado = (c_eq - b) / a
-            st.latex(rf"{a}x + {b} = {c_eq}")
-            # Formatação inteligente: mostra inteiro se possível, senão 4 casas
-            saida = int(resultado) if resultado == int(resultado) else round(resultado, 4)
-            st.success(f"Resultado: x = {saida}")
-
-    elif tipo == "2º Grau (ax² + bx + c = 0)":
-        c1, c2, c3 = st.columns(3)
-        a = c1.number_input("a:", value=1, step=1)
-        b = c2.number_input("b:", value=-5, step=1)
-        c = c3.number_input("c:", value=6, step=1)
-        
-        if st.button("Calcular Raízes"):
-            raizes = np.roots([a, b, c])
-            for i, r in enumerate(raizes):
-                res = r.real if np.isreal(r) else r
-                saida = int(res) if isinstance(res, float) and res == int(res) else np.round(res, 4)
-                st.success(f"x_{i+1} = {saida}")
-
-# --- MÓDULO: GEOMETRIA ---
-elif menu == "Geometria":
-    st.header("📐 Área e Volume")
-    fig = st.selectbox("Figura:", ["Cubo", "Esfera", "Cilindro"])
-    lado = st.number_input("Medida (Inteiro):", value=10, step=1)
+    a = st.number_input("Coeficiente a (≠ 0):", value=1, step=1)
+    b = st.number_input("Termo b:", value=0, step=1)
+    c = st.number_input("Igual a c:", value=0, step=1)
     
-    if fig == "Cubo":
-        vol = lado**3
-        st.metric("Volume", f"{vol}")
-    elif fig == "Esfera":
-        vol = (4/3) * np.pi * (lado**3)
-        st.metric("Volume", f"{vol:.4f}")
-
-# --- MÓDULO: FINANCEIRO ---
-elif menu == "Financeiro":
-    st.header("💰 Juros e Amortização")
-    modo = st.tabs(["Juros Compostos", "Amortização"])
-    
-    with modo[0]:
-        p = st.number_input("Capital Inicial:", value=1000, step=1)
-        i = st.number_input("Taxa (% ao mês):", value=1.0) / 100
-        t = st.number_input("Meses:", value=12, step=1)
-        m = p * (1 + i)**t
-        st.metric("Montante Final", f"R$ {m:.2f}")
-
-    with modo[1]:
-        valor = st.number_input("Financiamento:", value=5000, step=1)
-        meses = st.number_input("Parcelas:", value=6, step=1)
-        taxa = st.number_input("Juros Mensais (%):", value=2.0) / 100
+    if a != 0 and st.button("Resolver e Gerar Relatório"):
+        x = (c - b) / a
+        txt_res = f"Equação: {a}x + {b} = {c}\nResultado: x = {x}"
+        st.success(txt_res)
         
-        # Tabela PRICE simples
-        prestacao = valor * (taxa * (1 + taxa)**meses) / ((1 + taxa)**meses - 1)
-        st.write(f"Prestação Fixa (PRICE): **R$ {prestacao:.2f}**")
+        pdf_data = gerar_pdf("Relatorio de Equacao", [txt_res, "Calculo realizado via Quantum Math Lab."])
+        st.download_button("📥 Baixar PDF", pdf_data, "resultado.pdf", "application/pdf")
 
-# --- MÓDULO: SISTEMAS E QUÂNTICA ---
-elif menu == "Sistemas":
-    st.write("Módulo de Sistemas Ax = B ativo para matrizes.")
-elif menu == "Quântica":
-    st.write("Operadores de Pauli carregados.")
+# --- NOVO MÓDULO: GERADOR DE ATIVIDADES ---
+elif menu == "Gerador de Atividades":
+    st.header("📝 Gerador de Exercícios Aleatórios")
+    qtd = st.slider("Quantidade de exercícios:", 1, 10, 5)
+    
+    if st.button("Gerar Nova Lista de Atividades"):
+        lista_exercicios = []
+        for i in range(qtd):
+            ex_tipo = random.choice(["1grau", "geometria"])
+            if ex_tipo == "1grau":
+                raio_a = random.randint(1, 10)
+                raio_b = random.randint(1, 50)
+                raio_c = random.randint(1, 100)
+                lista_exercicios.append(f"{i+1}) Resolva: {raio_a}x + {raio_b} = {raio_c}")
+            else:
+                r_geo = random.randint(1, 20)
+                lista_exercicios.append(f"{i+1}) Calcule o volume de uma esfera de raio {r_geo} (use pi=3.14)")
+        
+        st.session_state.lista = lista_exercicios
+
+    if 'lista' in st.session_state:
+        for ex in st.session_state.lista:
+            st.write(ex)
+            
+        pdf_atividades = gerar_pdf("Lista de Atividades Matematicas", st.session_state.lista)
+        st.download_button("📥 Baixar Lista em PDF", pdf_atividades, "atividades.pdf", "application/pdf")

@@ -2,3 +2,5 @@ streamlit
 numpy
 cryptography
 scipy
+pandas
+fpdf
