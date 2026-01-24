@@ -6,7 +6,8 @@ from fpdf import FPDF
 import random
 
 # --- 1. SEGURANÇA (TOKEN ALFANUMÉRICO) ---
-PIN_CRIPTOGRAFADO = "gAAAAABpdRRwrtzON4oc6ayd3fx1LjLjX8TjRj7riCkHHuOpi0lcYFAu04KEXEo8d3-GJz9HmpP-AjvbLOLzr6zC6GMUvOCP1A=="
+PIN_CRIPTOGRAFADO = "COLE_AQUI_SEU_TOKEN"
+
 def validar_acesso(pin_digitado):
     try:
         chave = os.environ.get('chave_mestra')
