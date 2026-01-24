@@ -7,7 +7,6 @@ import random
 
 # --- 1. SEGURANÇA ---
 PIN_CRIPTOGRAFADO = "gAAAAABpdRRwrtzON4oc6ayd3fx1LjLjX8TjRj7riCkHHuOpi0lcYFAu04KEXEo8d3-GJz9HmpP-AjvbLOLzr6zC6GMUvOCP1A=="
-
 def validar_acesso(pin_digitado):
     try:
         chave = os.environ.get('chave_mestra')
@@ -17,25 +16,33 @@ def validar_acesso(pin_digitado):
         return "ok" if pin_digitado == f.decrypt(PIN_CRIPTOGRAFADO.strip().encode()).decode() else "erro_senha"
     except: return "erro_token"
 
-# --- 2. GERADOR DE PDF ---
+# --- 2. CLASSE PDF ---
 class PDF(FPDF):
     def header(self):
-        self.set_font('Arial', 'B', 15)
-        self.cell(0, 10, 'Relatorio Matematico - Quantum Lab', 0, 1, 'C')
+        self.set_font('Arial', 'B', 14)
+        self.cell(0, 10, 'Quantum Math Lab - Relatorio de Atividades', 0, 1, 'C')
         self.ln(5)
 
-def gerar_pdf_geral(titulo, linhas):
+def gerar_pdf_atividades(questoes, respostas):
     pdf = PDF()
     pdf.add_page()
     pdf.set_font("Arial", 'B', 12)
-    pdf.cell(0, 10, titulo.upper(), ln=True)
+    pdf.cell(0, 10, "LISTA DE EXERCICIOS", ln=True)
     pdf.set_font("Arial", size=11)
-    for l in linhas:
-        pdf.multi_cell(0, 10, txt=l)
+    for q in questoes:
+        pdf.multi_cell(0, 10, txt=q)
+        pdf.ln(2)
+    
+    pdf.add_page()
+    pdf.set_font("Arial", 'B', 12)
+    pdf.cell(0, 10, "GABARITO (RESPOSTAS)", ln=True)
+    pdf.set_font("Arial", size=11)
+    for r in respostas:
+        pdf.multi_cell(0, 10, txt=r)
     return pdf.output(dest='S').encode('latin-1')
 
 # --- 3. CONFIGURAÇÃO ---
-st.set_page_config(page_title="Math Precision Lab", layout="wide", page_icon="⚛️")
+st.set_page_config(page_title="Math Precision Lab", layout="wide")
 
 if 'logado' not in st.session_state: st.session_state.logado = False
 
@@ -49,58 +56,67 @@ if not st.session_state.logado:
     st.stop()
 
 # --- 4. MENU ---
-menu = st.sidebar.radio("Navegação:", ["Álgebra (Equações)", "Geometria (Área/Vol)", "Sistemas Lineares", "Finanças", "Gerador de Atividades"])
+menu = st.sidebar.radio("Navegação:", ["Álgebra (Equações)", "Geometria (Área/Vol)", "Sistemas Lineares", "Gerador de Atividades"])
 
 # --- MÓDULO: ÁLGEBRA ---
 if menu == "Álgebra (Equações)":
-    st.header("🔍 Equações de 1º e 2º Grau")
-    grau = st.selectbox("Tipo:", ["1º Grau (ax + b = c)", "2º Grau (ax² + bx + c = 0)"])
+    st.header("🔍 Equação de 1º Grau: $ax + b = c$")
+    c1, c2, c3 = st.columns(3)
+    a = c1.number_input("a (Inteiro, ≠ 0):", value=1, step=1)
+    b = c2.number_input("b (Inteiro):", value=0, step=1)
+    c_eq = c3.number_input("Igual a c:", value=0, step=1)
     
-    if grau == "1º Grau (ax + b = c)":
-        c1, c2, c3 = st.columns(3)
-        a = c1.number_input("a (≠ 0):", value=1, step=1)
-        b = c2.number_input("b:", value=0, step=1)
-        c_eq = c3.number_input("Igual a c:", value=0, step=1)
-        
-        if a == 0:
-            st.error("Erro: 'a' não pode ser zero.")
-        elif st.button("Resolver"):
-            x = (c_eq - b) / a
-            res_txt = f"Equação: {a}x + {b} = {c_eq} | Resultado: x = {int(x) if x == int(x) else round(x, 4)}"
-            st.success(res_txt)
-            st.download_button("📥 Baixar Resultado", gerar_pdf_geral("Equacao 1º Grau", [res_txt]), "resultado.pdf")
+    if a == 0:
+        st.error("Pela definição matemática, 'a' deve ser diferente de zero.")
+    elif st.button("Resolver"):
+        x = (c_eq - b) / a
+        res_txt = f"x = {int(x) if x == int(x) else round(x, 4)}"
+        st.success(f"Equação: {a}x + {b} = {c_eq} | {res_txt}")
 
-# --- MÓDULO: GEOMETRIA (REINTEGRADO) ---
+# --- MÓDULO: GEOMETRIA ---
 elif menu == "Geometria (Área/Vol)":
     st.header("📐 Geometria Espacial e Plana")
-    fig = st.selectbox("Figura:", ["Esfera", "Cilindro", "Cubo", "Círculo"])
-    medida = st.number_input("Medida Principal (Raio ou Lado):", min_value=0, value=10, step=1)
+    fig = st.selectbox("Escolha a Figura:", ["Esfera", "Cilindro", "Cubo", "Círculo"])
+    r = st.number_input("Medida (Raio ou Lado):", min_value=0, value=10, step=1)
     
     if fig == "Esfera":
-        vol = (4/3) * np.pi * (medida**3)
+        vol = (4/3) * np.pi * (r**3)
         st.latex(r"V = \frac{4}{3}\pi r^3")
-        st.metric("Volume", f"{vol:.4f}")
+        st.metric("Volume da Esfera", f"{vol:.4f}")
     elif fig == "Cilindro":
         h = st.number_input("Altura (h):", min_value=0, value=10, step=1)
-        vol = np.pi * (medida**2) * h
-        st.metric("Volume", f"{vol:.4f}")
+        vol = np.pi * (r**2) * h
+        st.metric("Volume do Cilindro", f"{vol:.4f}")
     elif fig == "Cubo":
-        vol = medida**3
-        st.metric("Volume", f"{vol}")
+        vol = r**3
+        st.metric("Volume do Cubo", f"{vol}")
     elif fig == "Círculo":
-        area = np.pi * (medida**2)
-        st.metric("Área", f"{area:.4f}")
+        area = np.pi * (r**2)
+        st.metric("Área do Círculo", f"{area:.4f}")
 
-# --- MÓDULO: SISTEMAS ---
-elif menu == "Sistemas Lineares":
-    st.header("📏 Sistemas Ax = B (Até 5 var)")
-    n = st.slider("Incógnitas:", 2, 5, 2)
-    # Lógica de matriz Ax=B... (conforme código anterior)
-
-# --- MÓDULO: GERADOR DE ATIVIDADES ---
+# --- MÓDULO: ATIVIDADES ---
 elif menu == "Gerador de Atividades":
-    st.header("📝 Exercícios com Gabarito")
-    qtd = st.slider("Quantidade:", 1, 20, 5)
-    if st.button("Gerar"):
-        # Lógica de geração de atividades e gabarito...
-        st.info("Atividades geradas com sucesso. Clique no botão abaixo para o PDF.")
+    st.header("📝 Atividades com Gabarito")
+    qtd = st.slider("Quantidade:", 1, 15, 5)
+    
+    if st.button("Gerar Nova Lista"):
+        questoes, gabarito = [], []
+        for i in range(qtd):
+            tipo = random.choice(["equacao", "geometria"])
+            if tipo == "equacao":
+                ra, rx = random.randint(1, 10), random.randint(1, 10)
+                rb = random.randint(1, 20)
+                rc = (ra * rx) + rb
+                questoes.append(f"{i+1}) Resolva a equacao: {ra}x + {rb} = {rc}")
+                gabarito.append(f"{i+1}) x = {rx}")
+            else:
+                lado = random.randint(2, 20)
+                questoes.append(f"{i+1}) Qual o volume de um cubo de lado {lado}?")
+                gabarito.append(f"{i+1}) Volume = {lado**3}")
+        
+        st.session_state.q, st.session_state.g = questoes, gabarito
+
+    if 'q' in st.session_state:
+        for ex in st.session_state.q: st.write(ex)
+        pdf_bytes = gerar_pdf_atividades(st.session_state.q, st.session_state.g)
+        st.download_button("📥 Baixar PDF com Gabarito", pdf_bytes, "atividades.pdf")
