@@ -4,128 +4,126 @@ import numpy as np
 from cryptography.fernet import Fernet
 from scipy import optimize
 
-# --- 1. CONFIGURAÇÃO DE SEGURANÇA ---
-# ATENÇÃO: Substitua o token abaixo pelo que você gerou agora no terminal
+# --- 1. SEGURANÇA (PIN) ---
+# SUBSTITUA PELO SEU TOKEN (O CÓDIGO LONGO)
 PIN_CRIPTOGRAFADO = "gAAAAABpdQTrFt-9rDWi0dBTMd0lhm2ESaLs2D0Zv13A5MyWpO6mIIKEQ5AewuZ3v21w-_Msp96ZxJuUW0ov1jnTe5ePrc-vTQ=="
 
 def validar_acesso(pin_digitado):
     try:
-        # Busca a variável 'chave_mestra' em minúsculo
+        # Busca a variável em minúsculo conforme solicitado
         chave = os.environ.get('chave_mestra')
-        if not chave:
-            st.error("Erro: 'chave_mestra' não configurada no Render.")
-            return False
+        if not chave: return False
         
-        # Limpeza para evitar erros de cópia (remove b', aspas e espaços)
+        # Limpeza total de espaços, aspas e do prefixo 'b'
         chave = chave.strip().replace("'", "").replace('"', "")
         if chave.startswith('b'): chave = chave[1:]
             
         f = Fernet(chave.encode())
         pin_real = f.decrypt(PIN_CRIPTOGRAFADO.strip().encode()).decode()
         return pin_digitado == pin_real
-    except Exception as e:
-        st.error(f"Erro técnico de sincronia: {e}")
+    except:
         return False
 
-# --- 2. CONFIGURAÇÃO DA INTERFACE ---
-st.set_page_config(page_title="Quantum Math Station", layout="wide", page_icon="⚛️")
+# --- 2. CONFIGURAÇÃO DA PÁGINA ---
+st.set_page_config(page_title="Math Quantum Lab", layout="wide", page_icon="⚛️")
 
 if 'logado' not in st.session_state:
     st.session_state.logado = False
 
-# --- 3. FLUXO DE ACESSO ---
+# --- 3. LOGIN ---
 if not st.session_state.logado:
-    st.title("🔐 Laboratório de Matemática Avançada")
-    st.info("Sistema protegido por criptografia quântica.")
-    
-    pin_input = st.text_input("Digite seu PIN de acesso:", type="password")
-    if st.button("Desbloquear Sistema"):
+    st.title("🔐 Acesso ao Laboratório")
+    pin_input = st.text_input("Digite seu PIN:", type="password")
+    if st.button("Desbloquear"):
         if validar_acesso(pin_input):
             st.session_state.logado = True
             st.rerun()
         else:
-            st.warning("PIN incorreto. Verifique se a 'chave_mestra' no Render condiz com este código.")
+            st.error("PIN incorreto ou erro de chave_mestra.")
     st.stop()
 
-# --- 4. ÁREA LOGADA (PAINEL MATEMÁTICO) ---
-st.sidebar.title("⚛️ Menu Científico")
-menu = st.sidebar.radio("Selecione o Módulo:", 
-    ["Geometria (Área/Vol)", "Sistemas Lineares", "Raízes de Equações", "Física Quântica"])
+# --- 4. ÁREA LOGADA ---
+st.sidebar.title("⚛️ Menu Principal")
+menu = st.sidebar.radio("Módulos:", ["Equações (Raízes)", "Geometria", "Sistemas Lineares", "Quântica"])
 
-if st.sidebar.button("Logoff"):
+if st.sidebar.button("Sair"):
     st.session_state.logado = False
     st.rerun()
 
-# --- MÓDULO: GEOMETRIA ---
-if menu == "Geometria (Área/Vol)":
-    st.header("📐 Geometria Analítica e Espacial")
-    figura = st.selectbox("Figura Geométrica:", ["Círculo/Esfera", "Cilindro", "Cubo", "Pirâmide"])
+# --- MÓDULO: EQUAÇÕES (GRAU 1, 2 e 3) ---
+if menu == "Equações (Raízes)":
+    st.header("🔍 Resolutor de Equações Polinomiais")
     
-    c1, c2 = st.columns(2)
-    if figura == "Círculo/Esfera":
-        r = c1.number_input("Raio (r):", min_value=0.0, value=1.0)
-        c2.metric("Área (Círculo)", f"{np.pi * r**2:.4f}")
-        c2.metric("Volume (Esfera)", f"{(4/3) * np.pi * r**3:.4f}")
-        st.latex(r"V = \frac{4}{3} \pi r^3")
+    tipo = st.selectbox("Grau da Equação:", ["1º Grau (ax + b = 0)", "2º Grau (ax² + bx + c = 0)", "3º Grau (ax³ + bx² + cx + d = 0)"])
+    
+    st.write("Insira os coeficientes:")
+    col1, col2, col3, col4 = st.columns(4)
+    a = col1.number_input("a", value=1.0)
+    b = col2.number_input("b", value=0.0)
+    
+    coefs = [a, b]
+    if tipo != "1º Grau (ax + b = 0)":
+        c = col3.number_input("c", value=0.0)
+        coefs.append(c)
+    if tipo == "3º Grau (ax³ + bx² + cx + d = 0)":
+        d = col4.number_input("d", value=0.0)
+        coefs.append(d)
 
-    elif figura == "Cilindro":
-        r = c1.number_input("Raio da Base (r):", min_value=0.0, value=1.0)
-        h = c1.number_input("Altura (h):", min_value=0.0, value=1.0)
-        c2.metric("Volume", f"{np.pi * (r**2) * h:.4f}")
+    if st.button("Calcular Raízes"):
+        # Mostra a equação em LaTeX
+        if len(coefs) == 2: st.latex(rf"{a}x + {b} = 0")
+        elif len(coefs) == 3: st.latex(rf"{a}x^2 + {b}x + {c} = 0")
+        else: st.latex(rf"{a}x^3 + {b}x^2 + {c}x + {d} = 0")
+
+        raizes = np.roots(coefs)
+        
+        st.subheader("Resultados:")
+        for i, r in enumerate(raizes):
+            res = f"{r.real:.4f}" if np.isreal(r) else f"{r:.4f}"
+            st.success(f"x_{i+1} = {res}")
+            
+        # Gráfico
+        x_p = np.linspace(-10, 10, 100)
+        y_p = np.polyval(coefs, x_p)
+        st.line_chart(y_p)
+
+# --- MÓDULO: GEOMETRIA ---
+elif menu == "Geometria":
+    st.header("📐 Áreas e Volumes")
+    fig = st.selectbox("Figura:", ["Esfera", "Cilindro", "Cubo"])
+    val = st.number_input("Medida principal (Raio ou Lado):", value=1.0)
+    
+    if fig == "Esfera":
+        st.metric("Volume", f"{(4/3)*np.pi*(val**3):.4f}")
+        st.latex(r"V = \frac{4}{3}\pi r^3")
+    elif fig == "Cilindro":
+        h = st.number_input("Altura:", value=1.0)
+        st.metric("Volume", f"{np.pi*(val**2)*h:.4f}")
         st.latex(r"V = \pi r^2 h")
-
-    elif figura == "Cubo":
-        l = c1.number_input("Lado (l):", min_value=0.0, value=1.0)
-        c2.metric("Volume", f"{l**3:.4f}")
-        st.latex(r"V = l^3")
+    elif fig == "Cubo":
+        st.metric("Volume", f"{val**3:.4f}")
+        st.latex(r"V = a^3")
 
 # --- MÓDULO: SISTEMAS LINEARES ---
 elif menu == "Sistemas Lineares":
-    st.header("📏 Resolutor de Sistemas (Ax = B)")
-    n = st.slider("Número de Variáveis:", 2, 4, 2)
-    st.write("Insira os coeficientes da Matriz A e os resultados de B:")
+    st.header("📏 Sistemas Ax = B")
+    dim = st.slider("Ordem do sistema:", 2, 4, 2)
+    A = []
+    B = []
+    for i in range(dim):
+        cols = st.columns(dim + 1)
+        A.append([cols[j].number_input(f"A[{i},{j}]", value=1.0 if i==j else 0.0) for j in range(dim)])
+        B.append(cols[dim].number_input(f"B[{i}]", value=1.0))
     
-    matriz_A = []
-    lista_B = []
-    for i in range(n):
-        cols = st.columns(n + 1)
-        linha = [cols[j].number_input(f"A{i}{j}", value=1.0 if i==j else 0.0) for j in range(n)]
-        matriz_A.append(linha)
-        lista_B.append(cols[n].number_input(f"B{i}", value=1.0))
-        
-    if st.button("Calcular Solução"):
+    if st.button("Resolver"):
         try:
-            sol = np.linalg.solve(np.array(matriz_A), np.array(lista_B))
-            st.success(f"Resultados: {sol}")
-        except:
-            st.error("O sistema não possui solução única.")
-
-# --- MÓDULO: RAÍZES ---
-elif menu == "Raízes de Equações":
-    st.header("🔍 Cálculo de Raízes (Método de Newton)")
-    func_str = st.text_input("Equação f(x):", "x**2 - 2")
-    chute = st.number_input("Ponto de partida (chute):", value=1.0)
-    
-    if st.button("Achar Raiz"):
-        try:
-            f = lambda x: eval(func_str)
-            raiz = optimize.newton(f, chute)
-            st.success(f"Raiz aproximada: {raiz:.6f}")
-            # Gráfico simples
-            x_vals = np.linspace(raiz-5, raiz+5, 100)
-            y_vals = [eval(func_str.replace('x', f'({val})')) for val in x_vals]
-            st.line_chart(y_vals)
-        except Exception as e:
-            st.error(f"Erro: {e}")
+            x = np.linalg.solve(np.array(A), np.array(B))
+            st.success(f"Soluções: {x}")
+        except: st.error("Sistema sem solução única.")
 
 # --- MÓDULO: QUÂNTICA ---
-elif menu == "Física Quântica":
-    st.header("⚛️ Operadores e Estados")
-    st.latex(r"\sigma_x = \begin{pmatrix} 0 & 1 \\ 1 & 0 \end{pmatrix}")
-    pauli_x = np.array([[0, 1], [1, 0]])
-    st.write("Matriz de Pauli X representação NumPy:")
-    st.write(pauli_x)
-    
-    if st.button("Calcular Autovalores"):
-        eigen = np.linalg.eigvals(pauli_x)
-        st.write(f"Autovalores: {eigen}")
+elif menu == "Quântica":
+    st.header("⚛️ Mecânica Quântica")
+    st.latex(r"\sigma_z = \begin{pmatrix} 1 & 0 \\ 0 & -1 \end{pmatrix}")
+    st.write("Matriz de Pauli Z carregada no sistema.")
+    st.info("Utilize os módulos acima para processar estados quânticos como matrizes.")
