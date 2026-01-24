@@ -3,4 +3,4 @@ numpy
 cryptography
 scipy
 pandas
-fpdf
+pip install fpdf
