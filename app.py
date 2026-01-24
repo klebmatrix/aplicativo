@@ -7,7 +7,7 @@ import pandas as pd
 
 # --- 1. SEGURANÇA (PIN ALFANUMÉRICO) ---
 # SUBSTITUA PELO SEU TOKEN GERADO (Lembre-se: chave_mestra no Render)
-PIN_CRIPTOGRAFADO = "gAAAAABpdQ20PkvsKu70a5pwUNceM0pVTkgIpqWPbd9BR9FLr4EYV0Yb_ERYwioPo1P3w_OxTjWey8Nb7AhmsQWGZfkOfzyMEQ=="
+PIN_CRIPTOGRAFADO = "gAAAAABpdRRwrtzON4oc6ayd3fx1LjLjX8TjRj7riCkHHuOpi0lcYFAu04KEXEo8d3-GJz9HmpP-AjvbLOLzr6zC6GMUvOCP1A=="
 
 def validar_acesso(pin_digitado):
     try:
