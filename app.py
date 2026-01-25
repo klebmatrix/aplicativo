@@ -26,7 +26,7 @@ if 'pdf_pronto' not in st.session_state: st.session_state.pdf_pronto = None
 
 if not st.session_state.logado:
     st.title("🔐 Quantum Lab - Acesso")
-    pin = st.text_input("Senha:", type="password")
+    pin = st.text_input("Senha (6-8 caracteres):", type="password")
     if st.button("Entrar"):
         if validar_acesso(pin) == "ok":
             st.session_state.logado = True
@@ -57,14 +57,9 @@ def gerar_material_pdf(titulo, questoes, respostas):
 # --- 3. NAVEGAÇÃO ---
 menu = st.sidebar.radio("Módulos", ["Álgebra", "Geometria", "Sistemas", "Financeiro"])
 
-# --- ÁLGEBRA ---
 if menu == "Álgebra":
     st.header("🔍 Álgebra")
     st.latex(r"ax^2 + bx + c = 0")
-    
-
-[Image of quadratic formula]
-
     a, b, c = st.columns(3)
     va = a.number_input("a", 1.0, key="alg_a")
     vb = b.number_input("b", -5.0, key="alg_b")
@@ -72,19 +67,16 @@ if menu == "Álgebra":
     if st.button("Resolver Bhaskara"):
         delta = vb**2 - 4*va*vc
         if delta >= 0:
-            st.success(f"x1: {(-vb+np.sqrt(delta))/(2*va)} | x2: {(-vb-np.sqrt(delta))/(2*va)}")
+            x1 = (-vb+np.sqrt(delta))/(2*va)
+            x2 = (-vb-np.sqrt(delta))/(2*va)
+            st.success(f"x1: {x1:.2f} | x2: {x2:.2f}")
         else: st.error("Delta Negativo")
 
-# --- GEOMETRIA ---
 elif menu == "Geometria":
     st.header("📐 Geometria")
-    tab1, tab2 = st.tabs(["Pitágoras", "Áreas e Volumes"])
+    tab1, tab2 = st.tabs(["Pitágoras", "Volumes"])
     with tab1:
         st.latex(r"a^2 + b^2 = c^2")
-        
-
-[Image of pythagorean theorem]
-
         c1, c2 = st.columns(2)
         cat1 = c1.number_input("Cateto A", 3.0)
         cat2 = c2.number_input("Cateto B", 4.0)
@@ -92,15 +84,10 @@ elif menu == "Geometria":
             st.success(f"Resultado: {np.sqrt(cat1**2 + cat2**2):.2f}")
     with tab2:
         st.latex(r"V = \frac{4}{3} \pi r^3")
-        
-
-[Image of volume of a sphere formula]
-
         raio = st.number_input("Raio da Esfera", 5.0)
         if st.button("Calcular Volume"):
             st.info(f"Volume: {(4/3)*np.pi*(raio**3):.2f}")
 
-# --- SISTEMAS ---
 elif menu == "Sistemas":
     st.header("📏 Sistemas e Matrizes")
     n = st.slider("Ordem", 2, 4, 2)
@@ -114,11 +101,9 @@ elif menu == "Sistemas":
         fig = px.imshow(A, text_auto=True, color_continuous_scale='Viridis')
         st.plotly_chart(fig)
 
-# --- FINANCEIRO ---
 elif menu == "Financeiro":
     st.header("💰 Financeiro")
     st.latex(r"M = C(1+i)^t")
-    
     c1, c2, c3 = st.columns(3)
     cap = c1.number_input("Capital", 1000.0)
     taxa = c2.number_input("Taxa %", 1.0)/100
@@ -126,16 +111,19 @@ elif menu == "Financeiro":
     if st.button("Calcular Montante"):
         st.metric("Total", f"R$ {cap*(1+taxa)**tempo:.2f}")
 
-# --- 4. GERADOR DE PDF (MÍNIMO 10) ---
+# --- 4. GERADOR DE PDF ---
 st.sidebar.divider()
 tema_pdf = st.sidebar.selectbox("Tema do PDF", ["Álgebra", "Geometria"])
 if st.sidebar.button("Gerar 10 Questões + Gabarito"):
     qs, gs = [], []
     for i in range(1, 11):
         if tema_pdf == "Álgebra":
-            x = random.randint(1, 10)
-            qs.append(f"{i}) Resolva: 2x + {random.randint(1,5)} = {2*x + random.randint(1,5)}")
-            gs.append(f"{i}) x aproximado (conforme valores)")
+            val_a = random.randint(2, 5)
+            val_x = random.randint(1, 10)
+            val_b = random.randint(1, 10)
+            val_c = (val_a * val_x) + val_b
+            qs.append(f"{i}) Resolva a equacao: {val_a}x + {val_b} = {val_c}")
+            gs.append(f"{i}) x = {val_x}")
         else:
             c1, c2 = random.randint(3,8), random.randint(4,10)
             qs.append(f"{i}) Ache a hipotenusa para os catetos {c1} e {c2}")
