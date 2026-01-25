@@ -6,7 +6,7 @@ from cryptography.fernet import Fernet
 from fpdf import FPDF
 import random
 
-# --- 1. SEGURANÇA ---
+# --- 1. SEGURANÇA (Render) ---
 PIN_CRIPTOGRAFADO = "gAAAAABpdRRwrtzON4oc6ayd3fx1LjLjX8TjRj7riCkHHuOpi0lcYFAu04KEXEo8d3-GJz9HmpP-AjvbLOLzr6zC6GMUvOCP1A=="
 
 def validar_acesso(pin_digitado):
@@ -62,84 +62,80 @@ if st.session_state.perfil is None:
 if st.session_state.perfil == "aluno":
     st.title("🎓 Portal do Aluno")
     st.sidebar.button("Sair", on_click=lambda: st.session_state.update({"perfil": None}))
-    st.info("Acesse a pasta de atividades oficial no Google Drive abaixo:")
-    link_drive = "https://drive.google.com/drive/folders/COLE_SEU_LINK_AQUI"
-    st.link_button("📂 Abrir Pasta de Exercícios", link_drive)
+    st.info("Acesse suas atividades abaixo:")
+    # Link da pasta pública dos alunos
+    link_aluno = "https://drive.google.com/drive/folders/1NkFeom_k3LUJYAFVBBDu4GD5aYVeNEZc?usp=drive_link"
+    st.link_button("📂 Abrir Pasta de Exercícios", link_aluno)
 
-# --- TELA DO PROFESSOR (ADMIN COMPLETO REATIVADO) ---
+# --- TELA DO PROFESSOR (ADMIN) ---
 elif st.session_state.perfil == "admin":
     st.sidebar.title("🛠 Painel Professor")
-    menu = st.sidebar.radio("Navegação", ["Gerador de Listas", "Sistemas Lineares", "Álgebra (Bhaskara)", "Geometria (Pitágoras)", "Financeiro"])
+    menu = st.sidebar.radio("Navegação", ["Gerador de Listas", "Sistemas Lineares", "Álgebra", "Geometria", "Financeiro", "Pasta Professor"])
     st.sidebar.button("Sair", on_click=lambda: st.session_state.update({"perfil": None}))
 
-    if menu == "Gerador de Listas":
-        st.header("📝 Criador de Exercícios Profissionais")
+    # NOVO MÓDULO: LINK PARA GOOGLE DRIVE DO PROFESSOR
+    if menu == "Pasta Professor":
+        st.header("📂 Gerenciador de Arquivos no Drive")
+        st.write("Acesse sua pasta privada para organizar, excluir ou renomear arquivos.")
+        link_admin_drive = "https://drive.google.com/drive/folders/1mvSy-0J6GCGCls4CReGyRXVFbJNkFMfQ?usp=drive_link"
+        st.link_button("🚀 Abrir Meu Google Drive", link_admin_drive)
+
+    elif menu == "Gerador de Listas":
+        st.header("📝 Criador de Exercícios")
         tema = st.selectbox("Escolha o Tema:", ["Equações 1º Grau", "Teorema de Pitágoras"])
-        if st.button("🚀 Gerar 10 Questões + Gabarito"):
+        if st.button("🚀 Gerar 10 Questões"):
             qs, gs = [], []
             for i in range(1, 11):
                 if "1º Grau" in tema:
                     a, x, b = random.randint(2, 6), random.randint(1, 15), random.randint(1, 20)
                     res = (a * x) + b
-                    qs.append(f"{i}) Encontre o valor de x: {a}x + {b} = {res}")
+                    qs.append(f"{i}) Resolva: {a}x + {b} = {res}")
                     gs.append(f"{i}) x = {x}")
                 else:
                     ca, cb = random.randint(3, 9), random.randint(4, 12)
                     h = np.sqrt(ca**2 + cb**2)
-                    qs.append(f"{i}) Catetos medindo {ca} e {cb}. Calcule a hipotenusa.")
+                    qs.append(f"{i}) Catetos {ca} e {cb}. Calcule a hipotenusa.")
                     gs.append(f"{i}) H = {h:.2f}")
             pdf_data = gerar_material_pdf(tema, qs, gs)
-            st.success("Lista Gerada! Baixe e coloque na sua pasta do Google Drive.")
-            st.download_button("📥 Baixar PDF", pdf_data, "atividade_quantum.pdf")
+            st.download_button("📥 Baixar PDF", pdf_data, "atividade.pdf")
 
     elif menu == "Sistemas Lineares":
         st.header("📏 Sistemas Ax = B")
-        st.latex(r"Ax = B")
-        ordem = st.selectbox("Ordem do Sistema:", [2, 3])
+        ordem = st.selectbox("Ordem:", [2, 3])
         mat_A, vec_B = [], []
         for i in range(ordem):
             cols = st.columns(ordem + 1)
-            mat_A.append([cols[j].number_input(f"A{i+1},{j+1}", value=float(i==j), key=f"A{i}{j}") for j in range(ordem)])
-            vec_B.append(cols[ordem].number_input(f"B{i+1}", value=1.0, key=f"B{i}"))
-        if st.button("Resolver Sistema"):
+            mat_A.append([cols[j].number_input(f"A{i}{j}", value=float(i==j), key=f"A{i}{j}") for j in range(ordem)])
+            vec_B.append(cols[ordem].number_input(f"B{i}", value=1.0, key=f"B{i}"))
+        if st.button("Resolver"):
             try:
                 A, B = np.array(mat_A), np.array(vec_B)
                 sol = np.linalg.solve(A, B)
-                st.divider()
-                st.write("### Solução:")
-                for idx, s in enumerate(sol): st.write(f"x{idx+1} = `{s:.4f}`")
-                st.plotly_chart(px.imshow(A, text_auto=True, color_continuous_scale='Viridis'))
-            except: st.error("O sistema não possui uma única solução.")
+                st.write(f"Solução: {sol}")
+                st.plotly_chart(px.imshow(A, text_auto=True))
+            except: st.error("Erro matemático.")
 
-    elif menu == "Álgebra (Bhaskara)":
-        st.header("🔍 Calculadora de Equações de 2º Grau")
+    elif menu == "Álgebra":
+        st.header("🔍 Bhaskara")
         st.latex(r"ax^2 + bx + c = 0")
         c1, c2, c3 = st.columns(3)
-        va = c1.number_input("Coeficiente a", 1.0)
-        vb = c2.number_input("Coeficiente b", -5.0)
-        vc = c3.number_input("Coeficiente c", 6.0)
-        if st.button("Calcular Raízes"):
-            delta = vb**2 - 4*va*vc
-            if delta >= 0:
-                x1 = (-vb + np.sqrt(delta)) / (2*va)
-                x2 = (-vb - np.sqrt(delta)) / (2*va)
-                st.success(f"Delta = {delta} | x1 = {x1:.2f} | x2 = {x2:.2f}")
-            else: st.error("Raízes Complexas!")
+        va, vb, vc = c1.number_input("a", 1.0), c2.number_input("b", -5.0), c3.number_input("c", 6.0)
+        if st.button("Calcular"):
+            d = vb**2 - 4*va*vc
+            if d >= 0:
+                st.write(f"x1 = {(-vb+np.sqrt(d))/(2*va):.2f} | x2 = {(-vb-np.sqrt(d))/(2*va):.2f}")
+            else: st.error("Delta negativo.")
 
-    elif menu == "Geometria (Pitágoras)":
-        st.header("📐 Teorema de Pitágoras")
+    elif menu == "Geometria":
+        st.header("📐 Pitágoras")
         st.latex(r"a^2 + b^2 = c^2")
-        ca = st.number_input("Cateto A", 3.0)
-        cb = st.number_input("Cateto B", 4.0)
+        ca, cb = st.number_input("Cateto A", 3.0), st.number_input("Cateto B", 4.0)
         if st.button("Calcular Hipotenusa"):
-            st.success(f"Hipotenusa (c) = {np.sqrt(ca**2 + cb**2):.2f}")
+            st.success(f"H = {np.sqrt(ca**2 + cb**2):.2f}")
 
     elif menu == "Financeiro":
         st.header("💰 Juros Compostos")
         st.latex(r"M = C(1+i)^t")
-        cap = st.number_input("Capital Inicial", 1000.0)
-        tax = st.number_input("Taxa mensal (%)", 1.0) / 100
-        tmp = st.number_input("Meses", 12)
-        if st.button("Calcular Montante"):
-            m = cap * (1 + tax)**tmp
-            st.metric("Montante Final", f"R$ {m:.2f}", f"Juros: R$ {m-cap:.2f}")
+        cap, tax, tmp = st.number_input("Capital", 1000.0), st.number_input("Taxa %", 1.0)/100, st.number_input("Meses", 12)
+        if st.button("Calcular"):
+            st.metric("Montante", f"R$ {cap*(1+tax)**tmp:.2f}")
