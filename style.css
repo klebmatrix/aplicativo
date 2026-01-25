@@ -1,0 +1,219 @@
+/* ========================================
+   QUANTUM MATH LAB - CUSTOM STYLESHEET
+   Design Premium com Tema Espacial
+   ======================================== */
+
+/* --- 1. VARIÁVEIS DE COR (PALETA ESPACIAL) --- */
+:root {
+    --primary-color: #00F2FF;      /* Ciano Neon */
+    --secondary-color: #7000FF;    /* Roxo Elétrico */
+    --accent-color: #FF007A;       /* Magenta */
+    --dark-bg: #0a0e27;            /* Fundo Escuro */
+    --light-text: #FFFFFF;         /* Texto Claro */
+    --border-color: #1a1f3a;       /* Bordas Sutis */
+}
+
+/* --- 2. RESET E ESTILOS GLOBAIS --- */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    background: linear-gradient(135deg, #0a0e27 0%, #1a1f3a 50%, #0d1b2a 100%);
+    color: var(--light-text);
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+/* --- 3. STREAMLIT CONTAINER PRINCIPAL --- */
+.stApp {
+    background: transparent !important;
+}
+
+/* --- 4. SIDEBAR CUSTOMIZADO --- */
+[data-testid="stSidebar"] {
+    background: linear-gradient(180deg, #0d1b2a 0%, #1a1f3a 100%) !important;
+    border-right: 2px solid var(--primary-color) !important;
+}
+
+[data-testid="stSidebar"] [data-testid="stVerticalBlock"] > [style*="flex-direction"] {
+    gap: 1rem;
+}
+
+/* --- 5. BOTÕES ESTILIZADOS --- */
+.stButton > button {
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%) !important;
+    color: var(--dark-bg) !important;
+    border: none !important;
+    border-radius: 8px !important;
+    padding: 12px 24px !important;
+    font-weight: 600 !important;
+    font-size: 14px !important;
+    transition: all 0.3s ease !important;
+    box-shadow: 0 4px 15px rgba(0, 242, 255, 0.3) !important;
+}
+
+.stButton > button:hover {
+    transform: translateY(-2px) !important;
+    box-shadow: 0 6px 20px rgba(0, 242, 255, 0.5) !important;
+}
+
+.stButton > button:active {
+    transform: translateY(0) !important;
+}
+
+/* --- 6. INPUTS E CAMPOS DE TEXTO --- */
+.stTextInput > div > div > input,
+.stNumberInput > div > div > input,
+.stSelectbox > div > div > select {
+    background-color: rgba(26, 31, 58, 0.8) !important;
+    color: var(--light-text) !important;
+    border: 2px solid var(--border-color) !important;
+    border-radius: 6px !important;
+    padding: 10px 12px !important;
+    transition: all 0.3s ease !important;
+}
+
+.stTextInput > div > div > input:focus,
+.stNumberInput > div > div > input:focus,
+.stSelectbox > div > div > select:focus {
+    border-color: var(--primary-color) !important;
+    box-shadow: 0 0 10px rgba(0, 242, 255, 0.3) !important;
+}
+
+/* --- 7. SLIDER CUSTOMIZADO --- */
+.stSlider > div > div > div > div {
+    background: var(--primary-color) !important;
+}
+
+/* --- 8. CARDS E CONTAINERS --- */
+.stContainer, .stExpander {
+    background: rgba(26, 31, 58, 0.6) !important;
+    border: 1px solid var(--border-color) !important;
+    border-radius: 10px !important;
+    padding: 20px !important;
+    margin: 10px 0 !important;
+}
+
+/* --- 9. MENSAGENS DE SUCESSO, ERRO E AVISO --- */
+.stSuccess {
+    background: rgba(0, 242, 255, 0.1) !important;
+    border-left: 4px solid var(--primary-color) !important;
+    border-radius: 6px !important;
+}
+
+.stError {
+    background: rgba(255, 0, 122, 0.1) !important;
+    border-left: 4px solid var(--accent-color) !important;
+    border-radius: 6px !important;
+}
+
+.stWarning {
+    background: rgba(112, 0, 255, 0.1) !important;
+    border-left: 4px solid var(--secondary-color) !important;
+    border-radius: 6px !important;
+}
+
+.stInfo {
+    background: rgba(0, 242, 255, 0.05) !important;
+    border-left: 4px solid var(--primary-color) !important;
+    border-radius: 6px !important;
+}
+
+/* --- 10. TÍTULOS E HEADERS --- */
+h1, h2, h3 {
+    color: var(--light-text) !important;
+    text-shadow: 0 0 10px rgba(0, 242, 255, 0.3) !important;
+}
+
+h1 {
+    font-size: 2.5rem !important;
+    font-weight: 700 !important;
+    margin-bottom: 1.5rem !important;
+}
+
+h2 {
+    font-size: 1.8rem !important;
+    font-weight: 600 !important;
+    margin-top: 1.5rem !important;
+    margin-bottom: 1rem !important;
+}
+
+/* --- 11. TABS --- */
+.stTabs [data-baseweb="tab-list"] {
+    background-color: transparent !important;
+    border-bottom: 2px solid var(--border-color) !important;
+}
+
+.stTabs [aria-selected="true"] {
+    color: var(--primary-color) !important;
+    border-bottom: 3px solid var(--primary-color) !important;
+}
+
+/* --- 12. DIVIDER --- */
+hr {
+    border-color: var(--border-color) !important;
+}
+
+/* --- 13. MÉTRICA (METRIC DISPLAY) --- */
+.stMetric {
+    background: rgba(0, 242, 255, 0.05) !important;
+    border: 1px solid var(--primary-color) !important;
+    border-radius: 8px !important;
+    padding: 15px !important;
+}
+
+.stMetric > div > div > p {
+    color: var(--primary-color) !important;
+}
+
+/* --- 14. DOWNLOAD BUTTON --- */
+.stDownloadButton > button {
+    background: linear-gradient(135deg, var(--accent-color) 0%, var(--secondary-color) 100%) !important;
+    color: var(--light-text) !important;
+    border: none !important;
+    border-radius: 8px !important;
+    padding: 12px 24px !important;
+    font-weight: 600 !important;
+    transition: all 0.3s ease !important;
+}
+
+.stDownloadButton > button:hover {
+    transform: translateY(-2px) !important;
+    box-shadow: 0 6px 20px rgba(255, 0, 122, 0.4) !important;
+}
+
+/* --- 15. RESPONSIVIDADE --- */
+@media (max-width: 768px) {
+    h1 {
+        font-size: 1.8rem !important;
+    }
+    
+    h2 {
+        font-size: 1.4rem !important;
+    }
+    
+    .stButton > button {
+        padding: 10px 16px !important;
+        font-size: 12px !important;
+    }
+}
+
+/* --- 16. SCROLLBAR CUSTOMIZADO --- */
+::-webkit-scrollbar {
+    width: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: rgba(26, 31, 58, 0.5);
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--primary-color);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--secondary-color);
+}
