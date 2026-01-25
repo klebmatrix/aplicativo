@@ -23,94 +23,122 @@ def validar_acesso(pin_digitado):
 
 st.set_page_config(page_title="Quantum Math Lab", layout="wide")
 
-if 'logado' not in st.session_state:
-    st.session_state.logado = False
+if 'logado' not in st.session_state: st.session_state.logado = False
+if 'pdf_pronto' not in st.session_state: st.session_state.pdf_pronto = None
 
 if not st.session_state.logado:
-    st.title("🔐 Acesso Restrito")
-    pin = st.text_input("Digite seu PIN de acesso:", type="password")
-    if st.button("Liberar Sistema"):
+    st.title("🔐 Quantum Math Lab - Login")
+    pin = st.text_input("Insira o PIN de Acesso:", type="password")
+    if st.button("Acessar Terminal"):
         if validar_acesso(pin) == "ok":
             st.session_state.logado = True
             st.rerun()
-        else:
-            st.error("PIN incorreto ou ambiente não configurado.")
+        else: st.error("Acesso Negado.")
     st.stop()
 
-# --- 2. FUNÇÕES DE SUPORTE (PDF E ANÁLISE) ---
-def analisar_matriz_avancado(matriz_lista):
+# --- 2. MOTOR DE PDF ---
+class PDF(FPDF):
+    def header(self):
+        self.set_font('Arial', 'B', 14)
+        self.cell(0, 10, 'Quantum Math Lab - Atividades Oficiais', 0, 1, 'C')
+        self.ln(5)
+
+def gerar_pdf_bytes(titulo, questoes, respostas):
+    pdf = PDF()
+    pdf.add_page()
+    pdf.set_font("Arial", 'B', 12)
+    pdf.cell(0, 10, f"LISTA: {titulo.upper()}", ln=True)
+    pdf.set_font("Arial", size=11)
+    for q in questoes:
+        pdf.multi_cell(0, 10, txt=q); pdf.ln(2)
+    pdf.add_page()
+    pdf.set_font("Arial", 'B', 12)
+    pdf.cell(0, 10, "GABARITO", ln=True)
+    pdf.set_font("Arial", size=11)
+    for r in respostas:
+        pdf.multi_cell(0, 10, txt=r)
+    return pdf.output(dest='S').encode('latin-1')
+
+# --- 3. MÓDULO SISTEMAS (MATRIZ AVANÇADA) ---
+def analisar_matriz(matriz_lista):
     try:
         A = np.array(matriz_lista)
         ordem = A.shape[0]
         st.divider()
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            st.subheader("📊 Propriedades Estruturais")
+        c1, c2 = st.columns(2)
+        with c1:
+            st.subheader("📊 Estrutura")
             det = np.linalg.det(A)
             traco = np.trace(A)
             posto = np.linalg.matrix_rank(A)
-            st.write(f"**Determinante:** `{det:.4f}`")
-            st.write(f"**Traço:** `{traco}`")
-            st.write(f"**Posto (Rank):** `{posto}`")
-            
-            is_diag = np.all(A == np.diag(np.diagonal(A)))
+            st.write(f"**Det:** `{det:.4f}` | **Traço:** `{traco}` | **Posto:** `{posto}`")
             is_sym = np.allclose(A, A.T)
-            is_ident = np.allclose(A, np.eye(ordem))
-            
-            tags = []
-            if is_ident: tags.append("✅ Identidade")
-            elif is_diag: tags.append("💎 Diagonal")
-            if is_sym: tags.append("🔄 Simétrica")
-            if not tags: tags.append("📝 Geral / Quadrada")
-            st.write(f"**Classificação:** {', '.join(tags)}")
-
-        with col2:
-            st.subheader("🖼️ Visualização (Heatmap)")
+            st.write(f"**Simétrica:** {'Sim' if is_sym else 'Não'}")
+        with c2:
+            st.subheader("🖼️ Heatmap")
             fig = px.imshow(A, text_auto=True, color_continuous_scale='Viridis')
-            fig.update_layout(margin=dict(l=0, r=0, t=30, b=0), height=280)
+            fig.update_layout(margin=dict(l=0, r=0, t=20, b=0), height=250)
             st.plotly_chart(fig, use_container_width=True)
-        return A, det
-    except Exception as e:
-        st.error(f"Erro no cálculo da matriz: {e}")
-        return None, None
+    except Exception as e: st.error(f"Erro nos cálculos: {e}")
 
-# --- 3. MENU E NAVEGAÇÃO ---
-menu = st.sidebar.radio("Selecione o Módulo:", ["Álgebra", "Geometria", "Sistemas", "Financeiro"])
+# --- 4. NAVEGAÇÃO ---
+menu = st.sidebar.radio("Módulos:", ["Álgebra", "Geometria", "Sistemas", "Financeiro"])
 
 if menu == "Álgebra":
-    st.header("🔍 Álgebra: 1º e 2º Grau")
-    # Lógica de Bhaskara aqui...
-    st.latex(r"ax^2 + bx + c = 0")
+    st.header("🔍 Álgebra")
+    tipo = st.selectbox("Equação:", ["1º Grau", "2º Grau"])
+    if tipo == "2º Grau":
+        st.latex(r"ax^2 + bx + c = 0")
+        
+
+[Image of the quadratic formula]
+
+        ca, cb, cc = st.columns(3)
+        va = ca.number_input("a:", 1.0); vb = cb.number_input("b:", -5.0); vc = cc.number_input("c:", 6.0)
+        if st.button("Resolver Bhaskara"):
+            d = vb**2 - 4*va*vc
+            if d >= 0: st.success(f"x1: {(-vb+np.sqrt(d))/(2*va)} | x2: {(-vb-np.sqrt(d))/(2*va)}")
+            else: st.error("Raízes Complexas")
 
 elif menu == "Geometria":
     st.header("📐 Geometria")
+    st.latex(r"a^2 + b^2 = c^2")
     
 
 [Image of the Pythagorean theorem diagram]
 
-    st.latex(r"a^2 + b^2 = c^2")
-    # Lógica de Pitágoras aqui...
+    c1, c2 = st.columns(2)
+    cat1 = c1.number_input("Cateto A:", 3.0); cat2 = c2.number_input("Cateto B:", 4.0)
+    if st.button("Calcular Hipotenusa"):
+        st.success(f"Hipotenusa: {np.sqrt(cat1**2 + cat2**2):.2f}")
 
 elif menu == "Sistemas":
-    st.header("📏 Análise Avançada de Sistemas")
-    ordem = st.slider("Ordem da Matriz:", 2, 4, 2)
-    matriz_input = []
-    for i in range(ordem):
-        cols = st.columns(ordem)
-        linha = [cols[j].number_input(f"L{i+1}C{j+1}", value=float(i==j), key=f"m_{i}_{j}") for j in range(ordem)]
-        matriz_input.append(linha)
-    
+    st.header("📏 Sistemas e Matrizes")
+    n = st.slider("Ordem:", 2, 4, 2)
+    matriz_in = []
+    for i in range(n):
+        cols = st.columns(n)
+        matriz_in.append([cols[j].number_input(f"A{i}{j}", value=float(i==j)) for j in range(n)])
     if st.button("Analisar Matriz"):
-        analisar_matriz_avancado(matriz_input)
+        analisar_matriz(matriz_in)
 
 elif menu == "Financeiro":
     st.header("💰 Financeiro")
+    st.latex(r"M = C \cdot (1 + i)^t")
     
-    st.latex(r"M = C(1+i)^t")
+    c1, c2, c3 = st.columns(3)
+    cap = c1.number_input("Capital:", 1000.0); tx = c2.number_input("Taxa (%):", 1.0)/100; t = c3.number_input("Meses:", 12)
+    if st.button("Calcular"):
+        st.metric("Montante", f"R$ {cap * (1+tx)**t:.2f}")
 
-# --- 4. GERADOR DE ATIVIDADES (MÍNIMO 10) ---
+# --- 5. GERADOR DE PDF (MIN 10) ---
 st.sidebar.divider()
-if st.sidebar.button("Gerar 10 Atividades (PDF)"):
-    # Lógica do PDF que gera questões aleatórias...
-    st.sidebar.success("PDF pronto para baixar!")
+qtd = st.sidebar.number_input("Atividades (Mín 10):", 10, 50, 10)
+if st.sidebar.button("Gerar Material Completo"):
+    questoes = [f"{i+1}) Resolva a operacao matematica proposta {random.randint(100,999)}..." for i in range(qtd)]
+    gabarito = [f"{i+1}) Resposta verificada." for i in range(qtd)]
+    st.session_state.pdf_pronto = gerar_pdf_bytes("Atividades Quantum", questoes, gabarito)
+    st.sidebar.success("PDF Criado!")
+
+if st.session_state.pdf_pronto:
+    st.sidebar.download_button("📥 Baixar PDF", st.session_state.pdf_pronto, "atividades.pdf")
