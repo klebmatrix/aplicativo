@@ -6,19 +6,16 @@ from cryptography.fernet import Fernet
 from fpdf import FPDF
 import random
 
-# --- 1. SEGURANÇA (Variáveis de Ambiente do Render) ---
+# --- 1. SEGURANÇA ---
 PIN_CRIPTOGRAFADO = "gAAAAABpdRRwrtzON4oc6ayd3fx1LjLjX8TjRj7riCkHHuOpi0lcYFAu04KEXEo8d3-GJz9HmpP-AjvbLOLzr6zC6GMUvOCP1A=="
 
 def validar_acesso(pin_digitado):
-    # Senha do aluno configurada como 'acesso_aluno' no Render
     senha_aluno_env = os.environ.get('acesso_aluno')
     if senha_aluno_env and pin_digitado == senha_aluno_env:
         return "aluno"
-    
     try:
         chave = os.environ.get('chave_mestra')
         if not chave: return "erro_env"
-        # Limpeza de caracteres da chave
         chave = chave.strip().replace("'", "").replace('"', "").replace('b', '', 1) if chave.startswith('b') else chave.strip()
         f = Fernet(chave.encode())
         if pin_digitado == f.decrypt(PIN_CRIPTOGRAFADO.strip().encode()).decode():
@@ -49,82 +46,89 @@ def gerar_material_pdf(titulo, questoes, respostas):
         pdf.multi_cell(0, 10, txt=r); pdf.ln(2)
     return pdf.output(dest='S').encode('latin-1')
 
-# --- TELA DE LOGIN ---
+# --- LOGIN ---
 if st.session_state.perfil is None:
-    st.title("🔐 Quantum Math Lab - Login")
-    pin = st.text_input("Digite o seu PIN:", type="password")
+    st.title("🔐 Quantum Math Lab")
+    pin = st.text_input("Digite o PIN:", type="password")
     if st.button("Entrar"):
         acesso = validar_acesso(pin)
         if acesso != "negado":
             st.session_state.perfil = acesso
             st.rerun()
-        else:
-            st.error("PIN incorreto ou variável 'acesso_aluno' não configurada.")
+        else: st.error("PIN incorreto.")
     st.stop()
 
-# --- ÁREA DO ALUNO ---
+# --- TELA DO ALUNO ---
 if st.session_state.perfil == "aluno":
     st.title("🎓 Portal do Aluno")
     st.sidebar.button("Sair", on_click=lambda: st.session_state.update({"perfil": None}))
-    
-    st.subheader("📚 Materiais e Atividades")
-    st.info("Abaixo você encontra o acesso à nossa pasta oficial de exercícios.")
-    
-    # IMPORTANTE: Substitua pelo link real da sua pasta do Drive
-    link_drive_professor = "https://drive.google.com/drive/folders/1NkFeom_k3LUJYAFVBBDu4GD5aYVeNEZc?usp=drive_link"
-    
-    st.link_button("📂 Abrir Pasta de Atividades (PDF)", link_drive_professor)
-    st.write("---")
-    st.write("Dica: Os novos materiais são postados regularmente nesta pasta.")
+    st.info("Acesse a pasta de atividades oficial no Google Drive abaixo:")
+    link_drive = "https://drive.google.com/drive/folders/COLE_SEU_LINK_AQUI"
+    st.link_button("📂 Abrir Pasta de Exercícios", link_drive)
 
-# --- ÁREA DO PROFESSOR (ADMIN) ---
+# --- TELA DO PROFESSOR (ADMIN COMPLETO) ---
 elif st.session_state.perfil == "admin":
     st.sidebar.title("🛠 Painel Professor")
-    menu = st.sidebar.radio("Módulos", ["Gerador de Atividades", "Sistemas Ax=B", "Álgebra", "Geometria", "Financeiro"])
+    menu = st.sidebar.radio("Módulos", ["Gerador", "Sistemas Lineares", "Álgebra", "Geometria", "Financeiro"])
     st.sidebar.button("Sair", on_click=lambda: st.session_state.update({"perfil": None}))
 
-    if menu == "Gerador de Atividades":
-        st.header("📝 Criador de Listas de Exercícios")
-        tema = st.selectbox("Escolha o Tema:", ["Equações 1º Grau", "Teorema de Pitágoras"])
-        nome_doc = st.text_input("Nome da Lista:", "Atividade_Quantum_01")
-        
-        if st.button("🚀 Gerar 10 Questões + Gabarito"):
+    if menu == "Gerador":
+        st.header("📝 Criador de Listas")
+        tema = st.selectbox("Tema:", ["Equações 1º Grau", "Teorema de Pitágoras"])
+        if st.button("🚀 Gerar 10 Questões"):
             qs, gs = [], []
             for i in range(1, 11):
                 if "1º Grau" in tema:
                     a, x, b = random.randint(2, 6), random.randint(1, 15), random.randint(1, 20)
                     res = (a * x) + b
-                    qs.append(f"{i}) Resolva a equacao: {a}x + {b} = {res}")
+                    qs.append(f"{i}) Resolva: {a}x + {b} = {res}")
                     gs.append(f"{i}) x = {x}")
                 else:
                     ca, cb = random.randint(3, 9), random.randint(4, 12)
                     h = np.sqrt(ca**2 + cb**2)
-                    qs.append(f"{i}) Em um triangulo retangulo, os catetos medem {ca} e {cb}. Qual a hipotenusa?")
+                    qs.append(f"{i}) Catetos {ca} e {cb}. Calcule a hipotenusa.")
                     gs.append(f"{i}) H = {h:.2f}")
-            
             pdf_data = gerar_material_pdf(tema, qs, gs)
-            st.success("Lista gerada com 10 questões e gabarito!")
-            st.download_button("📥 Baixar PDF para o Google Drive", pdf_data, f"{nome_doc}.pdf")
+            st.download_button("📥 Baixar PDF Gerado", pdf_data, "atividade.pdf")
 
-    elif menu == "Sistemas Ax=B":
-        st.header("📏 Resolutor de Sistemas")
+    elif menu == "Sistemas Lineares":
+        st.header("📏 Resolutor de Sistemas Ax = B")
+        st.latex(r"Ax = B")
         ordem = st.selectbox("Ordem:", [2, 3])
-        # Lógica de matrizes (idêntica à anterior, sem erros)
-        st.info("Insira os dados para resolver sistemas lineares.")
+        mat_A, vec_B = [], []
+        for i in range(ordem):
+            cols = st.columns(ordem + 1)
+            mat_A.append([cols[j].number_input(f"A{i}{j}", value=float(i==j), key=f"A{i}{j}") for j in range(ordem)])
+            vec_B.append(cols[ordem].number_input(f"B{i}", value=1.0, key=f"B{i}"))
+        if st.button("Resolver Sistema"):
+            try:
+                A, B = np.array(mat_A), np.array(vec_B)
+                sol = np.linalg.solve(A, B)
+                st.success(f"Solução: {sol}")
+                st.plotly_chart(px.imshow(A, text_auto=True, color_continuous_scale='RdBu'))
+            except: st.error("Erro no sistema.")
 
     elif menu == "Álgebra":
-        st.header("🔍 Cálculos de 2º Grau")
+        st.header("🔍 Bhaskara")
         st.latex(r"ax^2 + bx + c = 0")
-        # Calculadora de Bhaskara aqui...
+        c1, c2, c3 = st.columns(3)
+        va, vb, vc = c1.number_input("a", 1.0), c2.number_input("b", -5.0), c3.number_input("c", 6.0)
+        if st.button("Calcular Raízes"):
+            d = vb**2 - 4*va*vc
+            if d >= 0:
+                st.write(f"x1 = {(-vb+np.sqrt(d))/(2*va):.2f} | x2 = {(-vb-np.sqrt(d))/(2*va):.2f}")
+            else: st.error("Delta negativo.")
 
     elif menu == "Geometria":
-        st.header("📐 Cálculos de Geometria")
+        st.header("📐 Pitágoras")
         st.latex(r"a^2 + b^2 = c^2")
-        # Calculadora de Pitágoras aqui...
+        ca, cb = st.number_input("Lado A", 3.0), st.number_input("Lado B", 4.0)
+        if st.button("Calcular"):
+            st.success(f"Hipotenusa = {np.sqrt(ca**2 + cb**2):.2f}")
 
     elif menu == "Financeiro":
-        st.header("💰 Matemática Financeira")
+        st.header("💰 Juros Compostos")
         st.latex(r"M = C(1+i)^t")
-
-
-
+        cap, tax, tmp = st.number_input("Capital", 1000.0), st.number_input("Taxa %", 1.0)/100, st.number_input("Meses", 12)
+        if st.button("Calcular"):
+            st.metric("Montante", f"R$ {cap*(1+tax)**tmp:.2f}")
