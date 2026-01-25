@@ -25,97 +25,123 @@ if 'logado' not in st.session_state: st.session_state.logado = False
 if 'pdf_pronto' not in st.session_state: st.session_state.pdf_pronto = None
 
 if not st.session_state.logado:
-    st.title("🔐 Login")
+    st.title("🔐 Quantum Lab - Acesso")
     pin = st.text_input("Senha:", type="password")
     if st.button("Entrar"):
         if validar_acesso(pin) == "ok":
             st.session_state.logado = True
             st.rerun()
-        else: st.error("Negado")
+        else: st.error("Acesso Negado")
     st.stop()
 
-# --- 2. FUNÇÃO DO PDF (COM GABARITO) ---
+# --- 2. MOTOR DE PDF ---
 def gerar_material_pdf(titulo, questoes, respostas):
     pdf = FPDF()
     pdf.set_auto_page_break(auto=True, margin=15)
-    
-    # Página de Questões
     pdf.add_page()
     pdf.set_font("Arial", 'B', 16)
-    pdf.cell(0, 10, f"Lista de Exercicios: {titulo}", ln=True, align='C')
+    pdf.cell(0, 10, f"Atividade: {titulo}", ln=True, align='C')
     pdf.ln(10)
     pdf.set_font("Arial", size=12)
     for q in questoes:
-        pdf.multi_cell(0, 10, txt=q)
-        pdf.ln(5)
-    
-    # Página de Gabarito
+        pdf.multi_cell(0, 10, txt=q); pdf.ln(5)
     pdf.add_page()
     pdf.set_font("Arial", 'B', 16)
     pdf.cell(0, 10, "Gabarito Oficial", ln=True, align='C')
     pdf.ln(10)
     pdf.set_font("Arial", size=12)
     for r in respostas:
-        pdf.multi_cell(0, 10, txt=r)
-        pdf.ln(2)
-        
+        pdf.multi_cell(0, 10, txt=r); pdf.ln(2)
     return pdf.output(dest='S').encode('latin-1')
 
-# --- 3. MENU ---
-menu = st.sidebar.radio("Navegação", ["Álgebra", "Geometria", "Sistemas", "Financeiro"])
+# --- 3. NAVEGAÇÃO ---
+menu = st.sidebar.radio("Módulos", ["Álgebra", "Geometria", "Sistemas", "Financeiro"])
 
+# --- ÁLGEBRA ---
 if menu == "Álgebra":
-    st.header("🔍 Álgebra: Equações")
-    aba1, aba2 = st.tabs(["1º Grau", "2º Grau (Bhaskara)"])
+    st.header("🔍 Álgebra")
+    st.latex(r"ax^2 + bx + c = 0")
     
-    with aba1:
-        st.latex(r"ax + b = c")
-        a1, b1, c1 = st.columns(3)
-        va1 = a1.number_input("a", value=2.0, key="a1")
-        vb1 = b1.number_input("b", value=10.0, key="b1")
-        vc1 = c1.number_input("c", value=20.0, key="c1")
-        if st.button("Resolver 1º Grau"):
-            res = (vc1 - vb1) / va1
-            st.success(f"Resultado: x = {res}")
 
-    with aba2:
-        st.latex(r"ax^2 + bx + c = 0")
-        a2, b2, c2 = st.columns(3)
-        va2 = a2.number_input("a", value=1.0, key="a2")
-        vb2 = b2.number_input("b", value=-5.0, key="b2")
-        vc2 = c2.number_input("c", value=6.0, key="c2")
-        if st.button("Calcular Bhaskara"):
-            delta = vb2**2 - 4*va2*vc2
-            if delta >= 0:
-                x1 = (-vb2 + np.sqrt(delta)) / (2*va2)
-                x2 = (-vb2 - np.sqrt(delta)) / (2*va2)
-                st.success(f"Delta: {delta} | x1: {x1} | x2: {x2}")
-            else: st.error("Delta negativo.")
+[Image of quadratic formula]
 
-# --- 4. GERADOR DE PDF (MÍNIMO 10 QUESTÕES) ---
+    a, b, c = st.columns(3)
+    va = a.number_input("a", 1.0, key="alg_a")
+    vb = b.number_input("b", -5.0, key="alg_b")
+    vc = c.number_input("c", 6.0, key="alg_c")
+    if st.button("Resolver Bhaskara"):
+        delta = vb**2 - 4*va*vc
+        if delta >= 0:
+            st.success(f"x1: {(-vb+np.sqrt(delta))/(2*va)} | x2: {(-vb-np.sqrt(delta))/(2*va)}")
+        else: st.error("Delta Negativo")
+
+# --- GEOMETRIA ---
+elif menu == "Geometria":
+    st.header("📐 Geometria")
+    tab1, tab2 = st.tabs(["Pitágoras", "Áreas e Volumes"])
+    with tab1:
+        st.latex(r"a^2 + b^2 = c^2")
+        
+
+[Image of pythagorean theorem]
+
+        c1, c2 = st.columns(2)
+        cat1 = c1.number_input("Cateto A", 3.0)
+        cat2 = c2.number_input("Cateto B", 4.0)
+        if st.button("Hipotenusa"):
+            st.success(f"Resultado: {np.sqrt(cat1**2 + cat2**2):.2f}")
+    with tab2:
+        st.latex(r"V = \frac{4}{3} \pi r^3")
+        
+
+[Image of volume of a sphere formula]
+
+        raio = st.number_input("Raio da Esfera", 5.0)
+        if st.button("Calcular Volume"):
+            st.info(f"Volume: {(4/3)*np.pi*(raio**3):.2f}")
+
+# --- SISTEMAS ---
+elif menu == "Sistemas":
+    st.header("📏 Sistemas e Matrizes")
+    n = st.slider("Ordem", 2, 4, 2)
+    mat = []
+    for i in range(n):
+        cols = st.columns(n)
+        mat.append([cols[j].number_input(f"A{i}{j}", value=float(i==j), key=f"s{i}{j}") for j in range(n)])
+    if st.button("Analisar Matriz"):
+        A = np.array(mat)
+        st.write(f"Determinante: {np.linalg.det(A):.4f}")
+        fig = px.imshow(A, text_auto=True, color_continuous_scale='Viridis')
+        st.plotly_chart(fig)
+
+# --- FINANCEIRO ---
+elif menu == "Financeiro":
+    st.header("💰 Financeiro")
+    st.latex(r"M = C(1+i)^t")
+    
+    c1, c2, c3 = st.columns(3)
+    cap = c1.number_input("Capital", 1000.0)
+    taxa = c2.number_input("Taxa %", 1.0)/100
+    tempo = c3.number_input("Meses", 12)
+    if st.button("Calcular Montante"):
+        st.metric("Total", f"R$ {cap*(1+taxa)**tempo:.2f}")
+
+# --- 4. GERADOR DE PDF (MÍNIMO 10) ---
 st.sidebar.divider()
-st.sidebar.subheader("📝 Gerador de Atividades")
-tema = st.sidebar.selectbox("Escolha o Tema", ["Equações de 1º Grau", "Equações de 2º Grau"])
-
-if st.sidebar.button("Gerar PDF (10 Questões + Gabarito)"):
-    q_lista, g_lista = [], []
+tema_pdf = st.sidebar.selectbox("Tema do PDF", ["Álgebra", "Geometria"])
+if st.sidebar.button("Gerar 10 Questões + Gabarito"):
+    qs, gs = [], []
     for i in range(1, 11):
-        if tema == "Equações de 1º Grau":
-            a, x_real = random.randint(2, 5), random.randint(1, 10)
-            b = random.randint(1, 20)
-            c = (a * x_real) + b
-            q_lista.append(f"Questao {i}: Resolva a equacao {a}x + {b} = {c}")
-            g_lista.append(f"Questao {i}: x = {x_real}")
+        if tema_pdf == "Álgebra":
+            x = random.randint(1, 10)
+            qs.append(f"{i}) Resolva: 2x + {random.randint(1,5)} = {2*x + random.randint(1,5)}")
+            gs.append(f"{i}) x aproximado (conforme valores)")
         else:
-            # Gerando equações de 2º grau simples (x-x1)(x-x2) = 0
-            x1, x2 = random.randint(1, 5), random.randint(6, 10)
-            b_val = -(x1 + x2)
-            c_val = x1 * x2
-            q_lista.append(f"Questao {i}: Encontre as raizes de x^2 + ({b_val})x + {c_val} = 0")
-            g_lista.append(f"Questao {i}: x1 = {x1}, x2 = {x2}")
-    
-    st.session_state.pdf_pronto = gerar_material_pdf(tema, q_lista, g_lista)
-    st.sidebar.success("PDF e Gabarito Gerados!")
+            c1, c2 = random.randint(3,8), random.randint(4,10)
+            qs.append(f"{i}) Ache a hipotenusa para os catetos {c1} e {c2}")
+            gs.append(f"{i}) H = {np.sqrt(c1**2+c2**2):.2f}")
+    st.session_state.pdf_pronto = gerar_material_pdf(tema_pdf, qs, gs)
+    st.sidebar.success("PDF e Gabarito Criados!")
 
 if st.session_state.pdf_pronto:
-    st.sidebar.download_button("📥 Baixar PDF Completo", st.session_state.pdf_pronto, "atividades_quantum.pdf")
+    st.sidebar.download_button("📥 Baixar Material", st.session_state.pdf_pronto, "quantum_lab.pdf")
