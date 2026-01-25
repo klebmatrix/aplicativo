@@ -7,24 +7,37 @@ from fpdf import FPDF
 import random
 from datetime import datetime
 
-# --- 1. SEGURANÇA ---
+# Criar pasta de atividades se não existir
+if not os.path.exists("atividades"):
+    os.makedirs("atividades")
+
+# --- 1. SEGURANÇA (VARIÁVEIS DE AMBIENTE) ---
 PIN_CRIPTOGRAFADO = "gAAAAABpdRRwrtzON4oc6ayd3fx1LjLjX8TjRj7riCkHHuOpi0lcYFAu04KEXEo8d3-GJz9HmpP-AjvbLOLzr6zC6GMUvOCP1A=="
 
 def validar_acesso(pin_digitado):
-    if pin_digitado == "123456": return "aluno"
+    # Busca a senha do aluno na variável de ambiente
+    senha_aluno_env = os.environ.get('acesso_aluno')
+    if pin_digitado == senha_aluno_env:
+        return "aluno"
+    
     try:
         chave = os.environ.get('chave_mestra')
         if not chave: return "erro_env"
+        # Limpeza da chave mestra
         chave = chave.strip().replace("'", "").replace('"', "").replace('b', '', 1) if chave.startswith('b') else chave.strip()
         f = Fernet(chave.encode())
-        if pin_digitado == f.decrypt(PIN_CRIPTOGRAFADO.strip().encode()).decode(): return "admin"
-    except: pass
+        # Validação do Admin
+        if pin_digitado == f.decrypt(PIN_CRIPTOGRAFADO.strip().encode()).decode():
+            return "admin"
+    except:
+        pass
     return "negado"
 
 st.set_page_config(page_title="Quantum Lab", layout="wide")
 
 if 'perfil' not in st.session_state: st.session_state.perfil = None
 if 'nuvem_pdf' not in st.session_state: st.session_state.nuvem_pdf = []
+if 'preview_pdf' not in st.session_state: st.session_state.preview_pdf = None
 
 # --- MOTOR DE PDF ---
 def gerar_material_pdf(titulo, questoes, respostas):
@@ -47,13 +60,17 @@ def gerar_material_pdf(titulo, questoes, respostas):
 # --- TELA DE LOGIN ---
 if st.session_state.perfil is None:
     st.title("🔐 Quantum Math Lab")
-    pin = st.text_input("Digite o PIN:", type="password")
+    pin = st.text_input("Digite o PIN de acesso:", type="password")
     if st.button("Entrar"):
+        if not os.environ.get('acesso_aluno'):
+            st.warning("Aviso: Variável 'acesso_aluno' não configurada no Render.")
+        
         acesso = validar_acesso(pin)
         if acesso != "negado":
             st.session_state.perfil = acesso
             st.rerun()
-        else: st.error("PIN incorreto.")
+        else:
+            st.error("PIN incorreto ou não configurado.")
     st.stop()
 
 # --- ÁREA DO ALUNO ---
@@ -63,89 +80,66 @@ if st.session_state.perfil == "aluno":
         st.session_state.perfil = None
         st.rerun()
 
-    st.subheader("📄 Atividades para Download")
+    st.subheader("📄 Atividades Publicadas")
     if not st.session_state.nuvem_pdf:
-        st.info("Nenhuma atividade disponível no momento.")
+        st.info("Nenhuma atividade liberada no momento.")
     else:
         for i, item in enumerate(st.session_state.nuvem_pdf):
             c1, c2 = st.columns([4, 1])
-            c1.write(f"📌 **{item['nome']}** | Tema: {item['tema']}")
-            c2.download_button("Baixar", item['bin'], file_name=f"{item['nome']}.pdf", key=f"btn_{i}")
+            c1.write(f"📌 **{item['nome']}** | {item['tema']}")
+            c2.download_button("Baixar", item['bin'], file_name=f"{item['nome']}.pdf", key=f"al_{i}")
             st.divider()
 
 # --- ÁREA DO PROFESSOR (ADMIN) ---
 elif st.session_state.perfil == "admin":
     st.sidebar.title("🛠 Painel Admin")
-    menu = st.sidebar.radio("Navegação", ["Gerenciador de Nuvem", "Ferramentas de Cálculo"])
+    menu = st.sidebar.radio("Navegação", ["Gerar e Revisar", "Nuvem Aluno", "Cálculos"])
     if st.sidebar.button("Sair"):
         st.session_state.perfil = None
         st.rerun()
 
-    if menu == "Gerenciador de Nuvem":
-        st.header("📝 Criar e Publicar Atividades")
-        tema = st.selectbox("Tema:", ["Álgebra", "Geometria"])
-        nome_doc = st.text_input("Nome do Arquivo:", "Lista_Exercicio")
+    if menu == "Gerar e Revisar":
+        st.header("📝 Criar Material")
+        tema = st.selectbox("Escolha o Tema:", ["Álgebra", "Geometria"])
+        nome_doc = st.text_input("Nome do Arquivo:", "Atividade_Quantum")
         
-        if st.button("🚀 Publicar para Alunos"):
-            # Lógica simples de geração
+        if st.button("👁️ Gerar Prévia"):
             qs, gs = [], []
             for i in range(1, 11):
-                n1, n2 = random.randint(1, 50), random.randint(1, 50)
-                qs.append(f"{i}) Quanto e {n1} + {n2}?")
-                gs.append(f"{i}) Resposta: {n1+n2}")
+                if tema == "Álgebra":
+                    a, x = random.randint(2, 5), random.randint(1, 10)
+                    qs.append(f"{i}) Resolva a equacao: {a}x + {random.randint(1,10)} = ...")
+                    gs.append(f"{i}) x = {x}")
+                else:
+                    c1, c2 = random.randint(3, 9), random.randint(4, 12)
+                    qs.append(f"{i}) Calcule a hipotenusa: Cateto A={c1}, Cateto B={c2}")
+                    gs.append(f"{i}) H = {np.sqrt(c1**2 + c2**2):.2f}")
             
-            pdf_bin = gerar_material_pdf(tema, qs, gs)
-            st.session_state.nuvem_pdf.append({
-                "nome": nome_doc, "tema": tema, "bin": pdf_bin, 
-                "data": datetime.now().strftime("%H:%M")
-            })
-            st.success("Atividade enviada com sucesso!")
+            st.session_state.preview_pdf = {
+                "nome": nome_doc, "tema": tema, 
+                "bin": gerar_material_pdf(tema, qs, gs),
+                "data": datetime.now().strftime("%d/%m %H:%M")
+            }
 
-        st.divider()
-        st.subheader("🗑️ Gerenciar Atividades Publicadas")
-        for idx, doc in enumerate(st.session_state.nuvem_pdf):
-            col_n, col_b = st.columns([4, 1])
-            col_n.write(f"📄 {doc['nome']} ({doc['tema']})")
-            if col_b.button("Excluir", key=f"del_{idx}"):
-                st.session_state.nuvem_pdf.pop(idx)
+        if st.session_state.preview_pdf:
+            st.divider()
+            st.warning(f"Revisando: **{st.session_state.preview_pdf['nome']}**")
+            st.download_button("📥 Baixar para Conferir", st.session_state.preview_pdf['bin'], "conferir.pdf")
+            
+            if st.button("✅ Publicar para Alunos"):
+                st.session_state.nuvem_pdf.append(st.session_state.preview_pdf)
+                st.session_state.preview_pdf = None
+                st.success("Atividade publicada!")
                 st.rerun()
 
-    elif menu == "Ferramentas de Cálculo":
-        t1, t2, t3 = st.tabs(["Sistemas Ax=B", "Álgebra", "Financeiro"])
+    elif menu == "Cálculos":
+        st.header("Calculadora de Apoio")
+        st.latex(r"ax^2 + bx + c = 0")
         
-        with t1:
-            st.subheader("Sistemas Lineares")
-            st.latex(r"Ax = B")
-            ordem = st.selectbox("Ordem:", [2, 3])
-            mat_A, vec_B = [], []
-            for i in range(ordem):
-                cols = st.columns(ordem + 1)
-                mat_A.append([cols[j].number_input(f"A{i}{j}", value=float(i==j), key=f"A{i}{j}") for j in range(ordem)])
-                vec_B.append(cols[ordem].number_input(f"B{i}", value=1.0, key=f"B{i}"))
-            if st.button("Resolver"):
-                try:
-                    sol = np.linalg.solve(np.array(mat_A), np.array(vec_B))
-                    st.success(f"Solução: {sol}")
-                    st.plotly_chart(px.imshow(np.array(mat_A), text_auto=True))
-                except: st.error("Erro no cálculo.")
 
-        with t2:
-            st.subheader("Equações")
-            st.latex(r"ax^2 + bx + c = 0")
-            c1, c2, c3 = st.columns(3)
-            va = c1.number_input("a", 1.0)
-            vb = c2.number_input("b", -5.0)
-            vc = c3.number_input("c", 6.0)
-            if st.button("Bhaskara"):
-                delta = vb**2 - 4*va*vc
-                if delta >= 0:
-                    st.success(f"x1: {(-vb+np.sqrt(delta))/(2*va):.2f} | x2: {(-vb-np.sqrt(delta))/(2*va):.2f}")
-                else: st.error("Delta negativo.")
+[Image of the quadratic formula]
 
-        with t3:
-            st.subheader("Financeiro")
-            st.latex(r"M = C(1+i)^t")
-            cap = st.number_input("Capital", 1000.0)
-            tax = st.number_input("Taxa (%)", 1.0)/100
-            tmp = st.number_input("Tempo", 12.0)
-            st.metric("Montante", f"R$ {cap*(1+tax)**tmp:.2f}")
+        st.latex(r"a^2 + b^2 = c^2")
+        
+
+[Image of the Pythagorean theorem diagram]
