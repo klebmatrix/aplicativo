@@ -25,13 +25,13 @@ if 'logado' not in st.session_state: st.session_state.logado = False
 if 'pdf_pronto' not in st.session_state: st.session_state.pdf_pronto = None
 
 if not st.session_state.logado:
-    st.title("🔐 Quantum Lab - Acesso")
-    pin = st.text_input("Senha (6-8 caracteres):", type="password")
-    if st.button("Entrar"):
+    st.title("🔐 Login de Segurança")
+    pin = st.text_input("Senha:", type="password")
+    if st.button("Acessar"):
         if validar_acesso(pin) == "ok":
             st.session_state.logado = True
             st.rerun()
-        else: st.error("Acesso Negado")
+        else: st.error("Acesso negado.")
     st.stop()
 
 # --- 2. MOTOR DE PDF ---
@@ -55,42 +55,53 @@ def gerar_material_pdf(titulo, questoes, respostas):
     return pdf.output(dest='S').encode('latin-1')
 
 # --- 3. NAVEGAÇÃO ---
-menu = st.sidebar.radio("Módulos", ["Álgebra", "Geometria", "Sistemas", "Financeiro"])
+menu = st.sidebar.radio("Navegação:", ["Álgebra", "Geometria", "Sistemas", "Financeiro"])
 
 if menu == "Álgebra":
     st.header("🔍 Álgebra")
-    st.latex(r"ax^2 + bx + c = 0")
-    a, b, c = st.columns(3)
-    va = a.number_input("a", 1.0, key="alg_a")
-    vb = b.number_input("b", -5.0, key="alg_b")
-    vc = c.number_input("c", 6.0, key="alg_c")
-    if st.button("Resolver Bhaskara"):
-        delta = vb**2 - 4*va*vc
-        if delta >= 0:
-            x1 = (-vb+np.sqrt(delta))/(2*va)
-            x2 = (-vb-np.sqrt(delta))/(2*va)
-            st.success(f"x1: {x1:.2f} | x2: {x2:.2f}")
-        else: st.error("Delta Negativo")
+    aba1, aba2 = st.tabs(["1º Grau", "2º Grau (Bhaskara)"])
+    
+    with aba1:
+        st.subheader("Equação de 1º Grau")
+        st.latex(r"ax + b = c")
+        c1, c2, c3 = st.columns(3)
+        va1 = c1.number_input("a:", value=1.0, key="a1")
+        vb1 = c2.number_input("b:", value=0.0, key="b1")
+        vc1 = c3.number_input("c:", value=10.0, key="c1")
+        if st.button("Resolver 1º Grau"):
+            if va1 != 0:
+                res = (vc1 - vb1) / va1
+                st.success(f"O valor de x é: {res:.2f}")
+            else: st.error("O valor de 'a' não pode ser zero.")
+
+    with aba2:
+        st.subheader("Equação de 2º Grau")
+        st.latex(r"ax^2 + bx + c = 0")
+        c1, c2, c3 = st.columns(3)
+        va2 = c1.number_input("a:", value=1.0, key="a2")
+        vb2 = c2.number_input("b:", value=-5.0, key="b2")
+        vc2 = c3.number_input("c:", value=6.0, key="c2")
+        if st.button("Calcular Bhaskara"):
+            delta = vb2**2 - 4*va2*vc2
+            st.info(f"Delta (Δ) = {delta}")
+            if delta >= 0:
+                x1 = (-vb2 + np.sqrt(delta)) / (2*va2)
+                x2 = (-vb2 - np.sqrt(delta)) / (2*va2)
+                st.success(f"Raízes encontradas: x1 = {x1:.2f}, x2 = {x2:.2f}")
+            else: st.error("A equação não possui raízes reais.")
 
 elif menu == "Geometria":
     st.header("📐 Geometria")
-    tab1, tab2 = st.tabs(["Pitágoras", "Volumes"])
-    with tab1:
-        st.latex(r"a^2 + b^2 = c^2")
-        c1, c2 = st.columns(2)
-        cat1 = c1.number_input("Cateto A", 3.0)
-        cat2 = c2.number_input("Cateto B", 4.0)
-        if st.button("Hipotenusa"):
-            st.success(f"Resultado: {np.sqrt(cat1**2 + cat2**2):.2f}")
-    with tab2:
-        st.latex(r"V = \frac{4}{3} \pi r^3")
-        raio = st.number_input("Raio da Esfera", 5.0)
-        if st.button("Calcular Volume"):
-            st.info(f"Volume: {(4/3)*np.pi*(raio**3):.2f}")
+    st.latex(r"a^2 + b^2 = c^2")
+    c1, c2 = st.columns(2)
+    cat1 = c1.number_input("Cateto A:", 3.0)
+    cat2 = c2.number_input("Cateto B:", 4.0)
+    if st.button("Calcular Hipotenusa"):
+        st.success(f"Hipotenusa: {np.sqrt(cat1**2 + cat2**2):.2f}")
 
 elif menu == "Sistemas":
     st.header("📏 Sistemas e Matrizes")
-    n = st.slider("Ordem", 2, 4, 2)
+    n = st.slider("Ordem da Matriz:", 2, 4, 2)
     mat = []
     for i in range(n):
         cols = st.columns(n)
@@ -105,31 +116,34 @@ elif menu == "Financeiro":
     st.header("💰 Financeiro")
     st.latex(r"M = C(1+i)^t")
     c1, c2, c3 = st.columns(3)
-    cap = c1.number_input("Capital", 1000.0)
-    taxa = c2.number_input("Taxa %", 1.0)/100
-    tempo = c3.number_input("Meses", 12)
+    cap = c1.number_input("Capital:", 1000.0)
+    taxa = c2.number_input("Taxa (%):", 1.0)/100
+    tempo = c3.number_input("Meses:", 12)
     if st.button("Calcular Montante"):
         st.metric("Total", f"R$ {cap*(1+taxa)**tempo:.2f}")
 
 # --- 4. GERADOR DE PDF ---
 st.sidebar.divider()
-tema_pdf = st.sidebar.selectbox("Tema do PDF", ["Álgebra", "Geometria"])
+st.sidebar.subheader("📝 Gerador de Material")
+tema_pdf = st.sidebar.selectbox("Tema:", ["Equações 1º Grau", "Equações 2º Grau"])
 if st.sidebar.button("Gerar 10 Questões + Gabarito"):
     qs, gs = [], []
     for i in range(1, 11):
-        if tema_pdf == "Álgebra":
-            val_a = random.randint(2, 5)
-            val_x = random.randint(1, 10)
-            val_b = random.randint(1, 10)
-            val_c = (val_a * val_x) + val_b
-            qs.append(f"{i}) Resolva a equacao: {val_a}x + {val_b} = {val_c}")
-            gs.append(f"{i}) x = {val_x}")
+        if tema_pdf == "Equações 1º Grau":
+            a, x = random.randint(2, 6), random.randint(1, 10)
+            b = random.randint(1, 15)
+            c = (a * x) + b
+            qs.append(f"{i}) Resolva a equacao: {a}x + {b} = {c}")
+            gs.append(f"{i}) x = {x}")
         else:
-            c1, c2 = random.randint(3,8), random.randint(4,10)
-            qs.append(f"{i}) Ache a hipotenusa para os catetos {c1} e {c2}")
-            gs.append(f"{i}) H = {np.sqrt(c1**2+c2**2):.2f}")
+            x1, x2 = random.randint(1, 5), random.randint(6, 10)
+            b_val = -(x1 + x2)
+            c_val = x1 * x2
+            qs.append(f"{i}) Encontre as raizes de: x^2 + ({b_val})x + {c_val} = 0")
+            gs.append(f"{i}) x1 = {x1}, x2 = {x2}")
+    
     st.session_state.pdf_pronto = gerar_material_pdf(tema_pdf, qs, gs)
     st.sidebar.success("PDF e Gabarito Criados!")
 
 if st.session_state.pdf_pronto:
-    st.sidebar.download_button("📥 Baixar Material", st.session_state.pdf_pronto, "quantum_lab.pdf")
+    st.sidebar.download_button("📥 Baixar Material", st.session_state.pdf_pronto, "atividades_quantum.pdf")
