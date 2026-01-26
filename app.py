@@ -2,22 +2,10 @@ import streamlit as st
 import os
 import numpy as np
 import pandas as pd
-import plotly.express as px
 from cryptography.fernet import Fernet
 import math
 
-# --- 1. VERIFICAÇÃO DE INTEGRIDADE ---
-def checar_ambiente():
-    avisos = []
-    if not os.environ.get('chave_mestra'):
-        avisos.append("❌ Erro: Variável 'chave_mestra' ausente no Render.")
-    if not os.environ.get('acesso_aluno'):
-        avisos.append("❌ Erro: Variável 'acesso_aluno' ausente no Render.")
-    if not os.path.exists("img1ori.png"):
-        avisos.append("⚠️ Alerta: Arquivo 'img1ori.png' não encontrado na pasta raiz.")
-    return avisos
-
-# --- 2. SEGURANÇA ---
+# --- 1. SEGURANÇA ---
 PIN_CRIPTOGRAFADO = "gAAAAABpdRRwrtzON4oc6ayd3fx1LjLjX8TjRj7riCkHHuOpi0lcYFAu04KEXEo8d3-GJz9HmpP-AjvbLOLzr6zC6GMUvOCP1A=="
 
 def validar_acesso(pin_digitado):
@@ -25,7 +13,7 @@ def validar_acesso(pin_digitado):
     if senha_aluno_env and pin_digitado == senha_aluno_env:
         return "aluno"
     try:
-        chave = os.environ.get('chave_mestra') # [cite: 2026-01-24]
+        chave = os.environ.get('chave_mestra')
         if not chave: return "erro_env"
         chave = chave.strip().replace("'", "").replace('"', "").replace('b', '', 1) if chave.startswith('b') else chave.strip()
         f = Fernet(chave.encode())
@@ -34,101 +22,112 @@ def validar_acesso(pin_digitado):
     except: pass
     return "negado"
 
-# --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title="Quantum Math Lab", layout="wide")
+if 'perfil' not in st.session_state: st.session_state.perfil = None
 
-# Rodar check inicial
-for alerta in checar_ambiente():
-    st.sidebar.warning(alerta)
-
-if 'perfil' not in st.session_state:
-    st.session_state.perfil = None
-
-# --- 3. TELA DE LOGIN ---
+# --- 2. LOGIN ---
 if st.session_state.perfil is None:
-    st.title("🔐 Quantum Math Lab - Acesso")
-    pin = st.text_input("Digite seu PIN de 6 dígitos:", type="password", key="login_field")
+    st.title("🔐 Quantum Math Lab")
+    pin = st.text_input("Digite o PIN:", type="password", key="login_pass")
     if st.button("Entrar"):
         acesso = validar_acesso(pin)
         if acesso != "negado":
             st.session_state.perfil = acesso
             st.rerun()
-        else:
-            st.error("PIN inválido ou variáveis de ambiente incorretas.")
+        else: st.error("Acesso negado.")
     st.stop()
 
-# --- 4. PAINEL DO PROFESSOR (ADMIN) ---
+# --- 3. PAINEL DO PROFESSOR ---
 elif st.session_state.perfil == "admin":
     st.sidebar.title("🛠 Menu Professor")
-    menu = st.sidebar.radio("Navegação:", [
+    menu = st.sidebar.radio("Módulos:", [
         "Expressões (PEMDAS)", 
-        "Sistemas Lineares", 
-        "Logaritmos (Gráfico)",
+        "Logaritmos (Cálculo)",
         "Funções Aritméticas",
+        "Sistemas Lineares", 
         "Matrizes (Sarrus)",
         "Álgebra & Geometria", 
-        "Financeiro (Pandas)", 
+        "Financeiro", 
         "Pasta Drive"
     ])
     st.sidebar.button("Sair", on_click=lambda: st.session_state.update({"perfil": None}))
 
-    # MÓDULO: EXPRESSÕES
+    # EXPRESSÕES (Hierarquia de Parênteses, Colchetes e Chaves)
     if menu == "Expressões (PEMDAS)":
         st.header("🧮 Hierarquia de Operações")
         if os.path.exists("img1ori.png"):
-            st.image("img1ori.png", caption="Guia: Parênteses -> Colchetes -> Chaves")
-        exp = st.text_input("Expressão (use apenas parênteses):", value="((10 + 2) * 5) / 2")
+            st.image("img1ori.png", caption="Guia: Resolva de dentro para fora")
+        
+        
+        
+        exp = st.text_input("Digite a expressão:", value="((10 + 5) * 2) / 3")
         if st.button("Resolver"):
             try:
-                # Resolve de dentro para fora seguindo a lógica matemática
-                limpo = exp.replace('^', '**')
-                resultado = eval(limpo, {"__builtins__": None}, {"math": math, "sqrt": math.sqrt})
-                st.success(f"Resultado: {resultado}")
-            except Exception as e:
-                st.error(f"Erro de sintaxe: {e}")
+                res = eval(exp.replace('^', '**'), {"__builtins__": None}, {"math": math, "sqrt": math.sqrt})
+                st.success(f"Resultado: {res}")
+            except: st.error("Erro na expressão.")
 
-    # MÓDULO: SISTEMAS LINEARES
+    # LOGARITMOS (Apenas Valores para não pesar)
+    elif menu == "Logaritmos (Cálculo)":
+        st.header("🔢 Cálculo de Logaritmos")
+        st.latex(r"\log_{base}(val) = x")
+        c1, c2 = st.columns(2)
+        v_base = c1.number_input("Base (b):", min_value=0.1, value=10.0)
+        v_log = c2.number_input("Logaritmando (a):", min_value=0.1, value=100.0)
+        if st.button("Calcular x"):
+            try:
+                res = math.log(v_log, v_base)
+                st.success(f"Resultado: {res:.4f}")
+            except: st.error("Valores inválidos.")
+
+    # SISTEMAS LINEARES
     elif menu == "Sistemas Lineares":
-        st.header("📏 Sistema Ax = B")
+        st.header("📏 Sistemas Ax = B")
+        
         ordem = st.selectbox("Incógnitas:", [2, 3], key="sys_o")
         mat_A, vec_B = [], []
         for i in range(ordem):
             cols = st.columns(ordem + 1)
-            mat_A.append([cols[j].number_input(f"A{i+1}{j+1}", value=1.0 if i==j else 0.0, key=f"sysA{i}{j}") for j in range(ordem)])
-            vec_B.append(cols[ordem].number_input(f"B{i+1}", value=1.0, key=f"sysB{i}"))
-        if st.button("Calcular Solução"):
+            mat_A.append([cols[j].number_input(f"A{i+1}{j+1}", value=1.0 if i==j else 0.0, key=f"A{i}{j}") for j in range(ordem)])
+            vec_B.append(cols[ordem].number_input(f"B{i+1}", value=1.0, key=f"B{i}"))
+        if st.button("Resolver Sistema"):
             try:
-                res = np.linalg.solve(np.array(mat_A), np.array(vec_B))
-                st.write("Vetor Solução X:", res)
-            except: st.error("Sistema Impossível ou Indeterminado.")
+                sol = np.linalg.solve(np.array(mat_A), np.array(vec_B))
+                st.success(f"Vetor Solução: {sol}")
+            except: st.error("Sistema sem solução única.")
 
-    # MÓDULO: LOGARITMOS
-    elif menu == "Logaritmos (Gráfico)":
-        st.header("🔢 Função Logarítmica")
-        base = st.slider("Escolha a base b:", 1.1, 10.0, 2.0)
-        x_vals = np.linspace(0.1, 20, 200)
-        y_vals = [math.log(x, base) for x in x_vals]
-        fig = px.line(pd.DataFrame({'x': x_vals, 'y': y_vals}), x='x', y='y', title=f"f(x) = log_{base}(x)")
-        st.plotly_chart(fig)
+    # MATRIZES
+    elif menu == "Matrizes (Sarrus)":
+        st.header("🧮 Determinantes")
+        
+        ordem_m = st.selectbox("Ordem:", [2, 3], key="m_o")
+        mat_m = []
+        for i in range(ordem_m):
+            cols = st.columns(ordem_m)
+            mat_m.append([cols[j].number_input(f"M{i+1}{j+1}", value=0.0, key=f"M{i}{j}") for j in range(ordem_m)])
+        if st.button("Calcular Det"):
+            det = np.linalg.det(np.array(mat_m))
+            st.success(f"Determinante = {det:.2f}")
 
-    # MÓDULO: FUNÇÕES ARITMÉTICAS
-    elif menu == "Funções Aritméticas":
-        st.header("🔍 Função Divisor f(n)")
-        n_val = st.number_input("Número n:", min_value=1, value=12)
-        divs = [d for d in range(1, n_val + 1) if n_val % d == 0]
-        st.info(f"Divisores de {n_val}: {divs}")
-        st.success(f"Quantidade f({n_val}) = {len(divs)}")
+    # ÁLGEBRA
+    elif menu == "Álgebra & Geometria":
+        st.header("📐 Bhaskara")
+        
+        a = st.number_input("a", 1.0); b = st.number_input("b", -5.0); c = st.number_input("c", 6.0)
+        if st.button("Raízes"):
+            delta = b**2 - 4*a*c
+            if delta >= 0:
+                st.write(f"x1: {(-b+math.sqrt(delta))/(2*a):.2f}")
+                st.write(f"x2: {(-b-math.sqrt(delta))/(2*a):.2f}")
+            else: st.error("Delta negativo.")
 
-    # MÓDULO: FINANCEIRO
-    elif menu == "Financeiro (Pandas)":
+    # FINANCEIRO
+    elif menu == "Financeiro":
         st.header("💰 Juros Compostos")
-        c = st.number_input("Capital Inicial:", 1000.0)
-        tx = st.number_input("Taxa mensal (%):", 1.0) / 100
-        t = st.number_input("Tempo (meses):", 12)
-        if st.button("Gerar Tabela de Evolução"):
-            df = pd.DataFrame([{"Mês": m, "Montante": c * (1 + tx)**m} for m in range(int(t) + 1)])
-            st.table(df)
+        
+        c = st.number_input("Capital:", 1000.0); i = st.number_input("Taxa %:", 1.0)/100; t = st.number_input("Tempo:", 12)
+        if st.button("Calcular Montante"):
+            st.metric("Montante Final", f"R$ {c*(1+i)**t:.2f}")
 
-    # MÓDULO: DRIVE
     elif menu == "Pasta Drive":
-        st.link_button("🚀 Abrir Google Drive", "SEU_LINK_AQUI")
+        st.link_button("🚀 Abrir Drive", "SEU_LINK_AQUI")
