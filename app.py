@@ -37,7 +37,7 @@ if st.session_state.perfil is None:
         else: st.error("Acesso negado.")
     st.stop()
 
-# --- 3. PAINEL DO PROFESSOR ---
+# --- 3. PAINEL DO PROFESSOR (TUDO AQUI) ---
 elif st.session_state.perfil == "admin":
     st.sidebar.title("🛠 Menu Professor")
     menu = st.sidebar.radio("Módulos:", [
@@ -52,14 +52,11 @@ elif st.session_state.perfil == "admin":
     ])
     st.sidebar.button("Sair", on_click=lambda: st.session_state.update({"perfil": None}))
 
-    # EXPRESSÕES (Hierarquia de Parênteses, Colchetes e Chaves)
+    # MÓDULO 1: EXPRESSÕES
     if menu == "Expressões (PEMDAS)":
         st.header("🧮 Hierarquia de Operações")
         if os.path.exists("img1ori.png"):
-            st.image("img1ori.png", caption="Guia: Resolva de dentro para fora")
-        
-        
-        
+            st.image("img1ori.png", caption="Guia: Parênteses -> Colchetes -> Chaves")
         exp = st.text_input("Digite a expressão:", value="((10 + 5) * 2) / 3")
         if st.button("Resolver"):
             try:
@@ -67,67 +64,68 @@ elif st.session_state.perfil == "admin":
                 st.success(f"Resultado: {res}")
             except: st.error("Erro na expressão.")
 
-    # LOGARITMOS (Apenas Valores para não pesar)
+    # MÓDULO 2: LOGARITMOS (SIMPLIFICADO)
     elif menu == "Logaritmos (Cálculo)":
         st.header("🔢 Cálculo de Logaritmos")
-        st.latex(r"\log_{base}(val) = x")
-        c1, c2 = st.columns(2)
-        v_base = c1.number_input("Base (b):", min_value=0.1, value=10.0)
-        v_log = c2.number_input("Logaritmando (a):", min_value=0.1, value=100.0)
-        if st.button("Calcular x"):
+        v_base = st.number_input("Base (b):", min_value=0.1, value=10.0)
+        v_log = st.number_input("Logaritmando (a):", min_value=0.1, value=100.0)
+        if st.button("Calcular"):
             try:
-                res = math.log(v_log, v_base)
-                st.success(f"Resultado: {res:.4f}")
-            except: st.error("Valores inválidos.")
+                st.success(f"Resultado: {math.log(v_log, v_base):.4f}")
+            except: st.error("Cálculo impossível.")
 
-    # SISTEMAS LINEARES
+    # MÓDULO 3: FUNÇÕES ARITMÉTICAS (RESTURADO)
+    elif menu == "Funções Aritméticas":
+        st.header("🔍 Estudo de Divisores f(n)")
+        n_val = st.number_input("Digite o número n:", min_value=1, value=12)
+        if st.button("Analisar"):
+            divs = [d for d in range(1, n_val + 1) if n_val % d == 0]
+            st.success(f"f({n_val}) = {len(divs)}")
+            st.write(f"**Conjunto de Divisores:** {divs}")
+
+    # MÓDULO 4: SISTEMAS LINEARES
     elif menu == "Sistemas Lineares":
         st.header("📏 Sistemas Ax = B")
-        
         ordem = st.selectbox("Incógnitas:", [2, 3], key="sys_o")
         mat_A, vec_B = [], []
         for i in range(ordem):
             cols = st.columns(ordem + 1)
             mat_A.append([cols[j].number_input(f"A{i+1}{j+1}", value=1.0 if i==j else 0.0, key=f"A{i}{j}") for j in range(ordem)])
             vec_B.append(cols[ordem].number_input(f"B{i+1}", value=1.0, key=f"B{i}"))
-        if st.button("Resolver Sistema"):
+        if st.button("Resolver"):
             try:
                 sol = np.linalg.solve(np.array(mat_A), np.array(vec_B))
-                st.success(f"Vetor Solução: {sol}")
-            except: st.error("Sistema sem solução única.")
+                st.success(f"Solução: {sol}")
+            except: st.error("Erro no sistema.")
 
-    # MATRIZES
+    # MÓDULO 5: MATRIZES
     elif menu == "Matrizes (Sarrus)":
         st.header("🧮 Determinantes")
-        
         ordem_m = st.selectbox("Ordem:", [2, 3], key="m_o")
         mat_m = []
         for i in range(ordem_m):
             cols = st.columns(ordem_m)
             mat_m.append([cols[j].number_input(f"M{i+1}{j+1}", value=0.0, key=f"M{i}{j}") for j in range(ordem_m)])
-        if st.button("Calcular Det"):
-            det = np.linalg.det(np.array(mat_m))
-            st.success(f"Determinante = {det:.2f}")
+        if st.button("Calcular"):
+            st.success(f"Determinante = {np.linalg.det(np.array(mat_m)):.2f}")
 
-    # ÁLGEBRA
+    # MÓDULO 6: ÁLGEBRA
     elif menu == "Álgebra & Geometria":
         st.header("📐 Bhaskara")
-        
         a = st.number_input("a", 1.0); b = st.number_input("b", -5.0); c = st.number_input("c", 6.0)
-        if st.button("Raízes"):
+        if st.button("Calcular Raízes"):
             delta = b**2 - 4*a*c
             if delta >= 0:
-                st.write(f"x1: {(-b+math.sqrt(delta))/(2*a):.2f}")
-                st.write(f"x2: {(-b-math.sqrt(delta))/(2*a):.2f}")
+                st.write(f"x1: {(-b+math.sqrt(delta))/(2*a):.2f}, x2: {(-b-math.sqrt(delta))/(2*a):.2f}")
             else: st.error("Delta negativo.")
 
-    # FINANCEIRO
+    # MÓDULO 7: FINANCEIRO
     elif menu == "Financeiro":
         st.header("💰 Juros Compostos")
-        
-        c = st.number_input("Capital:", 1000.0); i = st.number_input("Taxa %:", 1.0)/100; t = st.number_input("Tempo:", 12)
-        if st.button("Calcular Montante"):
-            st.metric("Montante Final", f"R$ {c*(1+i)**t:.2f}")
+        cap = st.number_input("Capital:", 1000.0); i = st.number_input("Taxa %:", 1.0)/100; t = st.number_input("Tempo:", 12)
+        if st.button("Calcular"):
+            st.metric("Montante Final", f"R$ {cap*(1+i)**t:.2f}")
 
+    # MÓDULO 8: DRIVE
     elif menu == "Pasta Drive":
         st.link_button("🚀 Abrir Drive", "SEU_LINK_AQUI")
