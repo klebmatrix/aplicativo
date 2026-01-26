@@ -121,4 +121,4 @@ elif st.session_state.perfil == "admin":
 
     # --- DRIVE ---
     elif menu == "Pasta Drive":
-        st.link_button("🚀 Abrir Google Drive", "SEU_LINK_AQUI")
+        st.link_button("🚀 Abrir Google Drive", "https://drive.google.com/drive/folders/1OickfiilObBDB2FdL58ftFeW-zngNAbQ?usp=drive_link")
