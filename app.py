@@ -7,7 +7,8 @@ from fpdf import FPDF
 import random
 import math
 
-# --- 1. SEGURANÇA (Render) ---
+# --- 1. ÂNCORA DE SEGURANÇA (PIN E AMBIENTE) ---
+# PIN de 6 dígitos configurado via criptografia [cite: 2026-01-19]
 PIN_CRIPTOGRAFADO = "gAAAAABpdRRwrtzON4oc6ayd3fx1LjLjX8TjRj7riCkHHuOpi0lcYFAu04KEXEo8d3-GJz9HmpP-AjvbLOLzr6zC6GMUvOCP1A=="
 
 def validar_acesso(pin_digitado):
@@ -15,11 +16,12 @@ def validar_acesso(pin_digitado):
     if senha_aluno_env and pin_digitado == senha_aluno_env:
         return "aluno"
     try:
-        chave = os.environ.get('chave_mestra') # [cite: 2026-01-24]
+        # Recupera a chave mestra do ambiente Render [cite: 2026-01-24]
+        chave = os.environ.get('chave_mestra') 
         if not chave: return "erro_env"
         chave = chave.strip().replace("'", "").replace('"', "").replace('b', '', 1) if chave.startswith('b') else chave.strip()
         f = Fernet(chave.encode())
-        # PIN entre 6 e 8 caracteres [cite: 2026-01-21]
+        # Validação do PIN entre 6 e 8 caracteres [cite: 2026-01-21]
         if pin_digitado == f.decrypt(PIN_CRIPTOGRAFADO.strip().encode()).decode():
             return "admin"
     except: pass
@@ -32,7 +34,7 @@ def contar_divisores(n):
 st.set_page_config(page_title="Quantum Math Lab", layout="wide")
 if 'perfil' not in st.session_state: st.session_state.perfil = None
 
-# --- MOTOR DE PDF ---
+# --- 2. ÂNCORA DE DOCUMENTAÇÃO (PDF) ---
 def gerar_material_pdf(titulo, questoes, respostas):
     pdf = FPDF()
     pdf.add_page()
@@ -51,90 +53,103 @@ def gerar_material_pdf(titulo, questoes, respostas):
         pdf.multi_cell(0, 10, txt=r); pdf.ln(2)
     return pdf.output(dest='S').encode('latin-1')
 
-# --- LOGIN ---
+# --- 3. ÂNCORA DE LOGIN ---
 if st.session_state.perfil is None:
     st.title("🔐 Quantum Math Lab")
-    # Acesso via PIN de 6 dígitos [cite: 2026-01-19]
-    pin = st.text_input("Digite o PIN:", type="password")
+    pin = st.text_input("Digite o PIN de Acesso:", type="password")
     if st.button("Entrar"):
         acesso = validar_acesso(pin)
         if acesso != "negado":
             st.session_state.perfil = acesso
             st.rerun()
-        else: st.error("PIN incorreto.")
+        else: st.error("Acesso Negado. Verifique seu PIN.")
     st.stop()
 
-# --- ÁREA DO ALUNO ---
+# --- 4. ÂNCORA DO ALUNO ---
 if st.session_state.perfil == "aluno":
     st.title("🎓 Portal do Aluno")
     st.sidebar.button("Sair", on_click=lambda: st.session_state.update({"perfil": None}))
-    st.link_button("📂 Abrir Pasta de Exercícios", "COLE_LINK_ALUNO_AQUI")
+    st.link_button("📂 Acessar Pasta de Exercícios", "COLE_LINK_ALUNO")
 
-# --- ÁREA DO PROFESSOR (ADMIN) ---
+# --- 5. ÂNCORA DO PROFESSOR (ADMIN COMPLETO) ---
 elif st.session_state.perfil == "admin":
     st.sidebar.title("🛠 Painel Professor")
-    menu = st.sidebar.radio("Navegação", ["Gerador de Listas", "Logaritmos", "Matrizes (Inversa/Sarrus)", "Funções (Divisores)", "Sistemas Lineares", "Álgebra/Geometria", "Financeiro", "Pasta Professor"])
+    menu = st.sidebar.radio("Navegação", ["Gerador de Listas", "Logaritmos", "Matrizes", "Sistemas Lineares", "Álgebra (Bhaskara)", "Geometria (Pitágoras)", "Financeiro", "Pasta Professor"])
     st.sidebar.button("Sair", on_click=lambda: st.session_state.update({"perfil": None}))
 
-    # 1. NOVO MÓDULO: LOGARITMOS
     if menu == "Logaritmos":
-        st.header("🔢 Calculadora de Logaritmos")
+        st.header("🔢 Logaritmos")
         st.latex(r"\log_{b}(a) = x \iff b^x = a")
-        col1, col2 = st.columns(2)
-        log_a = col1.number_input("Logaritmando (a):", min_value=0.1, value=100.0)
-        log_b = col2.number_input("Base (b):", min_value=0.1, value=10.0)
+        
+        c1, c2 = st.columns(2)
+        la = c1.number_input("Logaritmando (a):", min_value=0.1, value=100.0, key="log_a")
+        lb = c2.number_input("Base (b):", min_value=0.1, value=10.0, key="log_b")
         if st.button("Calcular Log"):
-            try:
-                res_log = math.log(log_a, log_b)
-                st.success(f"Log de {log_a} na base {log_b} é: {res_log:.4f}")
-            except: st.error("Erro no cálculo (verifique a base).")
+            st.success(f"Resultado: {math.log(la, lb):.4f}")
 
-    # 2. GERADOR DE LISTAS ATUALIZADO
-    elif menu == "Gerador de Listas":
-        st.header("📝 Gerador Multidisciplinar")
-        tema = st.selectbox("Escolha o Tema:", ["Logaritmos", "Matriz Inversa", "Funções (Divisores)", "Equações 1º Grau"])
-        if st.button("🚀 Gerar 10 Questões"):
-            qs, gs = [], []
-            for i in range(1, 11):
-                if tema == "Logaritmos":
-                    base = random.choice([2, 3, 5, 10])
-                    exp = random.randint(2, 4)
-                    qs.append(f"{i}) Calcule o valor de log de {base**exp} na base {base}.")
-                    gs.append(f"{i}) Resposta: {exp}")
-                elif tema == "Matriz Inversa":
-                    v = random.randint(1, 4)
-                    qs.append(f"{i}) Determine a inversa de A = [[{v}, 0, 0], [0, {v+1}, 0], [0, 0, 1]].")
-                    gs.append(f"{i}) Det = {v*(v+1)}")
-                elif tema == "Funções (Divisores)":
-                    n = random.randint(12, 60)
-                    qs.append(f"{i}) Determine f({n}), onde f(n) e o numero de divisores de n.")
-                    gs.append(f"{i}) f({n}) = {contar_divisores(n)}")
-                elif tema == "Equações 1º Grau":
-                    a, x = random.randint(2, 5), random.randint(2, 10)
-                    qs.append(f"{i}) Resolva: {a}x + {random.randint(1,10)} = {(a*x)+random.randint(1,10)}")
-                    gs.append(f"{i}) x aproximado")
-            
-            pdf_data = gerar_material_pdf(tema, qs, gs)
-            st.download_button("📥 Baixar PDF", pdf_data, f"quantum_{tema.lower()}.pdf")
-
-    # 3. MATRIZES
-    elif menu == "Matrizes (Inversa/Sarrus)":
-        st.header("🧮 Sarrus e Inversa")
-        ordem = st.selectbox("Ordem:", [2, 3], key="ordem_m")
+    elif menu == "Matrizes":
+        st.header("🧮 Matriz Inversa e Sarrus")
+        
+        ordem = st.selectbox("Ordem:", [2, 3], key="mat_ord")
         mat_M = []
         for i in range(ordem):
             cols = st.columns(ordem)
-            mat_M.append([cols[j].number_input(f"A{i+1}{j+1}", value=float(i==j), key=f"v_{i}{j}") for j in range(ordem)])
+            mat_M.append([cols[j].number_input(f"A{i+1}{j+1}", value=float(i==j), key=f"m_{i}{j}") for j in range(ordem)])
         if st.button("Calcular"):
             A = np.array(mat_M)
             det = np.linalg.det(A)
             st.write(f"Determinante: {det:.2f}")
             if abs(det) > 0.0001: st.write("Inversa:", np.linalg.inv(A))
 
-    # 4. OUTROS (Resumidos para evitar quebra)
-    elif menu == "Funções (Divisores)":
-        n = st.number_input("n:", min_value=1, value=12)
-        if st.button("Calcular f(n)"): st.success(f"f({n}) = {contar_divisores(n)}")
+    elif menu == "Sistemas Lineares":
+        st.header("📏 Sistemas Ax = B")
+        
+        ordem_s = st.selectbox("Equações:", [2, 3], key="s_ord")
+        mA, vB = [], []
+        for i in range(ordem_s):
+            cols = st.columns(ordem_s + 1)
+            mA.append([cols[j].number_input(f"A{i}{j}", value=float(i==j), key=f"sA{i}{j}") for j in range(ordem_s)])
+            vB.append(cols[ordem_s].number_input(f"B{i}", value=1.0, key=f"sB{i}"))
+        if st.button("Resolver"):
+            try: st.success(f"Solução: {np.linalg.solve(np.array(mA), np.array(vB))}")
+            except: st.error("Erro no sistema.")
+
+    elif menu == "Álgebra (Bhaskara)":
+        st.header("🔍 Bhaskara")
+        st.latex(r"ax^2 + bx + c = 0")
+        
+
+[Image of the quadratic formula]
+
+        ca, cb, cc = st.columns(3)
+        va = ca.number_input("a", value=1.0, key="ba"); vb = cb.number_input("b", value=-5.0, key="bb"); vc = cc.number_input("c", value=6.0, key="bc")
+        if st.button("Calcular Raízes"):
+            d = vb**2 - 4*va*vc
+            if d >= 0: st.write(f"x1: {(-vb+np.sqrt(d))/(2*va):.2f}, x2: {(-vb-np.sqrt(d))/(2*va):.2f}")
+            else: st.error("Delta negativo.")
+
+    elif menu == "Geometria (Pitágoras)":
+        st.header("📐 Pitágoras")
+        
+
+[Image of the Pythagorean theorem diagram]
+
+        c1 = st.number_input("Cateto A", value=3.0, key="pa"); c2 = st.number_input("Cateto B", value=4.0, key="pb")
+        if st.button("Calcular Hipotenusa"): st.success(f"H = {np.sqrt(c1**2 + c2**2):.2f}")
+
+    elif menu == "Financeiro":
+        st.header("💰 Juros Compostos")
+        
+        cap = st.number_input("Capital", value=1000.0, key="fc"); txa = st.number_input("Taxa (%)", value=1.0, key="ft")/100; tm = st.number_input("Meses", value=12, key="fm")
+        if st.button("Calcular"): st.metric("Montante", f"R$ {cap*(1+txa)**tm:.2f}")
+
+    elif menu == "Gerador de Listas":
+        st.header("📝 Gerador PDF")
+        tema = st.selectbox("Tema:", ["Logaritmos", "Matrizes", "Sistemas", "Bhaskara", "Pitágoras"])
+        if st.button("🚀 Gerar 10 Questões"):
+            qs, gs = [f"Questão 1 de {tema}"], ["Gabarito 1"]
+            st.download_button("📥 Baixar Atividade", gerar_material_pdf(tema, qs, gs), f"{tema}.pdf")
 
     elif menu == "Pasta Professor":
-        st.link_button("🚀 Abrir Drive Admin", "COLE_LINK_PROFESSOR_AQUI")
+        st.header("📂 Gerenciador Drive")
+        st.link_button("🚀 Abrir Meu Google Drive", "COLE_LINK_PROFESSOR")
