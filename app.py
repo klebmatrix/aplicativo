@@ -1,3 +1,4 @@
+
 import streamlit as st
 import os
 import numpy as np
@@ -24,8 +25,8 @@ def validar_acesso(pin_digitado):
         if chave.startswith('b'): chave = chave[1:]
         
         f = Fernet(chave.encode())
-        # O PIN que você criptografou
-        PIN_CRIPTO = "gAAAAABpdRRwrtzON4oc6ayd3fx1LjLjX8TjRj7riCkHHuOpi0lcYFAu04KEXEo8d3-GJz9HmpP-AjvbLOLzr6zC6GMUvOCP1A=="
+        # O PIN que você criptografou (Atualizado para Qzj7bJEy)
+        PIN_CRIPTO = "gAAAAABpd_xXuRomCwkP5ndxDS1kG5MB5Zk0po7cJLo-mAS1pqdJQjRsJ-Bp6ShKov8PNRP8-vzHwpDp93K2h1vC9uapl4aAzw=="
         
         if pin_digitado == f.decrypt(PIN_CRIPTO.encode()).decode():
             return "admin"
