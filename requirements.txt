@@ -4,4 +4,3 @@ cryptography
 fpdf
 scipy
 pandas
-
