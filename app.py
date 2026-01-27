@@ -6,98 +6,105 @@ import re
 # Configuração da Página
 st.set_page_config(page_title="Gerador de Atividades", layout="centered")
 
-# --- LOGIN ---
+# --- LOGIN SEGURO (CONFORME SUAS DIRETRIZES) ---
 if 'autenticado' not in st.session_state:
     st.session_state['autenticado'] = False
 
 if not st.session_state['autenticado']:
     st.title("🔐 Acesso ao Sistema")
-    senha = st.text_input("Digite o PIN de acesso:", type="password")
+    
+    # Busca a senha nas variáveis de ambiente do Render (chave_mestra em lowercase)
+    # Se não houver variável, o padrão é '123456'
+    pin_correto = os.getenv("chave_mestra", "123456")
+    
+    senha = st.text_input("Digite seu PIN (6-8 dígitos):", type="password", max_chars=8)
+    
     if st.button("Entrar"):
-        # PIN de 6 a 8 dígitos conforme solicitado
-        if senha == "chave_mestra": 
+        if senha == pin_correto:
             st.session_state['autenticado'] = True
             st.rerun()
         else:
-            st.error("PIN Incorreto.")
-else:
-    menu = st.sidebar.selectbox("Menu", ["Gerador de Atividades", "Sair"])
+            st.error("PIN incorreto. Verifique as variáveis no Render.")
 
-    if menu == "Sair":
+else:
+    # --- INTERFACE DO GERADOR ---
+    st.sidebar.title("Configurações")
+    if st.sidebar.button("Sair"):
         st.session_state['autenticado'] = False
         st.rerun()
 
-    elif menu == "Gerador de Atividades":
-        st.header("📄 Gerador de Atividades")
-        
-        titulo_pdf = st.text_input("Título:", "Atividade de Matemática")
-        conteudo = st.text_area("Conteúdo da Atividade:", height=300, help="Dica: Use . para colunas e números para questões.")
-        
-        if st.button("Gerar PDF"):
-            if conteudo:
-                pdf = FPDF()
-                pdf.add_page()
-                
-                # 1. CABEÇALHO (Ajustado para 185mm)
-                if os.path.exists("cabecalho.png"):
-                    pdf.image("cabecalho.png", x=12.5, y=8, w=185) 
-                    pdf.set_y(48)
-                else:
-                    pdf.set_y(15)
-                
-                # 2. TÍTULO
-                pdf.set_font("Arial", 'B', 12)
-                pdf.cell(0, 10, txt=titulo_pdf, ln=True, align='C')
-                pdf.ln(2)
-                
-                # 3. PROCESSAMENTO LINHA POR LINHA
-                pdf.set_font("Arial", size=10)
-                letras = "abcdefghijklmnopqrstuvwxyz"
-                letra_idx = 0
-                
-                for linha in conteudo.split('\n'):
-                    txt = linha.strip()
-                    if not txt: continue
-                    
-                    # Verifica se a linha começa com pontos (........)
-                    match_pontos = re.match(r'^(\.+)', txt)
-                    
-                    # REGRA 1: SE COMEÇAR COM NÚMERO (QUESTÃO)
-                    if re.match(r'^\d+', txt):
-                        pdf.ln(4)
-                        pdf.set_font("Arial", 'B', 11)
-                        pdf.set_x(10) # Margem esquerda sem recuo
-                        pdf.multi_cell(0, 7, txt=txt)
-                        pdf.set_font("Arial", size=10)
-                        letra_idx = 0 # Reinicia o alfabeto (a, b, c...)
-                    
-                    # REGRA 2: SE COMEÇAR COM PONTOS (COLUNAS)
-                    elif match_pontos:
-                        num_pontos = len(match_pontos.group(1))
-                        item_texto = txt[num_pontos:].strip()
-                        prefixo = f"{letras[letra_idx % 26]}) "
-                        
-                        # Se tiver mais de 1 ponto, ele tenta subir para a mesma linha
-                        if num_pontos > 1:
-                            # Só sobe se não estivermos no topo da página
-                            current_y = pdf.get_y()
-                            pdf.set_y(current_y - 8)
-                        
-                        # Calcula a posição X (32mm por coluna)
-                        # Col 1 (.), Col 2 (..), Col 3 (...) etc.
-                        col_idx = num_pontos - 1
-                        nova_x = 10 + (col_idx * 32)
-                        
-                        pdf.set_x(nova_x)
-                        pdf.cell(32, 8, txt=f"{prefixo}{item_texto}", ln=True)
-                        letra_idx += 1
-                    
-                    # REGRA 3: TEXTO NORMAL (Explicações do professor, enunciados sem números)
-                    else:
-                        pdf.set_x(10)
-                        pdf.multi_cell(0, 7, txt=txt)
-                
-                pdf_bytes = pdf.output(dest='S').encode('latin-1', 'replace')
-                st.download_button("📥 Baixar PDF Corrigido", data=pdf_bytes, file_name="atividade.pdf")
+    st.header("📄 Gerador de Atividades Profissional")
+    
+    titulo_pdf = st.text_input("Título da Atividade:", "Complementação para o estudo da Matemática")
+    conteudo = st.text_area("Conteúdo (Use . para colunas):", height=400)
+    
+    if st.button("Gerar PDF Agora"):
+        if conteudo:
+            pdf = FPDF()
+            pdf.add_page()
+            
+            # 1. CABEÇALHO (185mm - Centralizado)
+            if os.path.exists("cabecalho.png"):
+                pdf.image("cabecalho.png", x=12.5, y=8, w=185) 
+                pdf.set_y(48) # Espaço fixo para o título abaixo da imagem
             else:
-                st.warning("O campo de conteúdo está vazio.")
+                pdf.set_y(15)
+            
+            # 2. TÍTULO DA ATIVIDADE
+            pdf.set_font("Arial", 'B', 12)
+            pdf.cell(0, 10, txt=titulo_pdf, ln=True, align='C')
+            pdf.ln(2)
+            
+            # 3. LÓGICA DE PROCESSAMENTO
+            pdf.set_font("Arial", size=10)
+            letras = "abcdefghijklmnopqrstuvwxyz"
+            letra_idx = 0
+            
+            for linha in conteudo.split('\n'):
+                txt = linha.strip()
+                if not txt: continue
+                
+                # Identifica se a linha começa com pontos
+                match_pontos = re.match(r'^(\.+)', txt)
+                
+                # SE FOR QUESTÃO (Começa com número: 1., 2º, etc)
+                if re.match(r'^\d+', txt):
+                    pdf.ln(4)
+                    pdf.set_font("Arial", 'B', 11)
+                    pdf.set_x(10) # Alinhado na margem sem recuo
+                    pdf.multi_cell(0, 7, txt=txt)
+                    pdf.set_font("Arial", size=10)
+                    letra_idx = 0 # Reseta letras (a, b, c) para nova questão
+                
+                # SE FOR COLUNA (. até ......)
+                elif match_pontos:
+                    num_pontos = len(match_pontos.group(1))
+                    item_limpo = txt[num_pontos:].strip()
+                    prefixo = f"{letras[letra_idx % 26]}) "
+                    
+                    # Se for a partir do segundo ponto (..), sobe para alinhar
+                    if num_pontos > 1:
+                        pdf.set_y(pdf.get_y() - 8)
+                    
+                    # Define a posição X baseado no número de pontos (32mm por coluna)
+                    col_x = 10 + (num_pontos - 1) * 32
+                    pdf.set_x(col_x)
+                    
+                    pdf.cell(32, 8, txt=f"{prefixo}{item_limpo}", ln=True)
+                    letra_idx += 1
+                
+                # SE FOR TEXTO NORMAL (Professor/Enunciado)
+                else:
+                    pdf.set_x(10) # Garante margem esquerda
+                    pdf.multi_cell(0, 7, txt=txt)
+            
+            # SAÍDA DO ARQUIVO
+            pdf_output = pdf.output(dest='S').encode('latin-1', 'replace')
+            st.download_button("📥 Baixar Atividade PDF", data=pdf_output, file_name="atividade.pdf")
+        else:
+            st.warning("Por favor, digite o conteúdo da atividade.")
+
+# --- LEMBRETE PARA O RENDER ---
+# No painel do Render, vá em Settings -> Environment Variables e adicione:
+# Key: chave_mestra
+# Value: 123456 (ou seu PIN escolhido)
