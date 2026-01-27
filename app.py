@@ -91,74 +91,80 @@ else:
             divs = [d for d in range(1, n+1) if n % d == 0]
             st.write(f"Divisores: {divs}")
 
-# --- GERADOR DE ATIVIDADES (COLUNAS LADO A LADO) ---
+# --- GERADOR DE ATIVIDADES (MÉTODO DE TABELA INVISÍVEL) ---
     elif menu == "Gerador de Atividades":
         st.header("📄 Gerador de Atividades")
-        st.info("Regra: '.' Esquerda | '..' Direita (sobe para o lado da anterior)")
         
-        titulo_pdf = st.text_input("Título da Atividade:", "Lista de Exercícios")
-        conteudo = st.text_area("Digite as questões:", height=300)
+        titulo_pdf = st.text_input("Título:", "Atividade de Matemática")
+        conteudo = st.text_area("Conteúdo:", height=300)
         
         if st.button("Gerar PDF"):
             if conteudo:
                 pdf = FPDF()
                 pdf.add_page()
                 
-                # 1. Cabeçalho (Posicionamento fixo)
+                # 1. Cabeçalho
                 if os.path.exists("cabecalho.png"):
                     pdf.image("cabecalho.png", x=10, y=8, w=190)
-                    pdf.set_y(48) # Começa o texto abaixo da moldura do cabeçalho
-                else:
-                    pdf.set_y(15)
+                    pdf.set_y(50)
                 
-                # 2. Título Centralizado
+                # 2. Título
                 pdf.set_font("Arial", 'B', 12)
                 pdf.cell(0, 10, txt=titulo_pdf, ln=True, align='C')
-                pdf.ln(4)
+                pdf.ln(5)
                 
-                # 3. Lógica de Colunas
                 pdf.set_font("Arial", size=11)
                 letras = "abcdefghijklmnopqrstuvwxyz"
                 letra_idx = 0
                 
-                for linha in conteudo.split('\n'):
-                    txt = linha.strip()
-                    if not txt: continue
+                # Criamos uma lista para processar as linhas
+                linhas = conteudo.split('\n')
+                i = 0
+                while i < len(linhas):
+                    txt = linhas[i].strip()
+                    if not txt: 
+                        i += 1
+                        continue
                     
-                    # QUESTÃO: Se começa com número (ex: 1., 2º, 3)
+                    # SE FOR QUESTÃO (NÚMERO)
                     if re.match(r'^\d+', txt):
                         pdf.ln(4)
                         pdf.set_font("Arial", 'B', 11)
-                        pdf.multi_cell(0, 8, txt=txt) # Ocupa a linha toda
+                        pdf.multi_cell(0, 8, txt=txt)
                         pdf.set_font("Arial", size=11)
-                        letra_idx = 0 # Reinicia letras para cada questão
+                        letra_idx = 0
+                        i += 1
                     
-                    # COLUNA DA DIREITA (..): Sobe e escreve ao lado
-                    elif txt.startswith('..'):
-                        item = txt[2:].strip()
-                        prefixo = f"{letras[letra_idx % 26]}) "
-                        # A mágica: Sobe o cursor 8mm para alinhar com a linha de cima
-                        pdf.set_y(pdf.get_y() - 8) 
-                        pdf.set_x(110) # Vai para o meio da folha
-                        pdf.cell(90, 8, txt=f"{prefixo}{item}", ln=True)
-                        letra_idx += 1
-                        
-                    # COLUNA DA ESQUERDA (.): Escreve e desce normal
-                    elif txt.startswith('.'):
-                        item = txt[1:].strip()
-                        prefixo = f"{letras[letra_idx % 26]}) "
-                        pdf.set_x(20) # Recuo para a letra não colar na borda
-                        pdf.cell(90, 8, txt=f"{prefixo}{item}", ln=True)
-                        letra_idx += 1
-                    
-                    # TEXTO SOLTO
+                    # SE FOR ITEM (.) E O PRÓXIMO FOR (..) -> ESCREVE LADO A LADO
+                    elif txt.startswith('.') and not txt.startswith('..'):
+                        # Verifica se a PRÓXIMA linha existe e começa com '..'
+                        if (i + 1) < len(linhas) and linhas[i+1].strip().startswith('..'):
+                            item1 = txt[1:].strip()
+                            item2 = linhas[i+1].strip()[2:].strip()
+                            
+                            pref1 = f"{letras[letra_idx % 26]}) "
+                            pref2 = f"{letras[(letra_idx + 1) % 26]}) "
+                            
+                            # Escreve os dois na mesma linha como uma tabela
+                            pdf.set_x(20)
+                            pdf.cell(85, 8, txt=f"{pref1}{item1}", ln=0) # Coluna 1
+                            pdf.cell(85, 8, txt=f"{pref2}{item2}", ln=1) # Coluna 2 (ln=1 pula linha)
+                            
+                            letra_idx += 2
+                            i += 2 # Pula duas linhas pois já processou o par
+                        else:
+                            # Se for só um '.', escreve sozinho e pula linha
+                            item = txt[1:].strip()
+                            pdf.set_x(20)
+                            pdf.cell(0, 8, txt=f"{letras[letra_idx % 26]}) {item}", ln=1)
+                            letra_idx += 1
+                            i += 1
                     else:
                         pdf.multi_cell(0, 8, txt=txt)
+                        i += 1
                 
                 pdf_bytes = pdf.output(dest='S').encode('latin-1', 'replace')
-                st.download_button("📥 Baixar PDF em Colunas", data=pdf_bytes, file_name="atividade_quantum.pdf")
-            else:
-                st.warning("Preencha o conteúdo da atividade.")
+                st.download_button("📥 Baixar PDF", data=pdf_bytes, file_name="atividade.pdf")
     # --- FINANCEIRO ---
     elif menu == "Financeiro":
         st.header("💰 Financeiro")
