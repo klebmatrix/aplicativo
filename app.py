@@ -90,29 +90,33 @@ else:
         if st.button("Ver Divisores"):
             divs = [d for d in range(1, n+1) if n % d == 0]
             st.write(f"Divisores: {divs}")
-# --- GERADOR DE ATIVIDADES (VERSÃO DUAS COLUNAS) ---
+
+# --- GERADOR DE ATIVIDADES (COLUNAS LADO A LADO) ---
     elif menu == "Gerador de Atividades":
         st.header("📄 Gerador de Atividades")
-        st.info("'.' Nova linha | '..' Mesma linha (Coluna 2)")
+        st.info("Regra: '.' Esquerda | '..' Direita (sobe para o lado da anterior)")
         
-        titulo_pdf = st.text_input("Título:", "Complementação para o estudo da Matemática Lista ( A )")
-        conteudo = st.text_area("Conteúdo:", height=300)
+        titulo_pdf = st.text_input("Título da Atividade:", "Lista de Exercícios")
+        conteudo = st.text_area("Digite as questões:", height=300)
         
         if st.button("Gerar PDF"):
             if conteudo:
                 pdf = FPDF()
                 pdf.add_page()
                 
-                # 1. Cabeçalho com margem de segurança
+                # 1. Cabeçalho (Posicionamento fixo)
                 if os.path.exists("cabecalho.png"):
                     pdf.image("cabecalho.png", x=10, y=8, w=190)
-                    pdf.set_y(50) # Empurra o título para baixo da moldura
+                    pdf.set_y(48) # Começa o texto abaixo da moldura do cabeçalho
+                else:
+                    pdf.set_y(15)
                 
-                # 2. Título centralizado
+                # 2. Título Centralizado
                 pdf.set_font("Arial", 'B', 12)
                 pdf.cell(0, 10, txt=titulo_pdf, ln=True, align='C')
-                pdf.ln(5)
+                pdf.ln(4)
                 
+                # 3. Lógica de Colunas
                 pdf.set_font("Arial", size=11)
                 letras = "abcdefghijklmnopqrstuvwxyz"
                 letra_idx = 0
@@ -121,40 +125,40 @@ else:
                     txt = linha.strip()
                     if not txt: continue
                     
-                    # QUESTÃO (Começa com número)
+                    # QUESTÃO: Se começa com número (ex: 1., 2º, 3)
                     if re.match(r'^\d+', txt):
-                        pdf.ln(8) # Espaço antes da nova questão
+                        pdf.ln(4)
                         pdf.set_font("Arial", 'B', 11)
-                        pdf.multi_cell(0, 8, txt=txt)
+                        pdf.multi_cell(0, 8, txt=txt) # Ocupa a linha toda
                         pdf.set_font("Arial", size=11)
-                        letra_idx = 0 # Reinicia o alfabeto
+                        letra_idx = 0 # Reinicia letras para cada questão
                     
-                    # ALTERNATIVA NA SEGUNDA COLUNA (..)
+                    # COLUNA DA DIREITA (..): Sobe e escreve ao lado
                     elif txt.startswith('..'):
-                        item_limpo = txt[2:].strip()
+                        item = txt[2:].strip()
                         prefixo = f"{letras[letra_idx % 26]}) "
-                        # Move para o meio da página (Coluna 2)
-                        pdf.set_x(105) 
-                        pdf.cell(90, 8, txt=f"{prefixo}{item_limpo}", ln=True)
+                        # A mágica: Sobe o cursor 8mm para alinhar com a linha de cima
+                        pdf.set_y(pdf.get_y() - 8) 
+                        pdf.set_x(110) # Vai para o meio da folha
+                        pdf.cell(90, 8, txt=f"{prefixo}{item}", ln=True)
                         letra_idx += 1
-                    
-                    # ALTERNATIVA NA PRIMEIRA COLUNA (.)
+                        
+                    # COLUNA DA ESQUERDA (.): Escreve e desce normal
                     elif txt.startswith('.'):
-                        item_limpo = txt[1:].strip()
+                        item = txt[1:].strip()
                         prefixo = f"{letras[letra_idx % 26]}) "
-                        # Recuo da margem esquerda
-                        pdf.set_x(20)
-                        # Escreve sem pular linha (ln=0) para permitir '..' ao lado
-                        pdf.cell(85, 8, txt=f"{prefixo}{item_limpo}", ln=0)
+                        pdf.set_x(20) # Recuo para a letra não colar na borda
+                        pdf.cell(90, 8, txt=f"{prefixo}{item}", ln=True)
                         letra_idx += 1
-                        # Se a próxima linha não for '..', precisamos pular linha depois
                     
+                    # TEXTO SOLTO
                     else:
-                        pdf.ln(2)
                         pdf.multi_cell(0, 8, txt=txt)
                 
                 pdf_bytes = pdf.output(dest='S').encode('latin-1', 'replace')
-                st.download_button("📥 Baixar PDF em Colunas", data=pdf_bytes, file_name="atividade.pdf")
+                st.download_button("📥 Baixar PDF em Colunas", data=pdf_bytes, file_name="atividade_quantum.pdf")
+            else:
+                st.warning("Preencha o conteúdo da atividade.")
     # --- FINANCEIRO ---
     elif menu == "Financeiro":
         st.header("💰 Financeiro")
