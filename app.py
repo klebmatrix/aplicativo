@@ -90,33 +90,29 @@ else:
         if st.button("Ver Divisores"):
             divs = [d for d in range(1, n+1) if n % d == 0]
             st.write(f"Divisores: {divs}")
-# --- GERADOR DE ATIVIDADES (LÓGICA DO PONTO '.') ---
+# --- GERADOR DE ATIVIDADES (VERSÃO DUAS COLUNAS) ---
     elif menu == "Gerador de Atividades":
         st.header("📄 Gerador de Atividades")
-        st.info("Regras: '.' nova linha | '..' mesma linha (lado a lado)")
+        st.info("'.' Nova linha | '..' Mesma linha (Coluna 2)")
         
-        titulo_pdf = st.text_input("Título da Atividade:", "Complementação para o estudo da Matemática Lista ( A )")
-        conteudo = st.text_area("Conteúdo:", height=300, help="Exemplo:\n1º) Encontre x:\n. 2x = 10\n.. 3x = 15")
+        titulo_pdf = st.text_input("Título:", "Complementação para o estudo da Matemática Lista ( A )")
+        conteudo = st.text_area("Conteúdo:", height=300)
         
         if st.button("Gerar PDF"):
             if conteudo:
                 pdf = FPDF()
                 pdf.add_page()
                 
-                # 1. Cabeçalho (Imagem cabecalho.png)
+                # 1. Cabeçalho com margem de segurança
                 if os.path.exists("cabecalho.png"):
                     pdf.image("cabecalho.png", x=10, y=8, w=190)
-                    pdf.set_y(45) # Garante que o título comece abaixo do cabeçalho
-                else:
-                    st.error("Arquivo 'cabecalho.png' não encontrado.")
-                    pdf.set_y(15)
+                    pdf.set_y(50) # Empurra o título para baixo da moldura
                 
-                # 2. Título (Negrito e Centralizado)
+                # 2. Título centralizado
                 pdf.set_font("Arial", 'B', 12)
                 pdf.cell(0, 10, txt=titulo_pdf, ln=True, align='C')
-                pdf.ln(5) 
+                pdf.ln(5)
                 
-                # 3. Processamento do Conteúdo
                 pdf.set_font("Arial", size=11)
                 letras = "abcdefghijklmnopqrstuvwxyz"
                 letra_idx = 0
@@ -125,41 +121,40 @@ else:
                     txt = linha.strip()
                     if not txt: continue
                     
-                    # Se começar com número (ex: 1º) ou 1.)
+                    # QUESTÃO (Começa com número)
                     if re.match(r'^\d+', txt):
-                        pdf.ln(5)
+                        pdf.ln(8) # Espaço antes da nova questão
                         pdf.set_font("Arial", 'B', 11)
-                        pdf.multi_cell(0, 10, txt=txt) # Questão ocupa a largura toda
+                        pdf.multi_cell(0, 8, txt=txt)
                         pdf.set_font("Arial", size=11)
-                        letra_idx = 0 
+                        letra_idx = 0 # Reinicia o alfabeto
                     
-                    # Se começar com '..' (Mesma linha)
+                    # ALTERNATIVA NA SEGUNDA COLUNA (..)
                     elif txt.startswith('..'):
                         item_limpo = txt[2:].strip()
                         prefixo = f"{letras[letra_idx % 26]}) "
-                        # Escreve sem pular linha (ln=0) com um espaço extra
-                        pdf.cell(10, 10, txt="", ln=0) # Pequeno recuo
-                        pdf.cell(60, 10, txt=f"{prefixo}{item_limpo}", ln=0)
+                        # Move para o meio da página (Coluna 2)
+                        pdf.set_x(105) 
+                        pdf.cell(90, 8, txt=f"{prefixo}{item_limpo}", ln=True)
                         letra_idx += 1
                     
-                    # Se começar com '.' (Nova linha)
+                    # ALTERNATIVA NA PRIMEIRA COLUNA (.)
                     elif txt.startswith('.'):
-                        pdf.ln(10) # Força a descida para a próxima linha de alternativas
                         item_limpo = txt[1:].strip()
                         prefixo = f"{letras[letra_idx % 26]}) "
-                        # Recuo da margem esquerda para as letras
+                        # Recuo da margem esquerda
                         pdf.set_x(20)
-                        pdf.cell(60, 10, txt=f"{prefixo}{item_limpo}", ln=0)
+                        # Escreve sem pular linha (ln=0) para permitir '..' ao lado
+                        pdf.cell(85, 8, txt=f"{prefixo}{item_limpo}", ln=0)
                         letra_idx += 1
+                        # Se a próxima linha não for '..', precisamos pular linha depois
                     
                     else:
-                        pdf.ln(10)
-                        pdf.multi_cell(0, 10, txt=txt)
+                        pdf.ln(2)
+                        pdf.multi_cell(0, 8, txt=txt)
                 
                 pdf_bytes = pdf.output(dest='S').encode('latin-1', 'replace')
-                st.download_button("📥 Baixar PDF Corrigido", data=pdf_bytes, file_name="atividade.pdf")
-            else:
-                st.warning("Adicione o conteúdo.")
+                st.download_button("📥 Baixar PDF em Colunas", data=pdf_bytes, file_name="atividade.pdf")
     # --- FINANCEIRO ---
     elif menu == "Financeiro":
         st.header("💰 Financeiro")
