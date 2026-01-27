@@ -2,6 +2,7 @@ import streamlit as st
 import math
 import numpy as np
 import os
+import re
 from fpdf import FPDF
 
 # --- 1. SEGURANÇA ---
@@ -44,49 +45,63 @@ else:
         st.session_state.perfil = None
         st.rerun()
 
-    # --- BLOCOS DE CONTEÚDO ---
-    if menu == "Atividades (Drive)":
-        st.header("📝 Pasta de Atividades")
-        st.link_button("📂 Abrir Google Drive", "https://drive.google.com/drive/folders/1NkFeom_k3LUJYAFVBBDu4GD5aYVeNEZc?usp=drive_link")
-
-    elif menu == "Expressões (PEMDAS)":
-        st.header("🧮 Calculadora de Expressões")
-        exp = st.text_input("Digite a expressão:")
-        if st.button("Resolver"):
-            try:
-                res = eval(exp.replace('^', '**'), {"__builtins__": None}, {"math": math, "sqrt": math.sqrt})
-                st.success(f"Resultado: {res}")
-            except: st.error("Erro na expressão.")
-
-    elif menu == "Gerador de Atividades":
+    # --- GERADOR DE ATIVIDADES ---
+    if menu == "Gerador de Atividades":
         st.header("📄 Gerador de Atividades")
-        titulo_pdf = st.text_input("Título:", "Atividade de Matemática")
-        conteudo = st.text_area("Itens da atividade (cada linha vira uma letra a, b, c...):")
+        titulo_pdf = st.text_input("Título da Atividade:", "Lista de Exercícios")
+        conteudo = st.text_area("Digite o conteúdo (Linha com número inicia bloco, linhas seguintes ganham letras):", height=250)
         
         if st.button("Gerar PDF"):
             if conteudo:
                 pdf = FPDF()
                 pdf.add_page()
                 
-                # Header com Imagem (Deve estar no seu GitHub como 'header.png')
-                if os.path.exists("header.png"):
-                    pdf.image("header.png", x=10, y=8, w=190)
-                    pdf.ln(35)
-                
+                # Inserção do Cabeçalho
+                if os.path.exists("cabecalho.png"):
+                    pdf.image("cabecalho.png", x=10, y=8, w=190)
+                    pdf.ln(40) 
+                else:
+                    st.error("❌ Arquivo 'cabecalho.png' não encontrado no repositório.")
+
                 pdf.set_font("Arial", 'B', 16)
                 pdf.cell(200, 10, txt=titulo_pdf, ln=True, align='C')
                 pdf.ln(10)
                 
                 pdf.set_font("Arial", size=12)
                 letras = "abcdefghijklmnopqrstuvwxyz"
-                for i, linha in enumerate(conteudo.split('\n')):
-                    if linha.strip():
-                        # Letramento a); b); c); conforme solicitado
-                        pdf.multi_cell(0, 10, txt=f"{letras[i%26]}) {linha.strip()}")
+                letra_idx = 0
+                
+                for linha in conteudo.split('\n'):
+                    txt = linha.strip()
+                    if not txt: continue
+                    
+                    # Lógica: Se começa com número (ex: 1. ou 10)
+                    if re.match(r'^\d+', txt):
+                        pdf.ln(5)
+                        pdf.set_font("Arial", 'B', 12)
+                        pdf.multi_cell(0, 10, txt=txt)
+                        pdf.set_font("Arial", size=12)
+                        letra_idx = 0 
+                    else:
+                        # Se não tem número, vira a), b), c)...
+                        prefixo = f"{letras[letra_idx % 26]}) "
+                        pdf.multi_cell(0, 10, txt=f"    {prefixo}{txt}")
+                        letra_idx += 1
                 
                 pdf_bytes = pdf.output(dest='S').encode('latin-1', 'replace')
-                st.download_button("📥 Baixar PDF", data=pdf_bytes, file_name="atividade.pdf")
-            else: st.warning("Escreva o conteúdo.")
+                st.download_button("📥 Baixar PDF", data=pdf_bytes, file_name="atividade_quantum.pdf")
+            else:
+                st.warning("Adicione conteúdo para gerar.")
+
+    # --- OUTROS MENUS (EQUAÇÕES, FINANCEIRO, ETC) ---
+    elif menu == "Expressões (PEMDAS)":
+        st.header("🧮 Expressões")
+        exp = st.text_input("Expressão:")
+        if st.button("Calcular"):
+            try:
+                res = eval(exp.replace('^', '**'), {"__builtins__": None}, {"math": math, "sqrt": math.sqrt})
+                st.success(f"Resultado: {res}")
+            except: st.error("Erro na expressão.")
 
     elif menu == "Financeiro":
         st.header("💰 Financeiro")
@@ -96,4 +111,4 @@ else:
         if st.button("Calcular"):
             st.success(f"Montante: R$ {c * (1 + i)**t:.2f}")
 
-    # (Mantenha os outros menus como Logaritmos e Equações seguindo o mesmo alinhamento do elif)
+    # (Para os demais menus, basta seguir este padrão de indentação do elif)
