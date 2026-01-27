@@ -91,9 +91,10 @@ else:
             divs = [d for d in range(1, n+1) if n % d == 0]
             st.write(f"Divisores: {divs}")
 
-# --- GERADOR DE ATIVIDADES (SEM RECUO E EM COLUNAS) ---
+# --- GERADOR DE ATIVIDADES (ATÉ 4 COLUNAS) ---
     elif menu == "Gerador de Atividades":
         st.header("📄 Gerador de Atividades")
+        st.info("'.' Col 1 | '..' Col 2 | '...' Col 3 | '....' Col 4")
         
         titulo_pdf = st.text_input("Título:", "Atividade de Matemática")
         conteudo = st.text_area("Conteúdo:", height=300)
@@ -103,12 +104,10 @@ else:
                 pdf = FPDF()
                 pdf.add_page()
                 
-                # 1. Cabeçalho
                 if os.path.exists("cabecalho.png"):
                     pdf.image("cabecalho.png", x=10, y=8, w=190)
-                    pdf.set_y(45) 
+                    pdf.set_y(45)
                 
-                # 2. Título Centralizado
                 pdf.set_font("Arial", 'B', 12)
                 pdf.cell(0, 10, txt=titulo_pdf, ln=True, align='C')
                 pdf.ln(2)
@@ -121,30 +120,44 @@ else:
                     txt = linha.strip()
                     if not txt: continue
                     
-                    # QUESTÃO (Número no início) - SEM RECUO
+                    # QUESTÃO (Número)
                     if re.match(r'^\d+', txt):
                         pdf.ln(4)
                         pdf.set_font("Arial", 'B', 11)
-                        pdf.set_x(10) # Alinhado na margem padrão
+                        pdf.set_x(10)
                         pdf.multi_cell(0, 8, txt=txt)
                         pdf.set_font("Arial", size=11)
                         letra_idx = 0 
                     
-                    # COLUNA DA DIREITA (..) - POSIÇÃO FIXA NO MEIO
+                    # COLUNA 4 (....)
+                    elif txt.startswith('....'):
+                        item = txt[4:].strip()
+                        pdf.set_y(pdf.get_y() - 8)
+                        pdf.set_x(155) # 75% da folha
+                        pdf.cell(45, 8, txt=f"{letras[letra_idx % 26]}) {item}", ln=True)
+                        letra_idx += 1
+
+                    # COLUNA 3 (...)
+                    elif txt.startswith('...'):
+                        item = txt[3:].strip()
+                        pdf.set_y(pdf.get_y() - 8)
+                        pdf.set_x(105) # 50% da folha
+                        pdf.cell(45, 8, txt=f"{letras[letra_idx % 26]}) {item}", ln=True)
+                        letra_idx += 1
+
+                    # COLUNA 2 (..)
                     elif txt.startswith('..'):
                         item = txt[2:].strip()
-                        prefixo = f"{letras[letra_idx % 26]}) "
-                        pdf.set_y(pdf.get_y() - 8) # Volta para a linha de cima
-                        pdf.set_x(105) # Vai para o meio da folha
-                        pdf.cell(95, 8, txt=f"{prefixo}{item}", ln=True)
+                        pdf.set_y(pdf.get_y() - 8)
+                        pdf.set_x(55) # 25% da folha
+                        pdf.cell(45, 8, txt=f"{letras[letra_idx % 26]}) {item}", ln=True)
                         letra_idx += 1
                         
-                    # COLUNA DA ESQUERDA (.) - SEM RECUO (Margem 10)
+                    # COLUNA 1 (.)
                     elif txt.startswith('.'):
                         item = txt[1:].strip()
-                        prefixo = f"{letras[letra_idx % 26]}) "
-                        pdf.set_x(10) # Encostado na margem esquerda
-                        pdf.cell(95, 8, txt=f"{prefixo}{item}", ln=True)
+                        pdf.set_x(10)
+                        pdf.cell(45, 8, txt=f"{letras[letra_idx % 26]}) {item}", ln=True)
                         letra_idx += 1
                     
                     else:
@@ -152,7 +165,7 @@ else:
                         pdf.multi_cell(0, 8, txt=txt)
                 
                 pdf_bytes = pdf.output(dest='S').encode('latin-1', 'replace')
-                st.download_button("📥 Baixar PDF", data=pdf_bytes, file_name="atividade.pdf")
+                st.download_button("📥 Baixar PDF 4 Colunas", data=pdf_bytes, file_name="atividade.pdf")
     # --- FINANCEIRO ---
     elif menu == "Financeiro":
         st.header("💰 Financeiro")
