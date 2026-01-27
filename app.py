@@ -4,7 +4,7 @@ import math
 import numpy as np
 from cryptography.fernet import Fernet
 
-# --- SEGURANÇA BLINDADA ---
+# --- 1. SEGURANÇA ---
 def validar_acesso(pin_digitado):
     # Acesso Aluno
     senha_aluno = os.environ.get('acesso_aluno', '').strip().replace("'", "").replace('"', "")
@@ -13,17 +13,13 @@ def validar_acesso(pin_digitado):
     
     # Acesso Professor
     try:
-        # [cite: 2026-01-24] chave_mestra minúscula
         chave_env = os.environ.get('chave_mestra', '').strip().replace("'", "").replace('"', "")
         if not chave_env: return "erro_env"
-        
-        # Remove o prefixo b' se o Render colocar
         if chave_env.startswith('b'): chave_env = chave_env[1:]
         
         f = Fernet(chave_env.encode())
-        
-        # COLE AQUI O "PIN PARA O app.py" GERADO PELO SCRIPT ANTERIOR
-        PIN_CRIPTO = "COLE_AQUI_O_PIN_GERADO" 
+        # Substitua pelo PIN gerado no seu script de codificação
+        PIN_CRIPTO = "gAAAAABpdRRwrtzON4oc6ayd3fx1LjLjX8TjRj7riCkHHuOpi0lcYFAu04KEXEo8d3-GJz9HmpP-AjvbLOLzr6zC6GMUvOCP1A=="
         
         if pin_digitado == f.decrypt(PIN_CRIPTO.encode()).decode():
             return "admin"
@@ -31,64 +27,90 @@ def validar_acesso(pin_digitado):
         pass
     return "negado"
 
-# --- INTERFACE ---
 st.set_page_config(page_title="Quantum Math Lab", layout="wide")
 if 'perfil' not in st.session_state: st.session_state.perfil = None
 
+# --- 2. TELA DE LOGIN ---
 if st.session_state.perfil is None:
-    st.title("🔐 Login Quantum Lab")
-    pin = st.text_input("PIN:", type="password")
+    st.title("🔐 Quantum Math Lab")
+    pin = st.text_input("PIN de Acesso:", type="password")
     if st.button("Entrar"):
         acesso = validar_acesso(pin)
         if acesso != "negado":
             st.session_state.perfil = acesso
             st.rerun()
         else:
-            st.error("Acesso Negado.")
+            st.error("PIN incorreto ou erro nas variáveis do Render.")
     st.stop()
 
-# --- MENU ---
-perfil = st.session_state.perfil
-st.sidebar.title(f"🚀 {'PROFESSOR' if perfil == 'admin' else 'ALUNO'}")
-
-# Módulos conforme solicitado
-menu_itens = ["Atividades", "Expressões", "Equações 1º/2º Grau", "Funções f(x)"]
-if perfil == "admin":
-    menu_itens += ["Sistemas", "Matrizes", "Gerador PDF"]
-
-escolha = st.sidebar.radio("Navegar:", menu_itens)
-
-# --- CONTEÚDO ---
-if escolha == "Atividades":
-    st.link_button("📂 Abrir Drive", "https://drive.google.com/drive/folders/1NkFeom_k3LUJYAFVBBDu4GD5aYVeNEZc?usp=drive_link")
-
-elif escolha == "Expressões":
+# --- 3. MENU E CONTEÚDO ---
+else:
+    perfil = st.session_state.perfil
+    st.sidebar.title(f"🚀 {'PAINEL PROFESSOR' if perfil == 'admin' else 'ESTUDANTE'}")
     
-    st.header("🧮 PEMDAS")
-    exp = st.text_input("Expressão:", "(2+3)*5")
-    if st.button("Calcular"):
-        st.success(f"Resultado: {eval(exp.replace('^', '**'))}")
+    itens = ["Atividades", "Expressões (PEMDAS)", "Equações 1º/2º Grau", "Cálculo f(x)", "Logaritmos"]
+    if perfil == "admin":
+        itens += ["Sistemas Lineares", "Matrizes", "Gerador PDF"]
+        
+    menu = st.sidebar.radio("Navegação:", itens)
+    st.sidebar.button("Sair", on_click=lambda: st.session_state.update({"perfil": None}))
 
-elif escolha == "Equações 1º/2º Grau":
-    
+    if menu == "Atividades":
+        st.header("📝 Pasta de Exercícios")
+        st.link_button("📂 Abrir Google Drive", "https://drive.google.com/drive/folders/1NkFeom_k3LUJYAFVBBDu4GD5aYVeNEZc?usp=drive_link")
 
-[Image of the quadratic formula]
+    elif menu == "Expressões (PEMDAS)":
+        st.header("🧮 PEMDAS")
+        st.info("Ordem: ( ) -> ^ -> * / -> + -")
+        exp = st.text_input("Digite a expressão:", value="(10+5)*2")
+        if st.button("Calcular"):
+            try:
+                res = eval(exp.replace('^', '**'), {"__builtins__": None}, {"math": math})
+                st.success(f"Resultado: {res}")
+            except: st.error("Erro na expressão.")
 
-    st.header("📐 Equações")
-    a = st.number_input("a", value=1.0)
-    b = st.number_input("b", value=-5.0)
-    c = st.number_input("c", value=6.0)
-    if st.button("Resolver"):
-        delta = b**2 - 4*a*c
-        if delta >= 0:
-            x1 = (-b + math.sqrt(delta))/(2*a)
-            st.success(f"Delta: {delta} | x1: {x1}")
-        else: st.error("Raízes complexas.")
+    elif menu == "Equações 1º/2º Grau":
+        st.header("📐 Resolução de Equações")
+        st.latex(r"ax^2 + bx + c = 0")
+        a = st.number_input("Valor de a:", value=1.0)
+        b = st.number_input("Valor de b:", value=-5.0)
+        c = st.number_input("Valor de c:", value=6.0)
+        if st.button("Resolver"):
+            delta = b**2 - 4*a*c
+            st.write(f"Delta (Δ) = {delta}")
+            if delta >= 0:
+                x1 = (-b + math.sqrt(delta))/(2*a)
+                x2 = (-b - math.sqrt(delta))/(2*a)
+                st.success(f"x1 = {x1:.2f} | x2 = {x2:.2f}")
+            else: st.error("Δ negativo (raízes complexas).")
 
-elif escolha == "Funções f(x)":
-    st.header("𝑓(x) Cálculo")
-    func = st.text_input("f(x):", "3*x + 5")
-    x_val = st.number_input("x:", 2.0)
-    if st.button("Calcular f(x)"):
-        res = eval(func.replace('x', f'({x_val})').replace('^', '**'))
-        st.success(f"f({x_val}) = {res}")
+    elif menu == "Cálculo f(x)":
+        st.header("𝑓(x) Funções")
+        f_in = st.text_input("f(x):", "3*x + 5")
+        v_x = st.number_input("x:", value=0.0)
+        if st.button("Calcular f(x)"):
+            try:
+                res_f = eval(f_in.replace('x', f'({v_x})').replace('^', '**'))
+                st.success(f"f({v_x}) = {res_f}")
+            except: st.error("Erro na função.")
+
+    elif menu == "Logaritmos":
+        st.header("🔢 Logaritmos")
+        st.latex(r"\log_{base}(a) = x")
+        base = st.number_input("Base:", value=10.0)
+        num = st.number_input("Logaritmando:", value=100.0)
+        if st.button("Calcular"):
+            try: st.success(f"Log: {math.log(num, base):.4f}")
+            except: st.error("Erro no cálculo.")
+
+    elif menu == "Sistemas Lineares":
+        st.header("📏 Sistemas")
+        st.write("Módulo de cálculo matricial para o Professor.")
+
+    elif menu == "Matrizes":
+        st.header("🧮 Matrizes")
+        st.write("Determinantes e Regra de Sarrus.")
+
+    elif menu == "Gerador PDF":
+        st.header("📄 PDF")
+        st.write("Gerador de atividades PDF.")
