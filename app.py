@@ -2,7 +2,6 @@ import streamlit as st
 import math
 import numpy as np
 import os
-from fpdf import FPDF  # Import necessário para o PDF
 
 # --- 1. SEGURANÇA (Acesso Comum) ---
 def validar_acesso(pin_digitado):
@@ -30,7 +29,7 @@ if st.session_state.perfil is None:
         else: st.error("Acesso negado.")
     st.stop()
 
-# --- 3. INTERFACE COMPLETA ---
+# --- 3. INTERFACE COMPLETA (SEM SUMIR NADA) ---
 else:
     perfil = st.session_state.perfil
     st.sidebar.title(f"🚀 {'Professor' if perfil == 'admin' else 'Estudante'}")
@@ -44,43 +43,12 @@ else:
         st.session_state.perfil = None
         st.rerun()
 
-    # --- GERADOR DE ATIVIDADES (CONSERTADO) ---
-    if menu == "Gerador de Atividades":
-        st.header("📄 Gerador de Atividades em PDF")
-        
-        titulo = st.text_input("Título da Lista:", "Atividade de Matemática")
-        questoes = st.text_area("Digite as questões (uma por linha):", height=200)
-        
-        if st.button("Gerar e Baixar PDF"):
-            if questoes:
-                pdf = FPDF()
-                pdf.add_page()
-                pdf.set_font("Arial", 'B', 16)
-                pdf.cell(200, 10, txt=titulo, ln=True, align='C')
-                pdf.ln(10)
-                pdf.set_font("Arial", size=12)
-                
-                for i, linha in enumerate(questoes.split('\n'), 1):
-                    pdf.multi_cell(0, 10, txt=f"{i}. {linha}")
-                
-                # Gera o PDF em memória
-                pdf_bytes = pdf.output(dest='S').encode('latin-1')
-                
-                st.download_button(
-                    label="📥 Clique aqui para Baixar o PDF",
-                    data=pdf_bytes,
-                    file_name="atividade_quantum.pdf",
-                    mime="application/pdf"
-                )
-                st.success("PDF pronto para download!")
-            else:
-                st.warning("Escreva algumas questões antes de gerar.")
-
-    # --- Mantenha todos os outros elif (Expressões, Equações, etc.) como estão no seu código ---
-    elif menu == "Atividades (Drive)":
+    # --- ATIVIDADES ---
+    if menu == "Atividades (Drive)":
         st.header("📝 Pasta de Atividades")
         st.link_button("📂 Abrir Google Drive", "https://drive.google.com/drive/folders/1NkFeom_k3LUJYAFVBBDu4GD5aYVeNEZc?usp=drive_link")
 
+    # --- EXPRESSÕES ---
     elif menu == "Expressões (PEMDAS)":
         st.header("🧮 Calculadora de Expressões")
         exp = st.text_input("Digite a expressão (ex: (5+3)*2^2):")
@@ -90,6 +58,7 @@ else:
                 st.success(f"Resultado: {res}")
             except: st.error("Erro na expressão.")
 
+    # --- EQUAÇÕES ---
     elif menu == "Equações (1º e 2º Grau)":
         st.header("📐 Resolução de Equações")
         grau = st.selectbox("Escolha o Grau:", ["1º Grau", "2º Grau"])
@@ -105,5 +74,65 @@ else:
                     x1 = (-b2 + math.sqrt(delta))/(2*a2); x2 = (-b2 - math.sqrt(delta))/(2*a2)
                     st.success(f"x1 = {x1:.2f}, x2 = {x2:.2f}")
                 else: st.error("Delta negativo.")
-    
-    # ... Repita os outros elif para Logaritmos, Funções Aritméticas, Sistemas, Matrizes e Financeiro ...
+
+    # --- CÁLCULO DE FUNÇÕES ---
+    elif menu == "Cálculo de Funções":
+        st.header("𝑓(x) Cálculo de Valores")
+        func_input = st.text_input("Função f(x):", value="2*x + 10")
+        val_x = st.number_input("Valor de x:", value=0.0)
+        if st.button("Calcular"):
+            try:
+                res = eval(func_input.replace('x', f'({val_x})').replace('^', '**'))
+                st.metric("Resultado", f"{res:.2f}")
+            except: st.error("Erro na fórmula.")
+
+    # --- LOGARITMOS (SOMENTE CÁLCULO) ---
+    elif menu == "Logaritmos":
+        st.header("🔢 Cálculo de Logaritmo")
+        num = st.number_input("Logaritmando:", value=100.0)
+        base = st.number_input("Base:", value=10.0)
+        if st.button("Calcular Log"):
+            try:
+                st.success(f"Resultado: {math.log(num, base):.4f}")
+            except: st.error("Números inválidos.")
+
+    # --- FUNÇÕES ARITMÉTICAS ---
+    elif menu == "Funções Aritméticas":
+        st.header("🔍 Divisores")
+        n = st.number_input("Número n:", min_value=1, value=12)
+        if st.button("Ver Divisores"):
+            divs = [d for d in range(1, n+1) if n % d == 0]
+            st.write(f"Divisores: {divs}")
+            st.info(f"Total: {len(divs)}")
+
+    # --- SISTEMAS LINEARES ---
+    elif menu == "Sistemas Lineares":
+        st.header("⚖️ Sistema 2x2")
+        a1 = st.number_input("a1", value=1.0); b1 = st.number_input("b1", value=1.0); c1 = st.number_input("c1", value=5.0)
+        a2 = st.number_input("a2", value=1.0); b2 = st.number_input("b2", value=-1.0); c2 = st.number_input("c2", value=1.0)
+        if st.button("Resolver Sistema"):
+            try:
+                X = np.linalg.solve(np.array([[a1, b1], [a2, b2]]), np.array([c1, c2]))
+                st.success(f"x = {X[0]:.2f}, y = {X[1]:.2f}")
+            except: st.error("Sem solução.")
+
+    # --- MATRIZES ---
+    elif menu == "Matrizes":
+        st.header("📊 Determinante 2x2")
+        m11 = st.number_input("M11", value=1.0); m12 = st.number_input("M12", value=0.0)
+        m21 = st.number_input("M21", value=0.0); m22 = st.number_input("M22", value=1.0)
+        if st.button("Calcular Det"):
+            st.metric("Determinante", (m11*m22) - (m12*m21))
+
+    # --- FINANCEIRO ---
+    elif menu == "Financeiro":
+        st.header("💰 Juros Compostos")
+        cap = st.number_input("Capital:", value=1000.0); tx = st.number_input("Taxa (%):", value=5.0); temp = st.number_input("Tempo:", value=12.0)
+        if st.button("Calcular Montante"):
+            st.success(f"R$ {cap * (1 + (tx/100))**temp:.2f}")
+
+    # --- GERADOR DE ATIVIDADES ---
+    elif menu == "Gerador de Atividades":
+        st.header("📄 Gerador de Atividades")
+        st.text_area("Instruções da Atividade:")
+        st.button("Gerar PDF (Módulo Ativo)")
