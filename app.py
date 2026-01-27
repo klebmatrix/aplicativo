@@ -91,7 +91,7 @@ else:
             divs = [d for d in range(1, n+1) if n % d == 0]
             st.write(f"Divisores: {divs}")
 
-# --- GERADOR DE ATIVIDADES (MÉTODO DE TABELA INVISÍVEL) ---
+# --- GERADOR DE ATIVIDADES (SEM RECUO E EM COLUNAS) ---
     elif menu == "Gerador de Atividades":
         st.header("📄 Gerador de Atividades")
         
@@ -106,62 +106,50 @@ else:
                 # 1. Cabeçalho
                 if os.path.exists("cabecalho.png"):
                     pdf.image("cabecalho.png", x=10, y=8, w=190)
-                    pdf.set_y(50)
+                    pdf.set_y(45) 
                 
-                # 2. Título
+                # 2. Título Centralizado
                 pdf.set_font("Arial", 'B', 12)
                 pdf.cell(0, 10, txt=titulo_pdf, ln=True, align='C')
-                pdf.ln(5)
+                pdf.ln(2)
                 
                 pdf.set_font("Arial", size=11)
                 letras = "abcdefghijklmnopqrstuvwxyz"
                 letra_idx = 0
                 
-                # Criamos uma lista para processar as linhas
-                linhas = conteudo.split('\n')
-                i = 0
-                while i < len(linhas):
-                    txt = linhas[i].strip()
-                    if not txt: 
-                        i += 1
-                        continue
+                for linha in conteudo.split('\n'):
+                    txt = linha.strip()
+                    if not txt: continue
                     
-                    # SE FOR QUESTÃO (NÚMERO)
+                    # QUESTÃO (Número no início) - SEM RECUO
                     if re.match(r'^\d+', txt):
                         pdf.ln(4)
                         pdf.set_font("Arial", 'B', 11)
+                        pdf.set_x(10) # Alinhado na margem padrão
                         pdf.multi_cell(0, 8, txt=txt)
                         pdf.set_font("Arial", size=11)
-                        letra_idx = 0
-                        i += 1
+                        letra_idx = 0 
                     
-                    # SE FOR ITEM (.) E O PRÓXIMO FOR (..) -> ESCREVE LADO A LADO
-                    elif txt.startswith('.') and not txt.startswith('..'):
-                        # Verifica se a PRÓXIMA linha existe e começa com '..'
-                        if (i + 1) < len(linhas) and linhas[i+1].strip().startswith('..'):
-                            item1 = txt[1:].strip()
-                            item2 = linhas[i+1].strip()[2:].strip()
-                            
-                            pref1 = f"{letras[letra_idx % 26]}) "
-                            pref2 = f"{letras[(letra_idx + 1) % 26]}) "
-                            
-                            # Escreve os dois na mesma linha como uma tabela
-                            pdf.set_x(20)
-                            pdf.cell(85, 8, txt=f"{pref1}{item1}", ln=0) # Coluna 1
-                            pdf.cell(85, 8, txt=f"{pref2}{item2}", ln=1) # Coluna 2 (ln=1 pula linha)
-                            
-                            letra_idx += 2
-                            i += 2 # Pula duas linhas pois já processou o par
-                        else:
-                            # Se for só um '.', escreve sozinho e pula linha
-                            item = txt[1:].strip()
-                            pdf.set_x(20)
-                            pdf.cell(0, 8, txt=f"{letras[letra_idx % 26]}) {item}", ln=1)
-                            letra_idx += 1
-                            i += 1
+                    # COLUNA DA DIREITA (..) - POSIÇÃO FIXA NO MEIO
+                    elif txt.startswith('..'):
+                        item = txt[2:].strip()
+                        prefixo = f"{letras[letra_idx % 26]}) "
+                        pdf.set_y(pdf.get_y() - 8) # Volta para a linha de cima
+                        pdf.set_x(105) # Vai para o meio da folha
+                        pdf.cell(95, 8, txt=f"{prefixo}{item}", ln=True)
+                        letra_idx += 1
+                        
+                    # COLUNA DA ESQUERDA (.) - SEM RECUO (Margem 10)
+                    elif txt.startswith('.'):
+                        item = txt[1:].strip()
+                        prefixo = f"{letras[letra_idx % 26]}) "
+                        pdf.set_x(10) # Encostado na margem esquerda
+                        pdf.cell(95, 8, txt=f"{prefixo}{item}", ln=True)
+                        letra_idx += 1
+                    
                     else:
+                        pdf.set_x(10)
                         pdf.multi_cell(0, 8, txt=txt)
-                        i += 1
                 
                 pdf_bytes = pdf.output(dest='S').encode('latin-1', 'replace')
                 st.download_button("📥 Baixar PDF", data=pdf_bytes, file_name="atividade.pdf")
