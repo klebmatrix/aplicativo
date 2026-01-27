@@ -4,107 +4,106 @@ import os
 import re
 
 # Configuração da Página
-st.set_page_config(page_title="Gerador de Atividades", layout="centered")
+st.set_page_config(page_title="Sistema Educacional", layout="centered")
 
-# --- LOGIN SEGURO (CONFORME SUAS DIRETRIZES) ---
+# --- 1. CONTROLE DE ACESSO (PIN) ---
 if 'autenticado' not in st.session_state:
     st.session_state['autenticado'] = False
 
 if not st.session_state['autenticado']:
-    st.title("🔐 Acesso ao Sistema")
-    
-    # Busca a senha nas variáveis de ambiente do Render (chave_mestra em lowercase)
-    # Se não houver variável, o padrão é '123456'
+    st.title("🔐 Acesso Restrito")
+    # Busca o PIN no Render ou usa o padrão
     pin_correto = os.getenv("chave_mestra", "123456")
+    senha = st.text_input("Digite o PIN:", type="password", max_chars=8)
     
-    senha = st.text_input("Digite seu PIN (6-8 dígitos):", type="password", max_chars=8)
-    
-    if st.button("Entrar"):
+    if st.button("Entrar no Sistema"):
         if senha == pin_correto:
             st.session_state['autenticado'] = True
             st.rerun()
         else:
-            st.error("PIN incorreto. Verifique as variáveis no Render.")
+            st.error("PIN incorreto!")
 
 else:
-    # --- INTERFACE DO GERADOR ---
-    st.sidebar.title("Configurações")
-    if st.sidebar.button("Sair"):
+    # --- 2. MENU LATERAL (AQUI ESTÃO SUAS TELAS!) ---
+    st.sidebar.title("🛠️ Painel de Controle")
+    menu = st.sidebar.radio("Selecione a Tela:", ["Painel do Professor", "Gerador de Atividades", "Sair"])
+
+    # --- TELA: PAINEL DO PROFESSOR ---
+    if menu == "Painel do Professor":
+        st.title("👨‍🏫 Área do Professor")
+        st.write("Bem-vindo! Aqui você pode gerenciar suas configurações.")
+        
+        # Exemplo de funcionalidade que você pode ter aqui:
+        st.subheader("Configurações do Cabeçalho")
+        if os.path.exists("cabecalho.png"):
+            st.success("✅ Imagem do cabeçalho encontrada!")
+            st.image("cabecalho.png", caption="Seu cabeçalho atual", width=300)
+        else:
+            st.warning("⚠️ Cabeçalho não encontrado. Certifique-se de que 'cabecalho.png' está na pasta.")
+            
+        st.info("Esta tela é dedicada para avisos e gestão interna.")
+
+    # --- TELA: GERADOR DE ATIVIDADES (A TELA QUE CRIA O PDF) ---
+    elif menu == "Gerador de Atividades":
+        st.title("📄 Gerador de Atividades")
+        st.markdown("---")
+        
+        titulo_pdf = st.text_input("Título da Atividade:", "Exercícios de Fixação")
+        conteudo = st.text_area("Digite o conteúdo abaixo:", height=300)
+        
+        if st.button("🚀 Gerar e Baixar PDF"):
+            if conteudo:
+                pdf = FPDF()
+                pdf.add_page()
+                
+                # Cabeçalho de 185mm (conforme ajustamos)
+                if os.path.exists("cabecalho.png"):
+                    pdf.image("cabecalho.png", x=12.5, y=8, w=185) 
+                    pdf.set_y(48)
+                else:
+                    pdf.set_y(15)
+                
+                pdf.set_font("Arial", 'B', 12)
+                pdf.cell(0, 10, txt=titulo_pdf, ln=True, align='C')
+                pdf.ln(2)
+                
+                # Lógica de Colunas e Letras (a, b, c)
+                pdf.set_font("Arial", size=10)
+                letras = "abcdefghijklmnopqrstuvwxyz"
+                letra_idx = 0
+                
+                for linha in conteudo.split('\n'):
+                    txt = linha.strip()
+                    if not txt: continue
+                    
+                    match_pontos = re.match(r'^(\.+)', txt)
+                    
+                    if re.match(r'^\d+', txt): # Questão
+                        pdf.ln(4)
+                        pdf.set_font("Arial", 'B', 11)
+                        pdf.set_x(10) # Sem adentramento
+                        pdf.multi_cell(0, 7, txt=txt)
+                        pdf.set_font("Arial", size=10)
+                        letra_idx = 0 
+                    
+                    elif match_pontos: # Colunas
+                        num_pontos = len(match_pontos.group(1))
+                        item = txt[num_pontos:].strip()
+                        if num_pontos > 1: pdf.set_y(pdf.get_y() - 8)
+                        
+                        pos_x = 10 + (num_pontos - 1) * 32
+                        pdf.set_x(pos_x)
+                        pdf.cell(32, 8, txt=f"{letras[letra_idx % 26]}) {item}", ln=True)
+                        letra_idx += 1
+                    
+                    else: # Texto comum
+                        pdf.set_x(10)
+                        pdf.multi_cell(0, 7, txt=txt)
+                
+                pdf_output = pdf.output(dest='S').encode('latin-1', 'replace')
+                st.download_button("📥 Clique aqui para Baixar", data=pdf_output, file_name="atividade.pdf")
+
+    # --- SAIR ---
+    elif menu == "Sair":
         st.session_state['autenticado'] = False
         st.rerun()
-
-    st.header("📄 Gerador de Atividades Profissional")
-    
-    titulo_pdf = st.text_input("Título da Atividade:", "Complementação para o estudo da Matemática")
-    conteudo = st.text_area("Conteúdo (Use . para colunas):", height=400)
-    
-    if st.button("Gerar PDF Agora"):
-        if conteudo:
-            pdf = FPDF()
-            pdf.add_page()
-            
-            # 1. CABEÇALHO (185mm - Centralizado)
-            if os.path.exists("cabecalho.png"):
-                pdf.image("cabecalho.png", x=12.5, y=8, w=185) 
-                pdf.set_y(48) # Espaço fixo para o título abaixo da imagem
-            else:
-                pdf.set_y(15)
-            
-            # 2. TÍTULO DA ATIVIDADE
-            pdf.set_font("Arial", 'B', 12)
-            pdf.cell(0, 10, txt=titulo_pdf, ln=True, align='C')
-            pdf.ln(2)
-            
-            # 3. LÓGICA DE PROCESSAMENTO
-            pdf.set_font("Arial", size=10)
-            letras = "abcdefghijklmnopqrstuvwxyz"
-            letra_idx = 0
-            
-            for linha in conteudo.split('\n'):
-                txt = linha.strip()
-                if not txt: continue
-                
-                # Identifica se a linha começa com pontos
-                match_pontos = re.match(r'^(\.+)', txt)
-                
-                # SE FOR QUESTÃO (Começa com número: 1., 2º, etc)
-                if re.match(r'^\d+', txt):
-                    pdf.ln(4)
-                    pdf.set_font("Arial", 'B', 11)
-                    pdf.set_x(10) # Alinhado na margem sem recuo
-                    pdf.multi_cell(0, 7, txt=txt)
-                    pdf.set_font("Arial", size=10)
-                    letra_idx = 0 # Reseta letras (a, b, c) para nova questão
-                
-                # SE FOR COLUNA (. até ......)
-                elif match_pontos:
-                    num_pontos = len(match_pontos.group(1))
-                    item_limpo = txt[num_pontos:].strip()
-                    prefixo = f"{letras[letra_idx % 26]}) "
-                    
-                    # Se for a partir do segundo ponto (..), sobe para alinhar
-                    if num_pontos > 1:
-                        pdf.set_y(pdf.get_y() - 8)
-                    
-                    # Define a posição X baseado no número de pontos (32mm por coluna)
-                    col_x = 10 + (num_pontos - 1) * 32
-                    pdf.set_x(col_x)
-                    
-                    pdf.cell(32, 8, txt=f"{prefixo}{item_limpo}", ln=True)
-                    letra_idx += 1
-                
-                # SE FOR TEXTO NORMAL (Professor/Enunciado)
-                else:
-                    pdf.set_x(10) # Garante margem esquerda
-                    pdf.multi_cell(0, 7, txt=txt)
-            
-            # SAÍDA DO ARQUIVO
-            pdf_output = pdf.output(dest='S').encode('latin-1', 'replace')
-            st.download_button("📥 Baixar Atividade PDF", data=pdf_output, file_name="atividade.pdf")
-        else:
-            st.warning("Por favor, digite o conteúdo da atividade.")
-
-# --- LEMBRETE PARA O RENDER ---
-# No painel do Render, vá em Settings -> Environment Variables e adicione:
-# Key: chave_mestra
-# Value: 123456 (ou seu PIN escolhido)
