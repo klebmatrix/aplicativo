@@ -91,7 +91,7 @@ else:
             divs = [d for d in range(1, n+1) if n % d == 0]
             st.write(f"Divisores: {divs}")
 
-# --- GERADOR DE ATIVIDADES (CABEÇALHO MENOR E 6 COLUNAS) ---
+# --- GERADOR DE ATIVIDADES (CABEÇALHO AJUSTADO E 6 COLUNAS) ---
     elif menu == "Gerador de Atividades":
         st.header("📄 Gerador de Atividades")
         
@@ -103,11 +103,11 @@ else:
                 pdf = FPDF()
                 pdf.add_page()
                 
-                # 1. CABEÇALHO MENOR E CENTRALIZADO
+                # 1. CABEÇALHO (Tamanho equilibrado: 170)
                 if os.path.exists("cabecalho.png"):
-                    # w=140 deixa a imagem menor. (210 - 140) / 2 = 35 para centralizar
-                    pdf.image("cabecalho.png", x=35, y=8, w=140) 
-                    pdf.set_y(35) # Diminuí o espaço para o título subir
+                    # Centralizado: (210mm folha - 170mm imagem) / 2 = 20mm de margem x
+                    pdf.image("cabecalho.png", x=20, y=8, w=170) 
+                    pdf.set_y(42) # Espaço ajustado para o título não bater na imagem
                 else:
                     pdf.set_y(15)
                 
@@ -116,7 +116,7 @@ else:
                 pdf.cell(0, 10, txt=titulo_pdf, ln=True, align='C')
                 pdf.ln(2)
                 
-                # 3. LÓGICA DE 1 A 6 COLUNAS (SEM ADENTRAMENTO)
+                # 3. LÓGICA DE 1 A 6 COLUNAS (ALINHADO À ESQUERDA)
                 pdf.set_font("Arial", size=10)
                 letras = "abcdefghijklmnopqrstuvwxyz"
                 letra_idx = 0
@@ -125,35 +125,40 @@ else:
                     txt = linha.strip()
                     if not txt: continue
                     
+                    # Detecta pontos no início
                     match = re.match(r'^(\.+)', txt)
                     num_pontos = len(match.group(1)) if match else 0
                     
-                    if re.match(r'^\d+', txt): # Questão
+                    # QUESTÃO (Número) - SEM RECUO
+                    if re.match(r'^\d+', txt):
                         pdf.ln(4)
                         pdf.set_font("Arial", 'B', 11)
-                        pdf.set_x(10)
+                        pdf.set_x(10) # Margem esquerda total
                         pdf.multi_cell(0, 8, txt=txt)
                         pdf.set_font("Arial", size=10)
                         letra_idx = 0 
                     
-                    elif num_pontos > 0: # Colunas
+                    # COLUNAS (1 a 6)
+                    elif num_pontos > 0:
                         item = txt[num_pontos:].strip()
                         prefixo = f"{letras[letra_idx % 26]}) "
                         
                         if num_pontos > 1:
                             pdf.set_y(pdf.get_y() - 8)
                         
+                        # Cada coluna tem 32mm de largura
                         pos_x = 10 + (num_pontos - 1) * 32
                         pdf.set_x(pos_x)
                         pdf.cell(32, 8, txt=f"{prefixo}{item}", ln=True)
                         letra_idx += 1
                     
-                    else: # Texto normal
+                    # TEXTO NORMAL
+                    else:
                         pdf.set_x(10)
                         pdf.multi_cell(0, 8, txt=txt)
                 
                 pdf_bytes = pdf.output(dest='S').encode('latin-1', 'replace')
-                st.download_button("📥 Baixar PDF Ajustado", data=pdf_bytes, file_name="atividade.pdf")
+                st.download_button("📥 Baixar PDF", data=pdf_bytes, file_name="atividade.pdf")
     # --- FINANCEIRO ---
     elif menu == "Financeiro":
         st.header("💰 Financeiro")
