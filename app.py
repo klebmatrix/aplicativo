@@ -90,29 +90,32 @@ else:
         if st.button("Ver Divisores"):
             divs = [d for d in range(1, n+1) if n % d == 0]
             st.write(f"Divisores: {divs}")
+
 # --- GERADOR DE ATIVIDADES (LÓGICA DO PONTO '.') ---
-    if menu == "Gerador de Atividades":
+    elif menu == "Gerador de Atividades":
         st.header("📄 Gerador de Atividades")
-        st.info("Dica: Comece a linha com número para a questão. Comece com ponto '.' para criar as alternativas a, b, c...")
+        st.info("Regras: '.' inicia nova linha com letra | '..' coloca a letra ao lado da anterior.")
         
-        titulo_pdf = st.text_input("Título:", "Lista de Exercícios")
-        conteudo = st.text_area("Conteúdo:", height=250, help="Exemplo:\n1. Calcule x:\n. Opção 1\n. Opção 2")
+        titulo_pdf = st.text_input("Título da Atividade:", "Lista de Exercícios")
+        conteudo = st.text_area("Conteúdo da Atividade:", height=300)
         
         if st.button("Gerar PDF"):
             if conteudo:
                 pdf = FPDF()
                 pdf.add_page()
                 
-                # Cabeçalho
+                # 1. Cabeçalho (Espaçamento reduzido conforme solicitado)
                 if os.path.exists("cabecalho.png"):
                     pdf.image("cabecalho.png", x=10, y=8, w=190)
-                    pdf.ln(40)
+                    pdf.ln(25) # Espaço curto após imagem
                 
-                pdf.set_font("Arial", 'B', 16)
-                pdf.cell(200, 10, txt=titulo_pdf, ln=True, align='C')
-                pdf.ln(10)
+                # 2. Título (Espaçamento reduzido)
+                pdf.set_font("Arial", 'B', 14)
+                pdf.cell(0, 8, txt=titulo_pdf, ln=True, align='C')
+                pdf.ln(2) 
                 
-                pdf.set_font("Arial", size=12)
+                # 3. Lógica de processamento de linhas
+                pdf.set_font("Arial", size=11)
                 letras = "abcdefghijklmnopqrstuvwxyz"
                 letra_idx = 0
                 
@@ -120,29 +123,41 @@ else:
                     txt = linha.strip()
                     if not txt: continue
                     
-                    # 1. Se começa com número: Questão (Reseta as letras)
+                    # Se começa com número: Questão em negrito e reinicia letras
                     if re.match(r'^\d+', txt):
-                        pdf.ln(5)
-                        pdf.set_font("Arial", 'B', 12)
-                        pdf.multi_cell(0, 10, txt=txt)
-                        pdf.set_font("Arial", size=12)
+                        pdf.ln(4)
+                        pdf.set_font("Arial", 'B', 11)
+                        pdf.multi_cell(0, 7, txt=txt)
+                        pdf.set_font("Arial", size=11)
                         letra_idx = 0 
                     
-                    # 2. Se começa com ponto: Transforma em letra a), b)...
-                    elif txt.startswith('.'):
-                        item_limpo = txt[1:].strip() # Remove o ponto
+                    # Se começa com '..': Coloca ao lado (mesma linha)
+                    elif txt.startswith('..'):
+                        item_limpo = txt[2:].strip()
                         prefixo = f"{letras[letra_idx % 26]}) "
-                        pdf.multi_cell(0, 10, txt=f"    {prefixo}{item_limpo}")
+                        # Move o cursor para a direita sem quebrar linha
+                        pdf.set_x(pdf.get_x() + 15)
+                        pdf.cell(40, 7, txt=f"{prefixo}{item_limpo}")
                         letra_idx += 1
                     
-                    # 3. Outras linhas (Texto comum)
+                    # Se começa com '.': Nova linha com letra
+                    elif txt.startswith('.'):
+                        pdf.ln(7)
+                        item_limpo = txt[1:].strip()
+                        prefixo = f"{letras[letra_idx % 26]}) "
+                        pdf.cell(0, 7, txt=f"    {prefixo}{item_limpo}", ln=False)
+                        letra_idx += 1
+                    
+                    # Texto comum
                     else:
-                        pdf.multi_cell(0, 10, txt=txt)
+                        pdf.ln(5)
+                        pdf.multi_cell(0, 7, txt=txt)
                 
                 pdf_bytes = pdf.output(dest='S').encode('latin-1', 'replace')
-                st.download_button("📥 Baixar PDF", data=pdf_bytes, file_name="atividade.pdf")
+                st.download_button("📥 Baixar PDF Atualizado", data=pdf_bytes, file_name="atividade.pdf")
             else:
-                st.warning("Adicione o conteúdo.")
+                st.warning("O campo de conteúdo está vazio.")
+
     # --- FINANCEIRO ---
     elif menu == "Financeiro":
         st.header("💰 Financeiro")
