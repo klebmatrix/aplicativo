@@ -3,6 +3,11 @@ import math
 import numpy as np
 import os
 from fpdf import FPDF
+import re  # IMPORTANTE: Isso corrige o erro NameError!
+
+# Configuração da Página
+st.set_page_config(page_title="Sistema Quantum Educacional", layout="centered")
+
 
 # --- 1. SEGURANÇA ---
 def validar_acesso(pin_digitado):
