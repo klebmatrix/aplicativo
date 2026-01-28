@@ -1,76 +1,98 @@
-# --- GERADOR 3: COLEGIAL (REVISADO E TESTADO) ---
-elif menu == "GERADOR: Colegial (Frações/Funções)":
-    st.header("📚 Temas Colegiais")
+# --- GERADOR 5: MANUAL (REVISADO COM PREVIEW EM TEMPO REAL) ---
+elif menu == "GERADOR: Manual (Colunas)":
+    st.header("📄 Gerador Manual (Sistema de Colunas)")
     
-    # 1. Opções de Escolha
-    col1, col2, col3 = st.columns(3)
-    f_frac = col1.checkbox("Frações", value=True)
-    f_pot = col2.checkbox("Potência e Raiz")
-    f_fun = col3.checkbox("Funções (Afim/Quadrática)")
-    
-    qtd = st.slider("Quantidade de questões:", 4, 20, 8)
-    
-    temas = []
-    if f_frac: temas.append("FRA")
-    if f_pot: temas.append("POT")
-    if f_fun: temas.append("FUN")
-    
-    if not temas:
-        st.warning("Selecione pelo menos um tema para visualizar.")
-    else:
-        st.subheader("👀 Visualização Prévia")
-        questoes = []
-        for i in range(qtd):
-            t = random.choice(temas)
-            if t == "FRA":
-                n1, n2 = random.randint(1, 9), random.randint(2, 5)
-                txt = f"Resolva a operação com fração: {n1}/{n2} + {random.randint(1, 5)}/{n2} ="
-            elif t == "POT":
-                base = random.randint(2, 12)
-                txt = f"Calcule o valor de: {base}² + √{random.choice([16, 25, 36, 49, 64, 81, 100])} ="
-            else:
-                a, b = random.randint(2, 5), random.randint(1, 10)
-                txt = f"Dada a função f(x) = {a}x + {b}, determine o valor de f({random.randint(1, 6)})"
-            
-            questoes.append(txt)
-            st.write(f"**{chr(97+i%26)})** {txt}")
-        
-        # 3. Botão de Impressão
-        pdf_bytes = gerar_arquivo_pdf(questoes, "Atividade Colegial")
-        st.download_button("📥 Imprimir em PDF (Colegial)", pdf_bytes, "colegial.pdf")
+    st.info("""
+    **Instruções de Uso:**
+    1. Se a linha começar com **Número** (ex: 1.), a próxima linha começa com **letra a)**.
+    2. Use **pontos (.)** no início da linha para criar colunas:
+       - `. item` -> Coluna 1
+       - `.. item` -> Coluna 2
+       - `... item` -> Coluna 3
+    """)
 
-# --- GERADOR 4: ÁLGEBRA LINEAR (REVISADO E TESTADO) ---
-elif menu == "GERADOR: Álgebra Linear":
-    st.header("⚖️ Sistemas e Matrizes")
-    
-    # 1. Opções de Escolha
-    c1, c2 = st.columns(2)
-    m_det = c1.checkbox("Determinantes (Matriz 2x2)", value=True)
-    m_sis = c2.checkbox("Sistemas Lineares (2 incógnitas)")
-    
-    qtd_a = st.number_input("Número de questões:", 2, 10, 4)
-    
-    opcoes_alg = []
-    if m_det: opcoes_alg.append("DET")
-    if m_sis: opcoes_alg.append("SIS")
-    
-    if not opcoes_alg:
-        st.warning("Selecione uma opção para gerar as questões.")
-    else:
-        st.subheader("👀 Visualização Prévia")
-        questoes_alg = []
-        for i in range(qtd_a):
-            tipo = random.choice(opcoes_alg)
-            if tipo == "DET":
-                a, b, c, d = random.randint(1, 5), random.randint(0, 3), random.randint(0, 3), random.randint(1, 5)
-                txt = f"Calcule o determinante da matriz: | {a}  {b} | / | {c}  {d} |"
+    titulo_m = st.text_input("Título da Atividade:", "Atividade de Matemática")
+    texto_m = st.text_area("Digite o conteúdo abaixo:", height=300, 
+                           placeholder="1. Calcule as operações:\n. 2+2\n.. 5+5\n... 10+10")
+
+    if texto_m:
+        st.subheader("👀 Visualização Prévia (Como ficará no PDF)")
+        st.markdown("---")
+        
+        # Lógica de visualização para o professor conferir antes de gerar
+        linhas = texto_m.split('\n')
+        letra_idx = 0
+        letras = "abcdefghijklmnopqrstuvwxyz"
+        
+        for linha in linhas:
+            t = linha.strip()
+            if not t: continue
+            
+            # Verifica se começa com número para resetar letras
+            if re.match(r'^\d+', t):
+                st.markdown(f"### {t}")
+                letra_idx = 0
+            # Verifica se é coluna (.)
+            elif t.startswith('.'):
+                match = re.match(r'^(\.+)', t)
+                num_pontos = len(match.group(1))
+                conteudo = t[num_pontos:].strip()
+                st.write(f"&nbsp;&nbsp;&nbsp;&nbsp;**{letras[letra_idx%26]})** {conteudo}")
+                letra_idx += 1
             else:
-                res1, res2 = random.randint(5, 15), random.randint(1, 5)
-                txt = f"Resolva o sistema linear: {{ x + y = {res1} ; x - y = {res2} }}"
+                st.write(t)
+        
+        st.markdown("---")
+        
+        # BOTÃO DE GERAR PDF
+        if st.button("📥 Gerar e Baixar PDF Manual"):
+            pdf = FPDF()
+            pdf.add_page()
             
-            questoes_alg.append(txt)
-            st.write(f"**{chr(97+i%26)})** {txt}")
+            # Cabeçalho (Imagem)
+            if os.path.exists("cabecalho.png"):
+                pdf.image("cabecalho.png", x=12.5, y=8, w=185)
+                pdf.set_y(46)
+            else:
+                pdf.set_y(15)
             
-        # 3. Botão de Impressão
-        pdf_bytes_alg = gerar_arquivo_pdf(questoes_alg, "Atividade de Álgebra Linear")
-        st.download_button("📥 Imprimir em PDF (Álgebra)", pdf_bytes_alg, "algebra_linear.pdf")
+            pdf.set_font("Arial", 'B', 14)
+            pdf.cell(0, 10, titulo_m, ln=True, align='C')
+            pdf.ln(5)
+            
+            pdf.set_font("Arial", size=10)
+            letra_pdf_idx = 0
+            
+            for linha in linhas:
+                t = linha.strip()
+                if not t: continue
+                
+                match = re.match(r'^(\.+)', t)
+                pts = len(match.group(1)) if match else 0
+                
+                # Regra: Começou com número, reseta letra e bota negrito
+                if re.match(r'^\d+', t):
+                    pdf.ln(4)
+                    pdf.set_font("Arial", 'B', 11)
+                    pdf.multi_cell(0, 8, t)
+                    pdf.set_font("Arial", size=10)
+                    letra_pdf_idx = 0
+                
+                # Regra: Colunas com pontos
+                elif pts > 0:
+                    item_texto = t[pts:].strip()
+                    # Se for a partir da 2ª coluna, sobe a linha para alinhar
+                    if pts > 1:
+                        pdf.set_y(pdf.get_y() - 8)
+                    
+                    # Posicionamento X baseado nos pontos (32mm de largura por coluna)
+                    pdf.set_x(10 + (pts-1)*32)
+                    pdf.cell(32, 8, f"{letras[letra_pdf_idx%26]}) {item_texto}", ln=True)
+                    letra_pdf_idx += 1
+                
+                # Texto normal
+                else:
+                    pdf.multi_cell(0, 8, t)
+            
+            pdf_output = pdf.output(dest='S').encode('latin-1', 'replace')
+            st.download_button("Clique aqui para Baixar", pdf_output, "atividade_manual.pdf")
