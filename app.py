@@ -1,222 +1,88 @@
-import streamlit as st
-import math
-import numpy as np
-import os
-from fpdf import FPDF
-import re  # IMPORTANTE: Isso corrige o erro NameError!
-
-# Configuração da Página
-st.set_page_config(page_title="Sistema Quantum Educacional", layout="centered")
-
-
-# --- 1. SEGURANÇA ---
-def validar_acesso(pin_digitado):
-    try:
-        # Puxa as senhas dos Secrets do Streamlit
-        senha_aluno = str(st.secrets["acesso_aluno"]).strip()
-        senha_professor = str(st.secrets["chave_mestra"]).strip()
+elif menu == "Painel do Professor":
+        import streamlit.components.v1 as components
         
-        if pin_digitado == senha_aluno:
-            return "aluno"
-        elif pin_digitado == senha_professor:
-            return "admin"
-    except:
-        st.error("Erro: Configure 'acesso_aluno' e 'chave_mestra' nos Secrets do Streamlit!")
-    return "negado"
+        st.title("👨‍🏫 Painel de Exercícios Rápidos")
+        st.write("Escolha o tema e clique em imprimir para gerar 4 atividades por folha A4.")
 
-st.set_page_config(page_title="Quantum Math Lab", layout="wide")
-if 'perfil' not in st.session_state: st.session_state.perfil = None
-
-# --- 2. LOGIN ---
-if st.session_state.perfil is None:
-    st.title("🔐 Quantum Math Lab")
-    pin = st.text_input("PIN de Acesso:", type="password", key="login_pass")
-    if st.button("Entrar"):
-        acesso = validar_acesso(pin)
-        if acesso != "negado":
-            st.session_state.perfil = acesso
-            st.rerun()
-        else:
-            st.error("Acesso negado.")
-    st.stop()
-
-# --- 3. INTERFACE PRINCIPAL ---
-else:
-    perfil = st.session_state.perfil
-    st.sidebar.title(f"🚀 {'Professor' if perfil == 'admin' else 'Estudante'}")
-    
-    # Lista de Itens (Aluno + Professor)
-    itens = ["Atividades (Drive)", "Expressões (PEMDAS)", "Equações (1º e 2º Grau)", "Cálculo de Funções", "Logaritmos", "Funções Aritméticas"]
-    if perfil == "admin":
-        itens += ["Gerador de Atividades", "Sistemas Lineares", "Matrizes", "Financeiro"]
-        
-    menu = st.sidebar.radio("Navegação:", itens)
-    
-    if st.sidebar.button("Sair"):
-        st.session_state.perfil = None
-        st.rerun()
-
-    # --- MÓDULO: ATIVIDADES DRIVE ---
-    if menu == "Atividades (Drive)":
-        st.header("📝 Pasta de Atividades")
-        st.link_button("📂 Abrir Google Drive", "https://drive.google.com/drive/folders/1NkFeom_k3LUJYAFVBBDu4GD5aYVeNEZc?usp=drive_link")
-
-    # --- MÓDULO: EXPRESSÕES ---
-    elif menu == "Expressões (PEMDAS)":
-        st.header("🧮 Calculadora de Expressões")
-        exp = st.text_input("Digite a expressão (ex: (5+3)*2^2):")
-        if st.button("Resolver"):
-            try:
-                res = eval(exp.replace('^', '**'), {"__builtins__": None}, {"math": math, "sqrt": math.sqrt})
-                st.success(f"Resultado: {res}")
-            except: st.error("Erro na expressão. Verifique os parênteses.")
-
-    # --- MÓDULO: EQUAÇÕES ---
-    elif menu == "Equações (1º e 2º Grau)":
-        st.header("📐 Resolução de Equações")
-        grau = st.selectbox("Escolha o Grau:", ["1º Grau", "2º Grau"])
-        if grau == "1º Grau":
-            a1 = st.number_input("a:", value=1.0); b1 = st.number_input("b:", value=0.0)
-            if st.button("Calcular 1º Grau"):
-                if a1 != 0: st.success(f"Resultado: x = {-b1/a1:.2f}")
-                else: st.error("O valor de 'a' não pode ser zero.")
-        else:
-            a2 = st.number_input("a:", value=1.0, key="a2")
-            b2 = st.number_input("b:", value=-5.0)
-            c2 = st.number_input("c:", value=6.0)
-            if st.button("Calcular 2º Grau"):
-                delta = b2**2 - 4*a2*c2
-                if delta >= 0:
-                    x1 = (-b2 + math.sqrt(delta))/(2*a2)
-                    x2 = (-b2 - math.sqrt(delta))/(2*a2)
-                    st.success(f"Raízes: x1 = {x1:.2f}, x2 = {x2:.2f} (Delta: {delta})")
-                else: st.error(f"Sem raízes reais (Delta: {delta})")
-
-    # --- MÓDULO: CÁLCULO DE FUNÇÕES ---
-    elif menu == "Cálculo de Funções":
-        st.header("𝑓(x) Cálculo de Valores")
-        func_input = st.text_input("Função f(x) (use 'x'):", value="2*x + 10")
-        val_x = st.number_input("Valor de x:", value=0.0)
-        if st.button("Calcular"):
-            try:
-                res = eval(func_input.replace('x', f'({val_x})').replace('^', '**'))
-                st.metric(f"f({val_x})", f"{res:.2f}")
-            except: st.error("Erro na fórmula.")
-
-    # --- MÓDULO: LOGARITMOS ---
-    elif menu == "Logaritmos":
-        st.header("🔢 Cálculo de Logaritmo")
-        num = st.number_input("Logaritmando:", value=100.0, min_value=0.01)
-        base = st.number_input("Base:", value=10.0, min_value=0.01)
-        if st.button("Calcular Log"):
-            try:
-                res = math.log(num, base)
-                st.success(f"log de {num} na base {base} = {res:.4f}")
-            except: st.error("Erro no cálculo.")
-
-    # --- MÓDULO: FUNÇÕES ARITMÉTICAS ---
-    elif menu == "Funções Aritméticas":
-        st.header("🔍 Divisores")
-        n = st.number_input("Número inteiro n:", min_value=1, value=12, step=1)
-        if st.button("Ver Divisores"):
-            divs = [d for d in range(1, n+1) if n % d == 0]
-            st.write(f"Divisores de {n}: {divs}")
-            st.info(f"Total de divisores: {len(divs)}")
-
-    # --- GERADOR DE ATIVIDADES (CABEÇALHO GRANDE E 6 COLUNAS) ---
-    elif menu == "Gerador de Atividades":
-        st.header("📄 Gerador de Atividades")
-        
-        titulo_pdf = st.text_input("Título:", "Atividade de Matemática")
-        conteudo = st.text_area("Conteúdo:", height=300)
-        
-        if st.button("Gerar PDF"):
-            if conteudo:
-                pdf = FPDF()
-                pdf.add_page()
+        # O seu HTML profissional integrado
+        html_painel = """
+        <!DOCTYPE html>
+        <html lang="pt-br">
+        <head>
+            <meta charset="UTF-8">
+            <style>
+                :root { --primary: #2c3e50; --accent: #3498db; }
+                body { font-family: 'Segoe UI', Arial, sans-serif; margin: 0; display: flex; background: #f4f7f6; }
+                #sidebar { width: 220px; background: var(--primary); color: white; height: 100vh; position: fixed; padding: 15px; }
+                .menu-btn { width: 100%; padding: 10px; margin: 5px 0; border: none; background: #34495e; color: white; text-align: left; cursor: pointer; border-radius: 4px; font-size: 13px;}
+                .menu-btn:hover { background: var(--accent); }
+                .active { background: var(--accent) !important; }
+                #main-content { margin-left: 230px; padding: 20px; width: 100%; }
+                .print-now { padding: 10px 20px; background: #27ae60; color: white; border: none; border-radius: 5px; cursor: pointer; margin-bottom: 20px; }
                 
-                # 1. CABEÇALHO GRANDE (Quase largura total)
-                if os.path.exists("cabecalho.png"):
-                    # Centralizado: (210 - 185) / 2 = 12.5mm de margem
-                    pdf.image("cabecalho.png", x=12.5, y=8, w=185) 
-                    pdf.set_y(46) # Espaço para o título começar logo abaixo
-                else:
-                    pdf.set_y(15)
-                
-                # 2. TÍTULO
-                pdf.set_font("Arial", 'B', 12)
-                pdf.cell(0, 10, txt=titulo_pdf, ln=True, align='C')
-                pdf.ln(2)
-                
-                # 3. LÓGICA DE 1 A 6 COLUNAS (SEM RECUO)
-                pdf.set_font("Arial", size=10)
-                letras = "abcdefghijklmnopqrstuvwxyz"
-                letra_idx = 0
-                
-                for linha in conteudo.split('\n'):
-                    txt = linha.strip()
-                    if not txt: continue
+                /* Layout A4 */
+                .a4-page { width: 210mm; display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 5mm; background: white; padding: 5mm; margin: auto; }
+                .atv-box { border: 1px solid #000; padding: 8px; font-size: 10px; height: 135mm; box-sizing: border-box;}
+                .header { border: 1px solid #000; padding: 4px; margin-bottom: 5px; font-size: 9px; }
+                .titulo { text-align: center; font-weight: bold; text-transform: uppercase; margin-bottom: 5px; font-size: 11px; }
+                .questoes { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+                @media print {
+                    #sidebar, .print-now { display: none; }
+                    body { background: white; }
+                    #main-content { margin: 0; }
+                    .a4-page { border: none; width: 210mm; height: 297mm; }
+                }
+            </style>
+        </head>
+        <body>
+            <div id="sidebar">
+                <h3>Menu Exercícios</h3>
+                <button class="menu-btn active" onclick="gerar('1grau', this)">Equação 1º Grau</button>
+                <button class="menu-btn" onclick="gerar('2grau', this)">Equação 2º Grau</button>
+                <button class="menu-btn" onclick="gerar('expressoes', this)">Expressões Numéricas</button>
+                <button class="menu-btn" onclick="gerar('potencia', this)">Potência e Raízes</button>
+                <button class="menu-btn" onclick="gerar('matrizes', this)">Matrizes</button>
+                <button class="menu-btn" onclick="gerar('sistemas', this)">Sistemas</button>
+            </div>
+
+            <div id="main-content">
+                <button class="print-now" onclick="window.print()">🖨️ Imprimir 4 por Página</button>
+                <div id="folha" class="a4-page"></div>
+            </div>
+
+            <script>
+                const banco = {
+                    '1grau': { t: 'Equações 1º Grau', q: ['2x + 4 = 12', '5x - 10 = 15', '3x + 9 = 0', 'x/2 + 5 = 10', '7x - 7 = 14', '4x + 2 = 18', '10x - 5 = 45', 'x + 15 = 30', '8x = 64', '6x - 12 = 0'] },
+                    '2grau': { t: 'Equações 2º Grau', q: ['x² - 5x + 6 = 0', 'x² - 9 = 0', 'x² - 4x + 4 = 0', 'x² + 3x + 2 = 0', '2x² - 32 = 0', 'x² - 7x + 10 = 0', 'x² - 1 = 0', 'x² - 6x + 8 = 0', 'x² - 25 = 0', '3x² - 12 = 0'] },
+                    'expressoes': { t: 'Expressões Numéricas', q: ['(12+8)×2', '50-(10÷2)', '100÷(5+5)', '25+(4×5)', '(15-5)×3', '30÷(2+3)', '7×8-10', '45÷9+7', '12×2+5', '20-(5+5)'] },
+                    'potencia': { t: 'Potência e Raízes', q: ['2³ + √25', '5² - √16', '√100 + 10', '3³ - 7', '√81 × 2', '√144 ÷ 12', '4² ÷ 2', '10² - 90', '√49 + √64', '2⁴ ÷ 4'] },
+                    'matrizes': { t: 'Matrizes e Determinantes', q: ['A+B (2x2)', 'Det(A) [1,2;3,4]', '3×A', 'Matriz Identidade', 'Diagonal Principal', 'Transposta A', 'Matriz Oposta', 'Traço de A', 'Verificar Simetria', 'A-B (2x2)'] },
+                    'sistemas': { t: 'Sistemas de Equações', q: ['x+y=5; x-y=1', '2x+y=10; x-y=2', 'x+y=8; x-y=4', '3x+y=7; x+y=3', 'x+2y=10; x-y=1', '2x+2y=20; x-y=0', 'x+y=12; 2x-y=3', 'x-y=5; x+y=15', '4x+y=9; x+y=3', 'x+3y=10; x-y=2'] }
+                };
+
+                function gerar(tema, btn) {
+                    document.querySelectorAll('.menu-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    const d = banco[tema];
+                    const f = document.getElementById('folha');
+                    f.innerHTML = '';
                     
-                    match = re.match(r'^(\.+)', txt)
-                    num_pontos = len(match.group(1)) if match else 0
-                    
-                    if re.match(r'^\d+', txt): # Questão (Número)
-                        pdf.ln(4)
-                        pdf.set_font("Arial", 'B', 11)
-                        pdf.set_x(10) # Alinhado na margem esquerda
-                        pdf.multi_cell(0, 8, txt=txt)
-                        pdf.set_font("Arial", size=10)
-                        letra_idx = 0 
-                    
-                    elif num_pontos > 0: # Colunas (1 a 6 pontos)
-                        item = txt[num_pontos:].strip()
-                        prefixo = f"{letras[letra_idx % 26]}) "
-                        
-                        if num_pontos > 1:
-                            pdf.set_y(pdf.get_y() - 8)
-                        
-                        pos_x = 10 + (num_pontos - 1) * 32
-                        pdf.set_x(pos_x)
-                        pdf.cell(32, 8, txt=f"{prefixo}{item}", ln=True)
-                        letra_idx += 1
-                    
-                    else: # Texto comum
-                        pdf.set_x(10)
-                        pdf.multi_cell(0, 8, txt=txt)
-                
-                pdf_bytes = pdf.output(dest='S').encode('latin-1', 'replace')
-                st.download_button("📥 Baixar PDF Atualizado", data=pdf_bytes, file_name="atividade.pdf")
-
-    # --- MÓDULO: SISTEMAS LINEARES ---
-    elif menu == "Sistemas Lineares":
-        st.header("⚖️ Sistema 2x2 (a1x + b1y = c1)")
-        col1, col2 = st.columns(2)
-        with col1:
-            a1 = st.number_input("a1", value=1.0); b1 = st.number_input("b1", value=1.0); c1 = st.number_input("c1", value=5.0)
-        with col2:
-            a2 = st.number_input("a2", value=1.0); b2 = st.number_input("b2", value=-1.0); c2 = st.number_input("c2", value=1.0)
-        if st.button("Resolver"):
-            try:
-                res = np.linalg.solve(np.array([[a1, b1], [a2, b2]]), np.array([c1, c2]))
-                st.success(f"Solução: x = {res[0]:.2f}, y = {res[1]:.2f}")
-            except: st.error("Sistema impossível ou indeterminado.")
-
-    # --- MÓDULO: MATRIZES ---
-    elif menu == "Matrizes":
-        st.header("📊 Determinante 2x2")
-        m11 = st.number_input("M11", value=1.0); m12 = st.number_input("M12", value=0.0)
-        m21 = st.number_input("M21", value=0.0); m22 = st.number_input("M22", value=1.0)
-        if st.button("Calcular Determinante"):
-            det = (m11*m22) - (m12*m21)
-            st.metric("Det(M)", det)
-
-    # --- MÓDULO: FINANCEIRO ---
-    elif menu == "Financeiro":
-        st.header("💰 Juros Compostos")
-        c = st.number_input("Capital Inicial:", value=1000.0)
-        i = st.number_input("Taxa mensal (%):", value=5.0) / 100
-        t = st.number_input("Tempo (meses):", value=12.0)
-        if st.button("Calcular Montante"):
-            m = c * (1 + i)**t
-            st.success(f"Montante Final: R$ {m:.2f}")
-            st.info(f"Juros Totais: R$ {m-c:.2f}")
+                    const card = `
+                        <div class="atv-box">
+                            <div class="header">Escola:__________________ Data:__/__/__ <br> Nome:__________________ Turma:____</div>
+                            <div class="titulo">\${d.t}</div>
+                            <b>Resolva os exercícios:</b>
+                            <div class="questoes">
+                                <div>a) \${d.q[0]}<br><br> b) \${d.q[1]}<br><br> c) \${d.q[2]}<br><br> d) \${d.q[3]}<br><br> e) \${d.q[4]}</div>
+                                <div>f) \${d.q[5]}<br><br> g) \${d.q[6]}<br><br> h) \${d.q[7]}<br><br> i) \${d.q[8]}<br><br> j) \${d.q[9]}</div>
+                            </div>
+                        </div>`;
+                    for(let i=0; i<4; i++) f.innerHTML += card;
+                }
+                window.onload = () => gerar('1grau', document.querySelector('.menu-btn'));
+            </script>
+        </body>
+        </html>
+        """
+        components.html(html_painel, height=1000, scrolling=True)
