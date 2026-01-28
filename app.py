@@ -122,23 +122,14 @@ if perfil == "admin":
             qs = [f"Calcule o Determinante da Matriz {ordem}: \n {np.random.randint(1,10, size=(2,2) if ordem=='2x2' else (3,3))}" for _ in range(3)]
             st.download_button("Baixar", exportar_pdf(qs, f"Matrizes {ordem}"), "algebra.pdf")
 
-    if aba == "📄 Manual":
-    # Exemplo de como usar o título com t.
-    txt_input = st.text_area("Digite sua atividade:", height=250, 
-                             value="t. AVALIAÇÃO DE MATEMÁTICA\n1. Calcule as raízes:\na) ,V36\nb) ,V49\n2. Resolva o sistema:\na) { 2x+y=20 | x-y=5")
-    if st.button("🔍 Gerar Atividade"):
-        st.session_state.preview_questoes = txt_input.split('\n')
-
-# --- 6. VISUALIZAÇÃO (PREVIEW UNIFICADO) ---
+    # --- 5. RENDERIZAÇÃO UNIFICADA (CARDS + REGRAS) ---
 if st.session_state.preview_questoes:
     st.divider()
     
-    # 1. CABEÇALHO (Imagem no topo)
+    # 1. Cabeçalho sempre no topo
     if os.path.exists("cabecalho.png"):
         st.image("cabecalho.png", use_container_width=True)
-    else:
-        st.warning("⚠️ Arquivo 'cabecalho.png' não encontrado no servidor.")
-
+    
     letras = "abcdefghijklmnopqrstuvwxyz"
     l_idx = 0
 
@@ -146,153 +137,61 @@ if st.session_state.preview_questoes:
         line = q.strip()
         if not line: continue
         
-        # 2. RECONHECIMENTO DE TÍTULO (t. ou TITULO:)
-        # Se a linha começar com t. ela vira um H1 centralizado
+        # A) Reconhecimento de Título (t.)
         if line.lower().startswith(("t.", "titulo:", "título:")):
-            # Limpa o prefixo para pegar só o nome
-            titulo_limpo = re.sub(r'^(t\.|titulo:|título:)\s*', '', line, flags=re.IGNORECASE)
-            st.markdown(f"<h1 style='text-align: center; color: #007bff; margin-top: 20px;'>{titulo_limpo}</h1>", unsafe_allow_html=True)
+            t_clean = re.sub(r'^(t\.|titulo:|título:)\s*', '', line, flags=re.IGNORECASE)
+            st.markdown(f"<h1 style='text-align: center; color: #007bff;'>{t_clean}</h1>", unsafe_allow_html=True)
             st.divider()
-            continue # Pula para a próxima linha para não gerar card do título
+            continue
 
-        # 3. QUESTÕES NUMERADAS (Ex: 1. Calcule)
+        # B) Questão Numerada (Reseta letras)
         elif re.match(r'^\d+', line):
             st.markdown(f"### {line}")
-            l_idx = 0 # RESETA as letras para começar em 'a' na próxima linha
+            l_idx = 0 
             
-        # 4. ITENS EM CARDS (a, b, c...)
+        # C) Itens em Cards
         else:
             with st.container(border=True):
-                col1, col2 = st.columns([0.05, 0.95])
-                with col1:
+                c1, c2 = st.columns([0.05, 0.95])
+                with c1:
                     st.write(f"**{letras[l_idx%26]})**")
-                with col2:
-                    # Lógica para Sistemas { x+y=1 | x-y=2
+                with c2:
+                    # Lógica de Sistemas
                     if "{" in line or "|" in line:
                         cont = line.replace("{", "").strip()
-                        if "|" in cont:
-                            partes = cont.split("|")
+                        partes = cont.split("|") if "|" in cont else [cont]
+                        if len(partes) > 1:
                             st.latex(r" \begin{cases} " + partes[0].strip() + r" \\ " + partes[1].strip() + r" \end{cases} ")
                         else: st.write(line)
                     else:
-                        # Trata matemática (Raiz, Potência) e remove vírgula inicial
-                        f = tratar_math(line.lstrip(','))
-                        if "\\" in f or "{" in f or "^" in f: 
-                            st.latex(f)
-                        else: 
-                            st.write(line.lstrip(','))
+                        # Matemática e limpeza de vírgula
+                        f = tratar_math(line)
+                        if "\\" in f or "^" in f: st.latex(f)
+                        else: st.write(line.lstrip(','))
             l_idx += 1
 
-    # --- 7. PDF (Sincronizado com o Preview) ---
-    if st.button("📥 Baixar PDF"):
+    # --- 6. EXPORTAÇÃO PDF ---
+    if st.button("📥 Baixar em PDF"):
         pdf = FPDF()
         pdf.add_page()
-        
-        # Cabeçalho no PDF
         if os.path.exists("cabecalho.png"):
             pdf.image("cabecalho.png", x=10, y=8, w=190)
             pdf.set_y(50)
-        else:
-            pdf.set_y(20)
-            
+        
+        pdf.set_font("Arial", size=11)
         l_idx = 0
         for q in st.session_state.preview_questoes:
             line = q.strip()
             if not line: continue
             
-            # Título no PDF
             if line.lower().startswith(("t.", "titulo:", "título:")):
-                titulo_limpo = re.sub(r'^(t\.|titulo:|título:)\s*', '', line, flags=re.IGNORECASE)
-                pdf.set_font("Arial", 'B', 16)
-                pdf.cell(0, 12, clean_txt(titulo_limpo), ln=True, align='C')
-                pdf.ln(5)
-                pdf.set_font("Arial", size=11)
-            
-            # Número reseta letra no PDF também
+                t_pdf = re.sub(r'^(t\.|titulo:|título:)\s*', '', line, flags=re.IGNORECASE)
+                pdf.set_font("Arial", 'B', 16); pdf.cell(0, 12, clean_txt(t_pdf), ln=True, align='C'); pdf.ln(5)
             elif re.match(r'^\d+', line):
-                pdf.ln(4)
-                pdf.set_font("Arial", 'B', 12)
-                pdf.multi_cell(0, 8, clean_txt(line))
-                pdf.set_font("Arial", size=11)
-                l_idx = 0
-            
+                pdf.ln(4); pdf.set_font("Arial", 'B', 12); pdf.multi_cell(0, 8, clean_txt(line)); l_idx = 0
             else:
-                # Itens normais
-                txt_item = line.lstrip(',')
-                pdf.multi_cell(0, 8, f"{letras[l_idx%26]}) {clean_txt(txt_item)}")
+                pdf.set_font("Arial", size=11)
+                pdf.multi_cell(0, 8, f"{letras[l_idx%26]}) {clean_txt(line.lstrip(','))}")
                 l_idx += 1
                 
         st.download_button("✅ Download Final", pdf.output(dest='S').encode('latin-1'), "atividade.pdf")
-
-    # --- 7. PDF ---
-    if st.button("📥 Baixar PDF"):
-        pdf = FPDF()
-        pdf.add_page()
-        
-        # Cabeçalho no PDF
-        if os.path.exists("cabecalho.png"):
-            pdf.image("cabecalho.png", x=10, y=8, w=190)
-            pdf.set_y(50)
-        else:
-            pdf.set_y(20)
-            
-        pdf.set_font("Arial", size=12)
-        l_idx = 0
-        
-        for q in st.session_state.preview_questoes:
-            line = q.strip()
-            if not line: continue
-            
-            # Título no PDF
-            if line.lower().startswith("t.") or line.lower().startswith("titulo:"):
-                titulo_limpo = line.replace("t.", "").replace("titulo:", "").replace("TITULO:", "").strip()
-                pdf.set_font("Arial", 'B', 16)
-                pdf.cell(0, 10, clean_txt(titulo_limpo), ln=True, align='C')
-                pdf.ln(5)
-                pdf.set_font("Arial", size=12)
-            
-            elif re.match(r'^\d+', line):
-                pdf.ln(5)
-                pdf.set_font("Arial", 'B', 12)
-                pdf.multi_cell(0, 8, clean_txt(line))
-                pdf.set_font("Arial", size=12)
-                l_idx = 0
-            
-            elif "{" in line and "|" in line:
-                partes = line.replace("{", "").split("|")
-                pdf.cell(10, 10, f"{letras[l_idx%26]})")
-                cx, cy = pdf.get_x(), pdf.get_y()
-                pdf.set_font("Courier", size=18); pdf.text(cx, cy + 7, "{"); pdf.set_font("Arial", size=12)
-                pdf.text(cx + 5, cy + 4, clean_txt(partes[0].strip()))
-                pdf.text(cx + 5, cy + 9, clean_txt(partes[1].strip()))
-                pdf.ln(15)
-                l_idx += 1
-            else:
-                item = re.sub(r'^[a-z][\)\.]\s*', '', line).replace(',', '')
-                pdf.multi_cell(0, 8, f"{letras[l_idx%26]}) {clean_txt(item)}")
-                l_idx += 1
-                
-        st.download_button("✅ Download Final", pdf.output(dest='S').encode('latin-1'), "atividade.pdf")
-    # --- MÓDULOS DE CÁLCULO ---
-    elif op_atual == "calc_f":
-        st.header("𝑓(x) Calculadora")
-        f = st.text_input("f(x):", "x**2")
-        x = st.number_input("x:", value=1.0)
-        if st.button("Calcular"):
-            st.metric("Resultado", eval(f.replace('x', f'({x})')))
-
-    elif op_atual == "pemdas":
-        st.header("📊 PEMDAS")
-        exp = st.text_input("Expressão:", "2 + 3 * 4")
-        if st.button("Resolver"): st.success(f"Resultado: {eval(exp)}")
-
-    elif op_atual == "fin":
-        st.header("💰 Financeira")
-        pv = st.number_input("Capital:", 100.0)
-        i = st.number_input("Taxa %:", 1.0)
-        n = st.number_input("Meses:", 1.0)
-        if st.button("Calcular"): st.metric("Montante", f"{pv * (1 + i/100)**n:.2f}")
-
-else:
-    st.title("📖 Estudante")
-    st.info("Painel de consulta liberado.")
