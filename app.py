@@ -35,17 +35,14 @@ if st.session_state.perfil is None:
         else: st.error("Acesso negado.")
     st.stop()
 
-# --- 3. INTERFACE E MENU ---
+# --- 3. MENU ---
 else:
     perfil = st.session_state.perfil
     st.sidebar.title(f"🚀 {'Professor' if perfil == 'admin' else 'Estudante'}")
     
-    # Itens principais
     itens = ["Atividades (Drive)", "Expressões (PEMDAS)", "Equações (1º e 2º Grau)", "Cálculo de Funções", "Logaritmos"]
-    
     if perfil == "admin":
-        # OS 4 GERADORES SOLICITADOS
-        geradores = ["GERADOR: Operações Escolha", "GERADOR: Nível Colegial", "GERADOR: Matrizes e Sistemas", "GERADOR: Manual (Colunas)"]
+        geradores = ["GERADOR: Operações", "GERADOR: Colegial", "GERADOR: Álgebra Linear", "GERADOR: Manual (Colunas)"]
         itens = geradores + itens + ["Sistemas Lineares", "Matrizes", "Financeiro"]
         
     menu = st.sidebar.radio("Navegação:", itens)
@@ -53,7 +50,7 @@ else:
         st.session_state.perfil = None
         st.rerun()
 
-    # --- FUNÇÃO DE CABEÇALHO PADRÃO ---
+    # --- FUNÇÃO BASE PDF ---
     def criar_pdf_base(titulo):
         pdf = FPDF()
         pdf.add_page()
@@ -64,98 +61,81 @@ else:
         pdf.set_font("Arial", 'B', 14); pdf.cell(0, 10, txt=titulo, ln=True, align='C'); pdf.ln(5)
         return pdf
 
-    # --- 1. GERADOR OPERAÇÕES (POR ESCOLHA) ---
-    if menu == "GERADOR: Operações Escolha":
-        st.header("🔢 Gerador de Operações Básicas")
-        col1, col2, col3, col4 = st.columns(4)
-        soma = col1.checkbox("Soma (+)", value=True)
-        sub = col2.checkbox("Subtração (-)", value=True)
-        mult = col3.checkbox("Multiplicação (x)")
-        div = col4.checkbox("Divisão (÷)")
-        
-        qtd = st.slider("Quantidade de questões:", 4, 30, 12)
-        
+    # --- 4 GERADORES COM ESCOLHA ---
+
+    if menu == "GERADOR: Operações":
+        st.header("🔢 Escolha as Operações")
+        c1, c2, c3, c4 = st.columns(4)
+        s = c1.checkbox("Soma (+)", value=True); sub = c2.checkbox("Subtração (-)", value=True)
+        m = c3.checkbox("Multiplicação (x)"); d = c4.checkbox("Divisão (÷)")
+        qtd = st.slider("Questões:", 4, 30, 12)
         if st.button("Gerar PDF"):
-            ops = []
-            if soma: ops.append('+'); 
-            if sub: ops.append('-'); 
-            if mult: ops.append('x'); 
-            if div: ops.append('÷')
-            
-            if not ops: st.error("Selecione uma operação.")
-            else:
-                pdf = criar_pdf_base("Atividade de Matemática")
-                pdf.set_font("Arial", size=11); letras = "abcdefghijklmnopqrstuvwxyz"
+            ops = [o for o, v in zip(['+', '-', 'x', '÷'], [s, sub, m, d]) if v]
+            if ops:
+                pdf = criar_pdf_base("Atividade de Matemática"); pdf.set_font("Arial", size=11)
                 for i in range(qtd):
                     op = random.choice(ops)
                     n1, n2 = random.randint(100, 999), random.randint(10, 99)
                     if op == '+': txt = f"{n1} + {n2} ="
                     elif op == '-': txt = f"{n1+n2} - {n1} ="
                     elif op == 'x': txt = f"{random.randint(10,99)} x {random.randint(2,9)} ="
-                    else: 
-                        d = random.randint(2,12)
-                        txt = f"{d * random.randint(5,40)} ÷ {d} ="
-                    pdf.cell(0, 10, txt=f"{letras[i%26]}) {txt}", ln=True)
-                st.download_button("Baixar PDF", pdf.output(dest='S').encode('latin-1'), "operacoes.pdf")
+                    else: div_n = random.randint(2,12); txt = f"{div_n * random.randint(5,40)} ÷ {div_n} ="
+                    pdf.cell(0, 10, txt=f"{chr(97+i%26)}) {txt}", ln=True)
+                st.download_button("📥 Baixar PDF", pdf.output(dest='S').encode('latin-1'), "operacoes.pdf")
 
-    # --- 2. GERADOR COLEGIAL ---
-    elif menu == "GERADOR: Nível Colegial":
-        st.header("📚 Gerador Colegial")
-        if st.button("Gerar Lista"):
-            pdf = criar_pdf_base("Exercícios Nível Colegial")
-            pdf.set_font("Arial", size=11)
-            for i in range(10):
-                q = f"{random.randint(2,9)}x + {random.randint(1,20)} = {random.randint(21,80)}"
-                pdf.cell(0, 10, txt=f"{chr(97+i)}) {q}", ln=True)
-            st.download_button("Baixar PDF", pdf.output(dest='S').encode('latin-1'), "colegial.pdf")
-
-    # --- 3. GERADOR MATRIZES/SISTEMAS ---
-    elif menu == "GERADOR: Matrizes e Sistemas":
-        st.header("📊 Gerador Álgebra")
+    elif menu == "GERADOR: Colegial":
+        st.header("📚 Escolha os Temas Colegiais")
+        c1, c2, c3 = st.columns(3)
+        eq1 = c1.checkbox("Equações 1º Grau", value=True); pot = c2.checkbox("Potenciação", value=True); raz = c3.checkbox("Razão e Proporção")
+        fun = c1.checkbox("Funções f(x)"); rad = c2.checkbox("Radiciação")
+        qtd = st.slider("Questões:", 4, 20, 10)
         if st.button("Gerar PDF"):
-            pdf = criar_pdf_base("Matrizes e Sistemas")
-            pdf.set_font("Arial", size=11)
-            for i in range(8):
-                q = f"Calcule o Determinante: [{random.randint(1,5)}, {random.randint(0,4)} | {random.randint(0,4)}, {random.randint(1,5)}]"
-                pdf.cell(0, 10, txt=f"{chr(97+i)}) {q}", ln=True)
-            st.download_button("Baixar PDF", pdf.output(dest='S').encode('latin-1'), "algebra.pdf")
+            temas = [t for t, v in zip(["E", "P", "R", "F", "D"], [eq1, pot, raz, fun, rad]) if v]
+            if temas:
+                pdf = criar_pdf_base("Atividade Nível Colegial"); pdf.set_font("Arial", size=11)
+                for i in range(qtd):
+                    t = random.choice(temas)
+                    if t == "E": q = f"{random.randint(2,9)}x + {random.randint(1,20)} = {random.randint(21,80)}"
+                    elif t == "P": q = f"Calcule: {random.randint(2,10)}^{random.randint(2,3)} ="
+                    elif t == "R": q = f"Determine x: {random.randint(1,5)}/8 = x/{random.randint(16,40)}"
+                    elif t == "F": q = f"Se f(x) = {random.randint(2,5)}x - {random.randint(1,10)}, calcule f({random.randint(1,6)})"
+                    else: q = f"Calcule: √{random.choice([16,25,36,49,64,81,100,121,144])} ="
+                    pdf.cell(0, 10, txt=f"{chr(97+i%26)}) {q}", ln=True)
+                st.download_button("📥 Baixar PDF", pdf.output(dest='S').encode('latin-1'), "colegial.pdf")
 
-    # --- 4. GERADOR MANUAL (REGRAS PRESERVADAS) ---
+    elif menu == "GERADOR: Álgebra Linear":
+        st.header("📊 Escolha Matrizes ou Sistemas")
+        c1, c2 = st.columns(2)
+        det = c1.checkbox("Determinantes 2x2", value=True); sis = c2.checkbox("Sistemas 2x2", value=True)
+        if st.button("Gerar PDF"):
+            pdf = criar_pdf_base("Álgebra: Matrizes e Sistemas"); pdf.set_font("Arial", size=11)
+            for i in range(8):
+                tipo = random.choice(["D", "S"]) if det and sis else ("D" if det else "S")
+                if tipo == "D": q = f"Calcule o Det: [{random.randint(1,5)}, {random.randint(0,4)} | {random.randint(0,4)}, {random.randint(1,5)}]"
+                else: q = f"Resolva o sistema: {random.randint(1,3)}x + y = {random.randint(5,15)} e x - y = {random.randint(1,5)}"
+                pdf.cell(0, 10, txt=f"{chr(97+i%26)}) {q}", ln=True)
+            st.download_button("📥 Baixar PDF", pdf.output(dest='S').encode('latin-1'), "algebra.pdf")
+
     elif menu == "GERADOR: Manual (Colunas)":
-        st.header("📄 Gerador Manual")
-        titulo = st.text_input("Título:", "Atividade")
-        texto = st.text_area("Conteúdo (Use . para colunas):", height=300)
+        st.header("📄 Gerador Manual (Lógica de Pontos)")
+        titulo = st.text_input("Título:", "Atividade"); texto = st.text_area("Conteúdo:", height=300)
         if st.button("Gerar PDF Manual"):
-            pdf = criar_pdf_base(titulo)
-            pdf.set_font("Arial", size=10); letras = "abcdefghijklmnopqrstuvwxyz"; letra_idx = 0
+            pdf = criar_pdf_base(titulo); pdf.set_font("Arial", size=10); letras = "abcdefghijklmnopqrstuvwxyz"; letra_idx = 0
             for linha in texto.split('\n'):
-                txt = linha.strip()
-                if not txt: continue
-                match = re.match(r'^(\.+)', txt)
-                pts = len(match.group(1)) if match else 0
-                if re.match(r'^\d+', txt): # Reinicia letras se for nova questão
+                txt = linha.strip(); if not txt: continue
+                match = re.match(r'^(\.+)', txt); pts = len(match.group(1)) if match else 0
+                if re.match(r'^\d+', txt):
                     pdf.ln(4); pdf.set_font("Arial", 'B', 11); pdf.multi_cell(0, 8, txt); pdf.set_font("Arial", size=10); letra_idx = 0
                 elif pts > 0:
-                    it = txt[pts:].strip()
-                    if pts > 1: pdf.set_y(pdf.get_y() - 8)
+                    it = txt[pts:].strip(); if pts > 1: pdf.set_y(pdf.get_y() - 8)
                     pdf.set_x(10 + (pts-1)*32); pdf.cell(32, 8, f"{letras[letra_idx%26]}) {it}", ln=True); letra_idx += 1
                 else: pdf.multi_cell(0, 8, txt)
-            st.download_button("Baixar PDF", pdf.output(dest='S').encode('latin-1'), "manual.pdf")
+            st.download_button("📥 Baixar PDF", pdf.output(dest='S').encode('latin-1'), "manual.pdf")
 
     # --- CÁLCULOS DIRETOS ---
     elif menu == "Cálculo de Funções":
         st.header("𝑓(x) Cálculo")
-        f_exp = st.text_input("f(x):", "x**2 + 5")
-        x_val = st.number_input("x:", value=3.0)
+        f_exp = st.text_input("f(x):", "x**2 + 5"); x_val = st.number_input("x:", value=3.0)
         if st.button("Calcular"):
-            try:
-                res = eval(f_exp.replace('x', f'({x_val})'))
-                st.metric("Resultado", f"{res:.2f}")
+            try: st.metric("Resultado", eval(f_exp.replace('x', f'({x_val})')))
             except: st.error("Erro na fórmula.")
-
-    elif menu == "Matrizes":
-        st.header("📊 Determinante 2x2")
-        m11 = st.number_input("a11", value=1.0); m12 = st.number_input("a12", value=0.0)
-        m21 = st.number_input("a21", value=0.0); m22 = st.number_input("a22", value=1.0)
-        if st.button("Calcular"):
-            st.success(f"Determinante: {(m11*m22)-(m12*m21)}")
