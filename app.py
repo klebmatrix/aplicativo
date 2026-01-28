@@ -5,19 +5,27 @@ import os
 import re
 from fpdf import FPDF
 
-# --- 1. CONFIGURAÇÕES E ESTILIZAÇÃO ---
+# --- 1. CONFIGURAÇÕES E CSS "FAZ TUDO" ---
 st.set_page_config(page_title="Quantum Math Lab", layout="wide")
 
-# CSS para criar o efeito de Cards no Preview
+# O CSS injetado garante o visual de cards profissionais
 st.markdown("""
     <style>
-    .math-card {
-        background-color: #f9f9f9;
-        border-radius: 10px;
-        padding: 15px;
-        margin-bottom: 10px;
-        border-left: 5px solid #007bff;
-        box-shadow: 2px 2px 5px rgba(0,0,0,0.1);
+    /* Estilo do Card */
+    .card-container {
+        background-color: #ffffff;
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 15px;
+        border-left: 8px solid #1E90FF;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        color: #333;
+    }
+    /* Estilo da Letra (a, b, c) */
+    .item-letra {
+        font-weight: bold;
+        color: #1E90FF;
+        font-size: 1.1em;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -30,9 +38,9 @@ def clean_txt(text):
 if 'perfil' not in st.session_state: st.session_state.perfil = None
 if 'preview_questoes' not in st.session_state: st.session_state.preview_questoes = []
 
-# --- 2. LOGIN SEGURO ---
+# --- 2. LOGIN ---
 if st.session_state.perfil is None:
-    st.title("🔐 Acesso")
+    st.title("🔐 Acesso Quantum Lab")
     pin = st.text_input("PIN:", type="password")
     if st.button("Entrar"):
         try: s_prof = str(st.secrets.get("chave_mestra", "chave_mestra")).strip().lower()
@@ -43,43 +51,41 @@ if st.session_state.perfil is None:
         else: st.error("PIN incorreto.")
     st.stop()
 
-# --- 3. MENU LATERAL (ESTÁVEL) ---
+# --- 3. MENU LATERAL ---
 with st.sidebar:
-    st.header("🚀 Menu")
-    aba = st.radio("Escolha:", ["🔢 Operações", "📐 Equações", "📚 Colegial", "⚖️ Álgebra Linear", "📄 Manual"])
+    st.header("🚀 Menu Principal")
+    aba = st.radio("Módulos:", ["🔢 Operações", "📐 Equações", "📚 Colegial", "⚖️ Álgebra Linear", "📄 Manual"])
+    st.divider()
     if st.button("Sair"):
         st.session_state.perfil = None
         st.rerun()
 
-# --- 4. FUNÇÕES DE APOIO ---
-def tratar_math(texto):
-    t = re.sub(r'^[a-z][\)\.]\s*', '', texto)
-    t = t.replace(', ', '').replace(',', '').strip()
-    t = re.sub(r'(\d*)V(\d+)', r'\1\\sqrt{\2}', t)
-    t = re.sub(r'(\^)(\d+)', r'\1{\2}', t)
-    if "/" in t and "|" not in t: t = re.sub(r'(\d+)/(\d+)', r'\\frac{\1}{\2}', t)
+# --- 4. PROCESSADOR MATEMÁTICO ---
+def processar_texto_math(texto):
+    t = re.sub(r'^[a-z][\)\.]\s*', '', texto) # Limpa a), b)
+    t = t.replace(', ', '').replace(',', '').strip() # Limpa vírgulas
+    t = re.sub(r'(\d*)V(\d+)', r'\1\\sqrt{\2}', t) # Raiz
+    t = re.sub(r'(\^)(\d+)', r'\1{\2}', t) # Potência
+    if "/" in t and "|" not in t: 
+        t = re.sub(r'(\d+)/(\d+)', r'\\frac{\1}{\2}', t) # Fração
     return t
 
-# --- 5. INTERFACE DOS MÓDULOS ---
+# --- 5. INTERFACE ---
 st.title(f"Módulo: {aba}")
 
 if aba == "📄 Manual":
     txt_input = st.text_area("Digite sua atividade:", height=250, 
-                             value="1. Operações:\na) ,2V36\nb) ,5^2\n2. Sistema:\na) { 2x+y=20 | x-y=5")
-    if st.button("🔍 Gerar Atividade"):
+                             value="t. ATIVIDADE QUANTUM\n1. Resolva as operações:\na) ,2V36\nb) ,5^2 + 10\nc) ,3/4 de 200\n2. Resolva o sistema:\na) { 2x + y = 20 | x - y = 5")
+    if st.button("🔍 Gerar Preview"):
         st.session_state.preview_questoes = txt_input.split('\n')
 
-elif aba == "📚 Colegial":
-    if st.button("Gerar Exemplos"):
-        st.session_state.preview_questoes = ["1. Exercícios:", "V144", "3V27", "2^4", "3/5 + 1/5"]
-
-# --- 6. VISUALIZAÇÃO EM CARDS (PREVIEW) ---
+# --- 6. PREVIEW COM CARDS CSS ---
 if st.session_state.preview_questoes:
     st.divider()
     letras = "abcdefghijklmnopqrstuvwxyz"
     l_idx = 0
     
-    # Imagem de Cabeçalho (Sempre no topo como solicitado)
+    # Cabeçalho no Topo
     if os.path.exists("cabecalho.png"):
         st.image("cabecalho.png", use_container_width=True)
 
@@ -87,38 +93,37 @@ if st.session_state.preview_questoes:
         line = q.strip()
         if not line: continue
         
-        # Títulos
         if line.startswith("t."):
-            st.markdown(f"<h2 style='text-align: center;'>{line[2:].strip()}</h2>", unsafe_allow_html=True)
-        
-        # Números (Questões Principais)
+            st.markdown(f"<h2 style='text-align: center; color: #1E90FF;'>{line[2:].strip()}</h2>", unsafe_allow_html=True)
         elif re.match(r'^\d+', line):
             st.markdown(f"### {line}")
             l_idx = 0
-        
-        # Itens em CARDS
         else:
-            with st.container():
-                st.markdown('<div class="math-card">', unsafe_allow_html=True)
-                col1, col2 = st.columns([0.1, 0.9])
-                with col1:
-                    st.write(f"**{letras[l_idx%26]})**")
-                with col2:
-                    if "{" in line or "|" in line:
-                        conteudo = line.replace("{", "").strip()
-                        if "|" in conteudo:
-                            partes = conteudo.split("|")
-                            st.latex(r" \begin{cases} " + partes[0].strip() + r" \\ " + partes[1].strip() + r" \end{cases} ")
-                        else: st.write(line)
-                    else:
-                        formato = tratar_math(line)
-                        if "\\" in formato or "{" in formato: st.latex(formato)
-                        else: st.write(line.replace(',', ''))
-                st.markdown('</div>', unsafe_allow_html=True)
-                l_idx += 1
+            # AQUI COMEÇA O CARD COM CSS INJETADO
+            st.markdown(f"""
+                <div class="card-container">
+                    <span class="item-letra">{letras[l_idx%26]})</span>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            # O conteúdo matemático precisa ser renderizado pelo Streamlit dentro do card
+            # Usamos um truque de margem negativa para "subir" o conteúdo para dentro do card acima
+            st.markdown('<div style="margin-top: -60px; padding-left: 50px;">', unsafe_allow_html=True)
+            if "{" in line or "|" in line:
+                conteudo = line.replace("{", "").strip()
+                if "|" in conteudo:
+                    p = conteudo.split("|")
+                    st.latex(r" \begin{cases} " + p[0].strip() + r" \\ " + p[1].strip() + r" \end{cases} ")
+                else: st.write(line)
+            else:
+                f = processar_texto_math(line)
+                if "\\" in f or "{" in f: st.latex(f)
+                else: st.write(line.replace(',', ''))
+            st.markdown('</div><br>', unsafe_allow_html=True)
+            l_idx += 1
 
     # --- 7. BOTÃO DE PDF ---
-    if st.button("📥 Baixar Atividade"):
+    if st.button("📥 Baixar PDF"):
         pdf = FPDF(); pdf.add_page(); pdf.set_font("Arial", size=11); l_idx = 0
         if os.path.exists("cabecalho.png"): pdf.image("cabecalho.png", x=12.5, y=8, w=185); pdf.set_y(46)
         
@@ -126,11 +131,11 @@ if st.session_state.preview_questoes:
             line = q.strip()
             if not line: continue
             if "{" in line and "|" in line:
-                partes = line.replace("{", "").split("|")
+                p = line.replace("{", "").split("|")
                 pdf.set_font("Arial", 'B', 11); pdf.cell(10, 10, f"{letras[l_idx%26]})")
                 cx, cy = pdf.get_x(), pdf.get_y()
                 pdf.set_font("Courier", size=18); pdf.text(cx, cy + 7, "{"); pdf.set_font("Arial", size=11)
-                pdf.text(cx + 5, cy + 4, clean_txt(partes[0].strip())); pdf.text(cx + 5, cy + 9, clean_txt(partes[1].strip()))
+                pdf.text(cx + 5, cy + 4, clean_txt(p[0].strip())); pdf.text(cx + 5, cy + 9, clean_txt(p[1].strip()))
                 pdf.ln(12); l_idx += 1
             elif line.startswith("t."):
                 pdf.ln(5); pdf.set_font("Arial", 'B', 14); pdf.cell(0, 10, clean_txt(line[2:].strip()), ln=True, align='C'); pdf.set_font("Arial", size=11)
@@ -140,4 +145,4 @@ if st.session_state.preview_questoes:
                 item = re.sub(r'^[a-z][\)\.]\s*', '', line).replace(',', '')
                 pdf.multi_cell(0, 8, f"{letras[l_idx%26]}) {clean_txt(item)}")
                 l_idx += 1
-        st.download_button("✅ Download PDF", pdf.output(dest='S').encode('latin-1'), "atividade.pdf")
+        st.download_button("✅ Baixar PDF", pdf.output(dest='S').encode('latin-1'), "atividade.pdf")
