@@ -141,7 +141,6 @@ if perfil == "admin":
         st.header("📊 Expressões (PEMDAS)")
         exp = st.text_input("Expressão:", "2 + 3 * 4")
         if st.button("Resolver"): st.success(f"Resultado: {eval(exp)}")
-
 # --- 6. VISUALIZAÇÃO UNIFICADA (CARDS + REGRAS) ---
 if st.session_state.preview_questoes:
     st.divider()
@@ -173,7 +172,7 @@ if st.session_state.preview_questoes:
                     else: st.write(line.lstrip(','))
             l_idx += 1
 
-    # --- 7. EXPORTAÇÃO PDF ---
+  # --- 7. EXPORTAÇÃO PDF DO PREVIEW ---
     if st.button("📥 Gerar Arquivo PDF"):
         pdf = FPDF()
         pdf.add_page()
@@ -195,3 +194,8 @@ if st.session_state.preview_questoes:
                 pdf.multi_cell(0, 8, f"{letras[idx_p%26]}) {clean_txt(line.lstrip(','))}")
                 idx_p += 1
         st.download_button("✅ Baixar PDF", pdf.output(dest='S').encode('latin-1'), "atividade.pdf")
+
+elif perfil == "aluno":
+    st.title("📖 Área do Estudante")
+    st.info("Utilize as ferramentas de cálculo ou aguarde a atividade do professor.")
+
