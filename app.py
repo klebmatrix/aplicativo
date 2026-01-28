@@ -156,40 +156,67 @@ if st.session_state.preview_questoes:
                     else: st.write(line)
             l_idx += 1
 
-    # --- 7. EXPORTAÇÃO PDF (DUAS COLUNAS) ---
+# --- 7. EXPORTAÇÃO PDF (FOLHA A4 - COLUNAS ALINHADAS) ---
     if st.button("📥 Baixar Atividade Finalizada (PDF)"):
-        pdf = FPDF()
+        pdf = FPDF(orientation='P', unit='mm', format='A4')
         pdf.add_page()
-        if os.path.exists("cabecalho.png"):
-            pdf.image("cabecalho.png", x=10, y=8, w=190); pdf.set_y(50)
-        else: pdf.set_y(20)
+        pdf.set_margins(15, 15, 15)
         
-        l_pdf_idx = 0
-        col_width = 90 # Largura da coluna
+        if os.path.exists("cabecalho.png"):
+            pdf.image("cabecalho.png", x=12.5, y=10, w=185)
+            y_atual = 55
+        else:
+            y_atual = 20
 
+        letras = "abcdefghijklmnopqrstuvwxyz"
+        l_idx = 0
+        
         for q in st.session_state.preview_questoes:
             line = q.strip()
             if not line: continue
             
+            # Títulos
             if line.lower().startswith(("t.", "titulo:", "título:")):
-                t_pdf = re.sub(r'^(t\.|titulo:|título:)\s*', '', line, flags=re.IGNORECASE)
-                pdf.set_font("Arial", 'B', 16); pdf.cell(0, 12, clean_txt(t_pdf), ln=True, align='C')
+                t_clean = re.sub(r'^(t\.|titulo:|título:)\s*', '', line, flags=re.IGNORECASE)
+                pdf.set_y(y_atual + 5)
+                pdf.set_font("Arial", 'B', 16)
+                pdf.cell(0, 12, clean_txt(t_clean), ln=True, align='C')
+                y_atual = pdf.get_y() + 5
+                
+            # Números das Questões
             elif re.match(r'^\d+', line):
-                pdf.ln(5); pdf.set_font("Arial", 'B', 12); pdf.multi_cell(0, 8, clean_txt(line))
-                l_pdf_idx = 0
+                pdf.set_y(y_atual + 5)
+                pdf.set_font("Arial", 'B', 12)
+                pdf.multi_cell(0, 8, clean_txt(line))
+                y_atual = pdf.get_y()
+                l_idx = 0 # Reseta letra para 'a'
+                
+            # Itens (a, b, c...) em Colunas Travadas
             else:
                 pdf.set_font("Arial", size=11)
-                texto_item = f"{letras[l_pdf_idx%26]}) {line}"
+                texto_item = f"{letras[l_idx%26]}) {line}"
                 
-                # Lógica para alternar colunas: Par na esquerda, Ímpar na direita
-                if l_pdf_idx % 2 == 0:
-                    pdf.cell(col_width, 10, clean_txt(texto_item), ln=0)
+                if l_idx % 2 == 0:
+                    # Salva a altura para a próxima coluna usar a mesma
+                    y_base_coluna = y_atual 
+                    pdf.set_xy(15, y_base_coluna)
+                    pdf.multi_cell(90, 8, clean_txt(texto_item))
+                    # Atualiza o y_atual baseado na altura que o texto ocupou
+                    y_proxima_linha = pdf.get_y() 
                 else:
-                    pdf.cell(col_width, 10, clean_txt(texto_item), ln=1)
-                l_pdf_idx += 1
-        
-        st.download_button("✅ Clique aqui para baixar", pdf.output(dest='S').encode('latin-1'), "atividade.pdf")
+                    # Força a coluna da direita a começar na mesma altura da esquerda
+                    pdf.set_xy(110, y_base_coluna)
+                    pdf.multi_cell(85, 8, clean_txt(texto_item))
+                    # O y_atual para a próxima dupla será o maior entre as duas colunas
+                    y_atual = max(y_proxima_linha, pdf.get_y())
+                
+                l_idx += 1
 
-elif perfil == "aluno":
-    st.title("📖 Área do Estudante")
-    st.info("Aguarde o professor gerar uma atividade.")
+        # Finalização e Download
+        pdf_bytes = bytes(pdf.output())
+        st.download_button(
+            label="✅ Baixar Atividade A4 Corrigida",
+            data=pdf_bytes,
+            file_name="atividade_perfeita.pdf",
+            mime="application/pdf"
+        )
