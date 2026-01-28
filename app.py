@@ -5,113 +5,120 @@ import os
 import re
 from fpdf import FPDF
 
-# --- 1. CONFIGURAÇÕES TÉCNICAS ---
+# --- 1. CONFIGURAÇÕES E ESTILIZAÇÃO ---
 st.set_page_config(page_title="Quantum Math Lab", layout="wide")
 
+# CSS para criar o efeito de Cards no Preview
+st.markdown("""
+    <style>
+    .math-card {
+        background-color: #f9f9f9;
+        border-radius: 10px;
+        padding: 15px;
+        margin-bottom: 10px;
+        border-left: 5px solid #007bff;
+        box-shadow: 2px 2px 5px rgba(0,0,0,0.1);
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
 def clean_txt(text):
-    """Garante que o PDF não quebre"""
     rep = {"√": "V", "²": "^2", "³": "^3", "÷": "/", "×": "x", "{": ""}
-    for o, n in rep.items():
-        text = text.replace(o, n)
+    for o, n in rep.items(): text = text.replace(o, n)
     return str(text).encode('latin-1', 'replace').decode('latin-1')
 
-# Inicialização segura das variáveis
 if 'perfil' not in st.session_state: st.session_state.perfil = None
 if 'preview_questoes' not in st.session_state: st.session_state.preview_questoes = []
 
-# --- 2. LOGIN (chave_mestra) ---
+# --- 2. LOGIN SEGURO ---
 if st.session_state.perfil is None:
-    st.title("🔐 Acesso ao Sistema")
-    pin = st.text_input("Digite seu PIN:", type="password")
+    st.title("🔐 Acesso")
+    pin = st.text_input("PIN:", type="password")
     if st.button("Entrar"):
-        # Pega do Render ou usa padrão 'chave_mestra'
-        s_prof = str(st.secrets.get("chave_mestra", "chave_mestra")).strip().lower()
+        try: s_prof = str(st.secrets.get("chave_mestra", "chave_mestra")).strip().lower()
+        except: s_prof = "chave_mestra"
         if pin == s_prof: 
             st.session_state.perfil = "admin"
             st.rerun()
-        else:
-            st.error("PIN incorreto. Tente novamente.")
+        else: st.error("PIN incorreto.")
     st.stop()
 
-# --- 3. MENU LATERAL (BLINDADO) ---
+# --- 3. MENU LATERAL (ESTÁVEL) ---
 with st.sidebar:
-    st.title(f"🚀 {st.session_state.perfil.upper()}")
-    aba = st.radio("Selecione o Módulo:", 
-        ["🔢 Operações", "📐 Equações", "📚 Colegial", "⚖️ Álgebra Linear", "📄 Manual"])
-    
-    st.divider()
-    if st.button("Sair do Sistema"):
+    st.header("🚀 Menu")
+    aba = st.radio("Escolha:", ["🔢 Operações", "📐 Equações", "📚 Colegial", "⚖️ Álgebra Linear", "📄 Manual"])
+    if st.button("Sair"):
         st.session_state.perfil = None
         st.rerun()
 
-st.title(f"Módulo: {aba}")
-
-# --- 4. PROCESSADOR DE SÍMBOLOS ---
-def formatar_para_preview(texto):
-    # Remove vírgulas iniciais e letras como a), b)
+# --- 4. FUNÇÕES DE APOIO ---
+def tratar_math(texto):
     t = re.sub(r'^[a-z][\)\.]\s*', '', texto)
     t = t.replace(', ', '').replace(',', '').strip()
-    
-    # Raiz (ex: 2V36 ou V25)
     t = re.sub(r'(\d*)V(\d+)', r'\1\\sqrt{\2}', t)
-    # Potência (ex: 5^2)
     t = re.sub(r'(\^)(\d+)', r'\1{\2}', t)
-    # Fração (ex: 3/4)
-    if "/" in t and "|" not in t:
-        t = re.sub(r'(\d+)/(\d+)', r'\\frac{\1}{\2}', t)
+    if "/" in t and "|" not in t: t = re.sub(r'(\d+)/(\d+)', r'\\frac{\1}{\2}', t)
     return t
 
-# --- 5. LÓGICA DO MANUAL ---
+# --- 5. INTERFACE DOS MÓDULOS ---
+st.title(f"Módulo: {aba}")
+
 if aba == "📄 Manual":
-    st.info("Digite como no exemplo: ,2V36 ou { 2x+y=20 | x-y=5")
-    txt_input = st.text_area("Área de Digitação:", height=300, 
-                             value="1. Calcule:\na) ,2V36 =\nb) ,5^2 + 10 =\nc) ,3/4 de 200 =\n2. Resolva o sistema:\na) { 2x + y = 20 | x - y = 5")
-    if st.button("🔍 Visualizar Atividade"):
+    txt_input = st.text_area("Digite sua atividade:", height=250, 
+                             value="1. Operações:\na) ,2V36\nb) ,5^2\n2. Sistema:\na) { 2x+y=20 | x-y=5")
+    if st.button("🔍 Gerar Atividade"):
         st.session_state.preview_questoes = txt_input.split('\n')
 
-# (Outros módulos mantidos de forma simples para evitar erro)
 elif aba == "📚 Colegial":
     if st.button("Gerar Exemplos"):
-        st.session_state.preview_questoes = ["1. Colegial:", "V144", "2^3", "10% de 500"]
+        st.session_state.preview_questoes = ["1. Exercícios:", "V144", "3V27", "2^4", "3/5 + 1/5"]
 
-# --- 6. ÁREA DE PREVIEW (VISUALIZAÇÃO) ---
+# --- 6. VISUALIZAÇÃO EM CARDS (PREVIEW) ---
 if st.session_state.preview_questoes:
     st.divider()
-    letras = "abcdefghijklmnopqrstuvwxyz"; l_idx = 0
+    letras = "abcdefghijklmnopqrstuvwxyz"
+    l_idx = 0
     
-    with st.container(border=True):
-        for q in st.session_state.preview_questoes:
-            line = q.strip()
-            if not line: continue
-            
-            # Títulos (t.)
-            if line.startswith("t."):
-                st.markdown(f"<h2 style='text-align: center;'>{line[2:].strip()}</h2>", unsafe_allow_html=True)
-            # Sistemas (chave {)
-            elif "{" in line or "|" in line:
-                conteudo = line.replace("{", "").strip()
-                if "|" in conteudo:
-                    partes = conteudo.split("|")
+    # Imagem de Cabeçalho (Sempre no topo como solicitado)
+    if os.path.exists("cabecalho.png"):
+        st.image("cabecalho.png", use_container_width=True)
+
+    for q in st.session_state.preview_questoes:
+        line = q.strip()
+        if not line: continue
+        
+        # Títulos
+        if line.startswith("t."):
+            st.markdown(f"<h2 style='text-align: center;'>{line[2:].strip()}</h2>", unsafe_allow_html=True)
+        
+        # Números (Questões Principais)
+        elif re.match(r'^\d+', line):
+            st.markdown(f"### {line}")
+            l_idx = 0
+        
+        # Itens em CARDS
+        else:
+            with st.container():
+                st.markdown('<div class="math-card">', unsafe_allow_html=True)
+                col1, col2 = st.columns([0.1, 0.9])
+                with col1:
                     st.write(f"**{letras[l_idx%26]})**")
-                    st.latex(r" \begin{cases} " + partes[0].strip() + r" \\ " + partes[1].strip() + r" \end{cases} ")
-                    l_idx += 1
-                else: st.write(f"{line}")
-            # Números (Reset)
-            elif re.match(r'^\d+', line):
-                st.markdown(f"### {line}")
-                l_idx = 0
-            # Itens Matemáticos
-            else:
-                formato = formatar_para_preview(line)
-                if "\\" in formato or "{" in formato:
-                    st.write(f"**{letras[l_idx%26]})**")
-                    st.latex(formato)
-                else:
-                    st.write(f"**{letras[l_idx%26]})** {line.replace(',', '')}")
+                with col2:
+                    if "{" in line or "|" in line:
+                        conteudo = line.replace("{", "").strip()
+                        if "|" in conteudo:
+                            partes = conteudo.split("|")
+                            st.latex(r" \begin{cases} " + partes[0].strip() + r" \\ " + partes[1].strip() + r" \end{cases} ")
+                        else: st.write(line)
+                    else:
+                        formato = tratar_math(line)
+                        if "\\" in formato or "{" in formato: st.latex(formato)
+                        else: st.write(line.replace(',', ''))
+                st.markdown('</div>', unsafe_allow_html=True)
                 l_idx += 1
 
-    # --- 7. GERAÇÃO DE PDF ---
-    if st.button("📥 Baixar Atividade em PDF"):
+    # --- 7. BOTÃO DE PDF ---
+    if st.button("📥 Baixar Atividade"):
         pdf = FPDF(); pdf.add_page(); pdf.set_font("Arial", size=11); l_idx = 0
         if os.path.exists("cabecalho.png"): pdf.image("cabecalho.png", x=12.5, y=8, w=185); pdf.set_y(46)
         
@@ -133,4 +140,4 @@ if st.session_state.preview_questoes:
                 item = re.sub(r'^[a-z][\)\.]\s*', '', line).replace(',', '')
                 pdf.multi_cell(0, 8, f"{letras[l_idx%26]}) {clean_txt(item)}")
                 l_idx += 1
-        st.download_button("✅ Clique para Salvar", pdf.output(dest='S').encode('latin-1'), "atividade.pdf")
+        st.download_button("✅ Download PDF", pdf.output(dest='S').encode('latin-1'), "atividade.pdf")
