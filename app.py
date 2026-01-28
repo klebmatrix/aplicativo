@@ -40,8 +40,11 @@ else:
     perfil = st.session_state.perfil
     st.sidebar.title(f"🚀 {'Professor' if perfil == 'admin' else 'Estudante'}")
     
-    itens = ["Atividades (Drive)", "Expressões (PEMDAS)", "Equações (1º e 2º Grau)", "Cálculo de Funções", "Logaritmos", "Funções Aritméticas"]
+    # Itens principais
+    itens = ["Atividades (Drive)", "Expressões (PEMDAS)", "Equações (1º e 2º Grau)", "Cálculo de Funções", "Logaritmos"]
+    
     if perfil == "admin":
+        # OS 4 GERADORES SOLICITADOS
         geradores = ["GERADOR: Operações Escolha", "GERADOR: Nível Colegial", "GERADOR: Matrizes e Sistemas", "GERADOR: Manual (Colunas)"]
         itens = geradores + itens + ["Sistemas Lineares", "Matrizes", "Financeiro"]
         
@@ -61,33 +64,30 @@ else:
         pdf.set_font("Arial", 'B', 14); pdf.cell(0, 10, txt=titulo, ln=True, align='C'); pdf.ln(5)
         return pdf
 
-    # --- 4 GERADORES ---
-
+    # --- 1. GERADOR OPERAÇÕES (POR ESCOLHA) ---
     if menu == "GERADOR: Operações Escolha":
         st.header("🔢 Gerador de Operações Básicas")
-        st.write("Selecione as operações que deseja incluir na atividade:")
-        c1, c2, c3, c4 = st.columns(4)
-        soma = c1.checkbox("Soma (+)", value=True)
-        sub = c2.checkbox("Subtração (-)", value=True)
-        mult = c3.checkbox("Multiplicação (x)")
-        div = c4.checkbox("Divisão (÷)")
+        col1, col2, col3, col4 = st.columns(4)
+        soma = col1.checkbox("Soma (+)", value=True)
+        sub = col2.checkbox("Subtração (-)", value=True)
+        mult = col3.checkbox("Multiplicação (x)")
+        div = col4.checkbox("Divisão (÷)")
         
         qtd = st.slider("Quantidade de questões:", 4, 30, 12)
         
-        if st.button("Gerar PDF Escolhido"):
-            ops_selecionadas = []
-            if soma: ops_selecionadas.append('+')
-            if sub: ops_selecionadas.append('-')
-            if mult: ops_selecionadas.append('x')
-            if div: ops_selecionadas.append('÷')
+        if st.button("Gerar PDF"):
+            ops = []
+            if soma: ops.append('+'); 
+            if sub: ops.append('-'); 
+            if mult: ops.append('x'); 
+            if div: ops.append('÷')
             
-            if not ops_selecionadas:
-                st.error("Selecione pelo menos uma operação!")
+            if not ops: st.error("Selecione uma operação.")
             else:
-                pdf = criar_pdf_base("Atividade de Matemática: Operações")
+                pdf = criar_pdf_base("Atividade de Matemática")
                 pdf.set_font("Arial", size=11); letras = "abcdefghijklmnopqrstuvwxyz"
                 for i in range(qtd):
-                    op = random.choice(ops_selecionadas)
+                    op = random.choice(ops)
                     n1, n2 = random.randint(100, 999), random.randint(10, 99)
                     if op == '+': txt = f"{n1} + {n2} ="
                     elif op == '-': txt = f"{n1+n2} - {n1} ="
@@ -96,42 +96,53 @@ else:
                         d = random.randint(2,12)
                         txt = f"{d * random.randint(5,40)} ÷ {d} ="
                     pdf.cell(0, 10, txt=f"{letras[i%26]}) {txt}", ln=True)
-                st.download_button("📥 Baixar PDF", pdf.output(dest='S').encode('latin-1'), "operacoes.pdf")
+                st.download_button("Baixar PDF", pdf.output(dest='S').encode('latin-1'), "operacoes.pdf")
 
-    elif menu == "GERADOR: Manual (Colunas)":
-        st.header("📄 Gerador Manual (Lógica de Pontos)")
-        titulo = st.text_input("Título:", "Atividade")
-        texto = st.text_area("Conteúdo:", height=300)
+    # --- 2. GERADOR COLEGIAL ---
+    elif menu == "GERADOR: Nível Colegial":
+        st.header("📚 Gerador Colegial")
+        if st.button("Gerar Lista"):
+            pdf = criar_pdf_base("Exercícios Nível Colegial")
+            pdf.set_font("Arial", size=11)
+            for i in range(10):
+                q = f"{random.randint(2,9)}x + {random.randint(1,20)} = {random.randint(21,80)}"
+                pdf.cell(0, 10, txt=f"{chr(97+i)}) {q}", ln=True)
+            st.download_button("Baixar PDF", pdf.output(dest='S').encode('latin-1'), "colegial.pdf")
+
+    # --- 3. GERADOR MATRIZES/SISTEMAS ---
+    elif menu == "GERADOR: Matrizes e Sistemas":
+        st.header("📊 Gerador Álgebra")
         if st.button("Gerar PDF"):
-            pdf = FPDF()
-            pdf.add_page()
-            if os.path.exists("cabecalho.png"): pdf.image("cabecalho.png", x=12.5, y=8, w=185); pdf.set_y(46)
-            pdf.set_font("Arial", 'B', 12); pdf.cell(0, 10, titulo, ln=True, align='C'); pdf.ln(2)
+            pdf = criar_pdf_base("Matrizes e Sistemas")
+            pdf.set_font("Arial", size=11)
+            for i in range(8):
+                q = f"Calcule o Determinante: [{random.randint(1,5)}, {random.randint(0,4)} | {random.randint(0,4)}, {random.randint(1,5)}]"
+                pdf.cell(0, 10, txt=f"{chr(97+i)}) {q}", ln=True)
+            st.download_button("Baixar PDF", pdf.output(dest='S').encode('latin-1'), "algebra.pdf")
+
+    # --- 4. GERADOR MANUAL (REGRAS PRESERVADAS) ---
+    elif menu == "GERADOR: Manual (Colunas)":
+        st.header("📄 Gerador Manual")
+        titulo = st.text_input("Título:", "Atividade")
+        texto = st.text_area("Conteúdo (Use . para colunas):", height=300)
+        if st.button("Gerar PDF Manual"):
+            pdf = criar_pdf_base(titulo)
             pdf.set_font("Arial", size=10); letras = "abcdefghijklmnopqrstuvwxyz"; letra_idx = 0
             for linha in texto.split('\n'):
                 txt = linha.strip()
                 if not txt: continue
                 match = re.match(r'^(\.+)', txt)
                 pts = len(match.group(1)) if match else 0
-                if re.match(r'^\d+', txt): # Se começa com número, reseta letra
+                if re.match(r'^\d+', txt): # Reinicia letras se for nova questão
                     pdf.ln(4); pdf.set_font("Arial", 'B', 11); pdf.multi_cell(0, 8, txt); pdf.set_font("Arial", size=10); letra_idx = 0
                 elif pts > 0:
                     it = txt[pts:].strip()
                     if pts > 1: pdf.set_y(pdf.get_y() - 8)
                     pdf.set_x(10 + (pts-1)*32); pdf.cell(32, 8, f"{letras[letra_idx%26]}) {it}", ln=True); letra_idx += 1
                 else: pdf.multi_cell(0, 8, txt)
-            st.download_button("📥 Baixar PDF", pdf.output(dest='S').encode('latin-1'), "manual.pdf")
+            st.download_button("Baixar PDF", pdf.output(dest='S').encode('latin-1'), "manual.pdf")
 
-    # --- MÓDULOS DE CÁLCULO FUNCIONAIS ---
-
-    elif menu == "Funções Aritméticas":
-        st.header("🔍 Analisador de Números")
-        n = st.number_input("Número:", min_value=1, value=24)
-        if st.button("Analisar"):
-            divs = [d for d in range(1, n + 1) if n % d == 0]
-            st.write(f"Divisores: {divs}")
-            st.write(f"Primo? {'Sim' if len(divs) == 2 else 'Não'}")
-
+    # --- CÁLCULOS DIRETOS ---
     elif menu == "Cálculo de Funções":
         st.header("𝑓(x) Cálculo")
         f_exp = st.text_input("f(x):", "x**2 + 5")
@@ -139,7 +150,12 @@ else:
         if st.button("Calcular"):
             try:
                 res = eval(f_exp.replace('x', f'({x_val})'))
-                st.metric("Resultado", res)
+                st.metric("Resultado", f"{res:.2f}")
             except: st.error("Erro na fórmula.")
 
-    # (Geradores Colegial e Matrizes seguem a mesma lógica de PDF automática)
+    elif menu == "Matrizes":
+        st.header("📊 Determinante 2x2")
+        m11 = st.number_input("a11", value=1.0); m12 = st.number_input("a12", value=0.0)
+        m21 = st.number_input("a21", value=0.0); m22 = st.number_input("a22", value=1.0)
+        if st.button("Calcular"):
+            st.success(f"Determinante: {(m11*m22)-(m12*m21)}")
