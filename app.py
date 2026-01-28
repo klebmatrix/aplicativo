@@ -5,12 +5,12 @@ import os
 import re
 from fpdf import FPDF
 
-# --- 1. CONFIGURAÇÕES E LIMPEZA ---
+# --- CONFIGURAÇÕES ---
 st.set_page_config(page_title="Quantum Math Lab", layout="wide")
 
 def clean_txt(text):
-    """Garante que o PDF não trave com símbolos especiais"""
-    rep = {"√": "V", "²": "^2", "³": "^3", "÷": "/", "×": "x"}
+    """Limpa o texto para o PDF não dar erro de fonte"""
+    rep = {"√": "V", "²": "^2", "³": "^3", "÷": "/", "×": "*"}
     for o, n in rep.items():
         text = text.replace(o, n)
     return str(text).encode('latin-1', 'replace').decode('latin-1')
@@ -18,7 +18,7 @@ def clean_txt(text):
 if 'perfil' not in st.session_state: st.session_state.perfil = None
 if 'preview_questoes' not in st.session_state: st.session_state.preview_questoes = []
 
-# --- 2. LOGIN (chave_mestra) ---
+# --- LOGIN ---
 if st.session_state.perfil is None:
     st.title("🔐 Login")
     pin = st.text_input("PIN:", type="password")
@@ -30,72 +30,72 @@ if st.session_state.perfil is None:
         else: st.error("PIN Inválido.")
     st.stop()
 
-# --- 3. MENU LATERAL ---
+# --- MENU ---
 st.sidebar.title(f"🚀 {st.session_state.perfil.upper()}")
 aba = st.sidebar.radio("Módulos:", ["🔢 Operações", "📐 Equações", "📚 Colegial", "⚖️ Álgebra Linear", "📄 Manual", "🧮 Calculadoras"])
 
-# --- 4. LÓGICA DO MANUAL (Aprimorada) ---
+# --- LÓGICA MANUAL ---
 if aba == "📄 Manual":
-    st.subheader("📝 Criar Atividade Manual")
-    st.info("💡 Use: V para Raiz | ^ para Potência | / para Fração | [SIS] eq1 | eq2 para Sistema")
-    txt_input = st.text_area("Digite sua atividade aqui:", height=300, placeholder="t. TÍTULO\n1. Resolva:\nV25\n5^2\n1/2 + 1/4\n[SIS] x+y=5 | x-y=1")
+    st.subheader("📝 Módulo Manual")
+    st.info("💡 Raiz: 3V27 (cúbica) | Expoente: 5^4 | Fração: 1/2 | Sistema: [SIS] x+y=5 | x-y=1")
+    txt_input = st.text_area("Digite sua atividade:", height=250)
     if st.button("🔍 Gerar Visualização"):
         st.session_state.preview_questoes = txt_input.split('\n')
 
-# --- MÓDULOS AUTOMÁTICOS (Resumidos para estabilidade) ---
+# --- OUTROS MÓDULOS (Simplificados) ---
 elif aba == "📚 Colegial":
-    if st.button("🎲 Gerar Exemplos Colegial"):
-        st.session_state.preview_questoes = ["t. EXERCÍCIOS","1. Calcule:","V144","2^3","3/4 + 1/2","20% de 500"]
-elif aba == "⚖️ Álgebra Linear":
-    if st.button("🎲 Gerar Sistema"):
-        st.session_state.preview_questoes = ["1. Resolva o sistema:","[SIS] x + y = 10 | x - y = 4"]
+    if st.button("🎲 Gerar Exemplos"):
+        st.session_state.preview_questoes = ["t. EXERCÍCIOS", "1. Calcule:", "3V27", "V144", "2^4", "1/5 + 2/5"]
 
-# --- 5. VISUALIZAÇÃO (PREVIEW) - ONDE A MÁGICA ACONTECE ---
+# --- VISUALIZAÇÃO (PREVIEW) ---
 if st.session_state.preview_questoes and aba != "🧮 Calculadoras":
     st.divider()
-    st.subheader("👀 Preview da Atividade")
     letras = "abcdefghijklmnopqrstuvwxyz"; l_idx = 0
     
-    # Cabeçalho da Atividade
-    if os.path.exists("cabecalho.png"):
-        st.image("cabecalho.png")
-
     with st.container(border=True):
         for q in st.session_state.preview_questoes:
             line = q.strip()
             if not line: continue
             
-            # 1. Tratar Títulos
+            # Títulos
             if line.startswith("t."):
                 st.markdown(f"<h2 style='text-align: center;'>{line[2:].strip()}</h2>", unsafe_allow_html=True)
             
-            # 2. Tratar Sistemas
+            # Sistemas
             elif "[SIS]" in line:
                 partes = line.replace("[SIS]", "").split("|")
                 st.write(f"**{letras[l_idx%26]})**")
                 st.latex(r" \begin{cases} " + partes[0].strip() + r" \\ " + partes[1].strip() + r" \end{cases} ")
                 l_idx += 1
             
-            # 3. Tratar Números (Reset de letras)
+            # Reset de letras com números
             elif re.match(r'^\d+', line):
                 st.markdown(f"### {line}")
                 l_idx = 0
             
-            # 4. Tratar Itens (Raiz, Potência, Fração)
+            # Raízes, Potências e Frações (Lógica LaTeX)
             else:
-                # Converter texto para LaTeX bonito no Preview
-                d_line = line.replace("V", r"\sqrt").replace("^", "^{").strip()
-                if "^{" in d_line: d_line += "}" # Fecha a chave da potência
+                # Trata Raiz: 3V27 vira \sqrt[3]{27} | V25 vira \sqrt{25}
+                d_line = re.sub(r'(\d+)V(\d+)', r'\\sqrt[\1]{\2}', line) # Raiz com índice
+                d_line = re.sub(r'(?<!\[)V(\d+)', r'\\sqrt{\1}', d_line) # Raiz quadrada simples
                 
-                # Se tiver fração ou raiz, usa LaTeX, senão texto comum
-                if "sqrt" in d_line or "/" in d_line or "^{" in d_line:
+                # Trata Expoente: 5^4 vira 5^{4}
+                d_line = re.sub(r'(\^)(\d+)', r'\1{\2}', d_line)
+                
+                # Trata Fração: 1/2 vira \frac{1}{2}
+                if "/" in d_line and not "[" in d_line:
+                    f_parts = d_line.split("/")
+                    if len(f_parts) == 2:
+                        d_line = r"\frac{" + f_parts[0].strip() + "}{" + f_parts[1].strip() + "}"
+
+                if "\\" in d_line or "{" in d_line:
                     st.write(f"**{letras[l_idx%26]})**")
-                    st.latex(d_line.replace("/", r"\over "))
+                    st.latex(d_line)
                 else:
                     st.write(f"**{letras[l_idx%26]})** {line}")
                 l_idx += 1
 
-    # --- 6. BOTÃO DE PDF ---
+    # --- PDF ---
     if st.button("📥 Baixar PDF"):
         pdf = FPDF(); pdf.add_page(); pdf.set_font("Arial", size=11); l_idx = 0
         if os.path.exists("cabecalho.png"): pdf.image("cabecalho.png", x=12.5, y=8, w=185); pdf.set_y(46)
@@ -117,4 +117,4 @@ if st.session_state.preview_questoes and aba != "🧮 Calculadoras":
             else:
                 pdf.multi_cell(0, 8, f"{letras[l_idx%26]}) {clean_txt(line)}")
                 l_idx += 1
-        st.download_button("✅ Download Atividade", pdf.output(dest='S').encode('latin-1'), "atividade.pdf")
+        st.download_button("✅ Download", pdf.output(dest='S').encode('latin-1'), "atividade.pdf")
