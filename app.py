@@ -1,34 +1,49 @@
 import streamlit as st
-import math
 import numpy as np
-import os
 import random
+import os
 import re
 from fpdf import FPDF
 
-# --- 1. CONFIGURAÇÃO ---
+# --- 1. CONFIGURAÇÕES E UTILITÁRIOS ---
 st.set_page_config(page_title="Quantum Math Lab", layout="wide", page_icon="🚀")
 
 def clean_txt(text):
+    """Trata caracteres especiais para o PDF."""
+    rep = {"√": "V", "²": "^2", "³": "^3", "÷": "/", "×": "x", "{": ""}
+    for o, n in rep.items(): text = text.replace(o, n)
     return str(text).encode('latin-1', 'replace').decode('latin-1')
+
+def tratar_math(texto):
+    """Converte sintaxe simplificada em LaTeX para o Streamlit."""
+    t = texto.lstrip(',').strip()
+    # Converte V36 para \sqrt{36}
+    t = re.sub(r'V(\d+)', r'\\sqrt{\1}', t)
+    # Converte ^2 para ^{2} se necessário
+    if "^" in t and "^{" not in t:
+        t = re.sub(r'\^(\d+)', r'^{\1}', t)
+    return t
 
 def validar_acesso(pin_digitado):
     try:
-        senha_aluno = str(st.secrets.get("acesso_aluno", "123456")).strip()
+        # Recupera as senhas do ambiente (Render)
         senha_prof = str(st.secrets.get("chave_mestra", "12345678")).strip()
+        senha_aluno = str(st.secrets.get("acesso_aluno", "123456")).strip()
     except:
-        senha_aluno, senha_prof = "123456", "12345678"
+        senha_prof, senha_aluno = "12345678", "123456"
+    
+    if pin_digitado == senha_prof: return "admin"
     if pin_digitado == senha_aluno: return "aluno"
-    elif pin_digitado == senha_prof: return "admin"
     return "negado"
 
+# --- 2. LOGIN ---
 if 'perfil' not in st.session_state: st.session_state.perfil = None
-if 'sub_menu' not in st.session_state: st.session_state.sub_menu = None
+if 'preview_questoes' not in st.session_state: st.session_state.preview_questoes = []
+if 'sub_menu' not in st.session_state: st.session_state.sub_menu = "man"
 
-# --- LOGIN ---
 if st.session_state.perfil is None:
-    st.title("🔐 Login")
-    pin = st.text_input("PIN:", type="password")
+    st.title("🔐 Login Quantum")
+    pin = st.text_input("PIN de Acesso:", type="password")
     if st.button("Entrar"):
         acesso = validar_acesso(pin)
         if acesso != "negado":
@@ -37,96 +52,47 @@ if st.session_state.perfil is None:
         else: st.error("PIN incorreto.")
     st.stop()
 
-# --- 2. MENU E LOGOUT ---
+# --- 3. MENU LATERAL ---
 perfil = st.session_state.perfil
 st.sidebar.title(f"🚀 {'Professor' if perfil == 'admin' else 'Estudante'}")
+
+if perfil == "admin":
+    st.sidebar.subheader("Geradores")
+    if st.sidebar.button("📄 Gerador Manual"): st.session_state.sub_menu = "man"
+    if st.sidebar.button("🔢 Operações Básicas"): st.session_state.sub_menu = "op"
+    if st.sidebar.button("📐 Equações"): st.session_state.sub_menu = "eq"
+    if st.sidebar.button("⚖️ Álgebra Linear"): st.session_state.sub_menu = "alg"
+
 if st.sidebar.button("Sair/Logout"):
     st.session_state.perfil = None
-    st.session_state.sub_menu = None
+    st.session_state.preview_questoes = []
     st.rerun()
 
-# --- 3. FUNÇÃO PDF ---
-def exportar_pdf(questoes, titulo):
-    pdf = FPDF()
-    pdf.add_page()
-    if os.path.exists("cabecalho.png"):
-        pdf.image("cabecalho.png", x=12.5, y=8, w=185)
-        pdf.set_y(46)
-    else: pdf.set_y(15)
-    pdf.set_font("Arial", 'B', 14); pdf.cell(0, 10, txt=clean_txt(titulo), ln=True, align='C'); pdf.ln(5)
-    pdf.set_font("Arial", size=11); letras = "abcdefghijklmnopqrstuvwxyz"
-    for i, q in enumerate(questoes):
-        pdf.multi_cell(0, 10, txt=f"{letras[i%26]}) {clean_txt(q)}")
-    return pdf.output(dest='S').encode('latin-1', 'replace')
-
-# --- 4. PAINEL PRINCIPAL (ADMIN) ---
+# --- 4. ÁREA DE CRIAÇÃO (SÓ ADMIN) ---
 if perfil == "admin":
-    st.title("🛠️ Painel de Controle do Professor")
-    
-    st.subheader("📝 Geradores de Atividades (PDF)")
-    c1, c2, c3, c4, c5 = st.columns(5)
-    with c1: 
-        if st.button("🔢 Operações\nBásicas", use_container_width=True): st.session_state.sub_menu = "op"
-    with c2: 
-        if st.button("📐 Equações\n1º e 2º Grau", use_container_width=True): st.session_state.sub_menu = "eq"
-    with c3: 
-        if st.button("📚 Colegial\nFrações/Funções", use_container_width=True): st.session_state.sub_menu = "col"
-    with c4: 
-        if st.button("⚖️ Álgebra\nLinear", use_container_width=True): st.session_state.sub_menu = "alg"
-    with c5: 
-        if st.button("📄 Gerador\nManual", use_container_width=True): st.session_state.sub_menu = "man"
+    aba = st.session_state.sub_menu
+    st.title(f"🛠️ Painel: {aba.upper()}")
 
-    st.markdown("---")
-    st.subheader("🧮 Ferramentas de Cálculo Online")
-    d1, d2, d3 = st.columns(3)
-    with d1: 
-        if st.button("𝑓(x) Cálculo\nde Funções", use_container_width=True): st.session_state.sub_menu = "calc_f"
-    with d2: 
-        if st.button("📊 Expressões\n(PEMDAS)", use_container_width=True): st.session_state.sub_menu = "pemdas"
-    with d3: 
-        if st.button("💰 Calculadora\nFinanceira", use_container_width=True): st.session_state.sub_menu = "fin"
+    if aba == "man":
+        txt_input = st.text_area("Entrada (t. para título, número para seção):", height=200, 
+                                 value="t. ATIVIDADE DE TESTE\n1. Seção de Cálculo:\n,V36\n,5^2\n2. Seção de Texto:\nQuestão exemplo")
+        if st.button("🔍 Gerar Preview"):
+            st.session_state.preview_questoes = txt_input.split('\n')
 
-    op_atual = st.session_state.sub_menu
-    st.divider()
+    elif aba == "op":
+        qtd = st.number_input("Qtd questões:", 4, 30, 10)
+        if st.button("Gerar Operações"):
+            st.session_state.preview_questoes = ["t. OPERAÇÕES MATEMÁTICAS", "1. Calcule:"] + [f"{random.randint(10,99)} + {random.randint(10,99)} =" for _ in range(qtd)]
 
-    # --- MÓDULOS DE GERADORES ---
-    if op_atual == "op":
-        st.header("🔢 Operações")
-        escolhas = st.multiselect("Sinais:", ["+", "-", "x", "÷"], ["+", "-"])
-        qtd = st.number_input("Qtd:", 4, 30, 10)
-        if st.button("Gerar PDF"):
-            qs = [f"{random.randint(10,500)} {random.choice(escolhas)} {random.randint(2,50)} =" for _ in range(qtd)]
-            st.download_button("Baixar", exportar_pdf(qs, "Operações"), "op.pdf")
+    elif aba == "eq":
+        if st.button("Gerar Equações"):
+            st.session_state.preview_questoes = ["t. EQUAÇÕES", "1. Resolva x:"] + [f"{random.randint(2,9)}x + {random.randint(1,10)} = {random.randint(11,50)}" for _ in range(5)]
 
-    elif op_atual == "eq":
-        st.header("📐 Equações")
-        grau = st.radio("Grau:", ["1º Grau", "2º Grau"], horizontal=True)
-        if st.button("Gerar PDF"):
-            qs = [f"{random.randint(2,9)}x + {random.randint(1,20)} = {random.randint(21,99)}" if grau == "1º Grau" else f"x² + {random.randint(2,8)}x + {random.randint(1,12)} = 0" for _ in range(8)]
-            st.download_button("Baixar", exportar_pdf(qs, "Equações"), "eq.pdf")
-
-    elif op_atual == "col":
-        st.header("📚 Colegial (Frações e Funções)")
-        tipo_col = st.selectbox("Escolha o tema:", ["Soma de Frações", "Simplificação", "Domínio de Funções"])
-        if st.button("Gerar PDF Colegial"):
-            if "Frações" in tipo_col:
-                qs = [f"{random.randint(1,9)}/{random.randint(2,5)} + {random.randint(1,9)}/{random.randint(2,5)} =" for _ in range(6)]
-            else:
-                qs = [f"Determine o domínio de f(x) = {random.randint(1,10)}/(x - {random.randint(1,20)})" for _ in range(5)]
-            st.download_button("Baixar", exportar_pdf(qs, tipo_col), "colegial.pdf")
-
-    elif op_atual == "alg":
-        st.header("⚖️ Álgebra Linear (Matrizes)")
-        ordem = st.selectbox("Ordem da Matriz:", ["2x2", "3x3"])
-        if st.button("Gerar Matrizes"):
-            qs = [f"Calcule o Determinante da Matriz {ordem}: \n {np.random.randint(1,10, size=(2,2) if ordem=='2x2' else (3,3))}" for _ in range(3)]
-            st.download_button("Baixar", exportar_pdf(qs, f"Matrizes {ordem}"), "algebra.pdf")
-
-    # --- 5. RENDERIZAÇÃO UNIFICADA (CARDS + REGRAS) ---
+# --- 5. RENDERIZAÇÃO UNIFICADA (CARDS + REGRAS) ---
 if st.session_state.preview_questoes:
     st.divider()
     
-    # 1. Cabeçalho sempre no topo
+    # Cabeçalho no Topo
     if os.path.exists("cabecalho.png"):
         st.image("cabecalho.png", use_container_width=True)
     
@@ -137,14 +103,14 @@ if st.session_state.preview_questoes:
         line = q.strip()
         if not line: continue
         
-        # A) Reconhecimento de Título (t.)
+        # A) Reconhecimento de Título
         if line.lower().startswith(("t.", "titulo:", "título:")):
             t_clean = re.sub(r'^(t\.|titulo:|título:)\s*', '', line, flags=re.IGNORECASE)
             st.markdown(f"<h1 style='text-align: center; color: #007bff;'>{t_clean}</h1>", unsafe_allow_html=True)
             st.divider()
             continue
 
-        # B) Questão Numerada (Reseta letras)
+        # B) Seção Numerada (Reseta letras)
         elif re.match(r'^\d+', line):
             st.markdown(f"### {line}")
             l_idx = 0 
@@ -153,10 +119,8 @@ if st.session_state.preview_questoes:
         else:
             with st.container(border=True):
                 c1, c2 = st.columns([0.05, 0.95])
-                with c1:
-                    st.write(f"**{letras[l_idx%26]})**")
+                with c1: st.write(f"**{letras[l_idx%26]})**")
                 with c2:
-                    # Lógica de Sistemas
                     if "{" in line or "|" in line:
                         cont = line.replace("{", "").strip()
                         partes = cont.split("|") if "|" in cont else [cont]
@@ -164,21 +128,19 @@ if st.session_state.preview_questoes:
                             st.latex(r" \begin{cases} " + partes[0].strip() + r" \\ " + partes[1].strip() + r" \end{cases} ")
                         else: st.write(line)
                     else:
-                        # Matemática e limpeza de vírgula
                         f = tratar_math(line)
                         if "\\" in f or "^" in f: st.latex(f)
                         else: st.write(line.lstrip(','))
             l_idx += 1
 
     # --- 6. EXPORTAÇÃO PDF ---
-    if st.button("📥 Baixar em PDF"):
+    if st.button("📥 Baixar Atividade em PDF"):
         pdf = FPDF()
         pdf.add_page()
         if os.path.exists("cabecalho.png"):
             pdf.image("cabecalho.png", x=10, y=8, w=190)
             pdf.set_y(50)
         
-        pdf.set_font("Arial", size=11)
         l_idx = 0
         for q in st.session_state.preview_questoes:
             line = q.strip()
@@ -194,4 +156,4 @@ if st.session_state.preview_questoes:
                 pdf.multi_cell(0, 8, f"{letras[l_idx%26]}) {clean_txt(line.lstrip(','))}")
                 l_idx += 1
                 
-        st.download_button("✅ Download Final", pdf.output(dest='S').encode('latin-1'), "atividade.pdf")
+        st.download_button("✅ Download PDF", pdf.output(dest='S').encode('latin-1'), "atividade.pdf")
