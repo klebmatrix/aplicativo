@@ -140,26 +140,138 @@ if perfil == "admin":
                 else: pdf.multi_cell(0, 8, clean_txt(t))
             st.download_button("Baixar", pdf.output(dest='S').encode('latin-1', 'replace'), "manual.pdf")
 
-    # --- MÓDULOS DE CÁLCULO ---
+    # --- 4.1 CONTINUAÇÃO MÓDULOS DE CÁLCULO (ONLINE) ---
     elif op_atual == "calc_f":
-        st.header("𝑓(x) Calculadora")
-        f = st.text_input("f(x):", "x**2")
-        x = st.number_input("x:", value=1.0)
-        if st.button("Calcular"):
-            st.metric("Resultado", eval(f.replace('x', f'({x})')))
+        st.header("𝑓(x) Calculadora de Funções")
+        col_f1, col_f2 = st.columns(2)
+        with col_f1:
+            f_input = st.text_input("Defina f(x):", "x**2 + 5*x + 6")
+        with col_f2:
+            x_val = st.number_input("Valor de x:", value=1.0)
+        
+        if st.button("Calcular Resultado"):
+            try:
+                # Substitui x por valor numérico e avalia com segurança básica
+                resultado = eval(f_input.replace('x', f'({x_val})'))
+                st.metric(label=f"f({x_val})", value=f"{resultado:.4f}")
+                st.latex(f"f({x_val}) = {f_input.replace('x', str(x_val))} = {resultado}")
+            except Exception as e:
+                st.error(f"Erro na fórmula: {e}")
 
     elif op_atual == "pemdas":
-        st.header("📊 PEMDAS")
-        exp = st.text_input("Expressão:", "2 + 3 * 4")
-        if st.button("Resolver"): st.success(f"Resultado: {eval(exp)}")
+        st.header("📊 Expressões (PEMDAS)")
+        exp = st.text_input("Digite a expressão (ex: (2+3)*5**2):", "2 + 3 * 4")
+        if st.button("Resolver Expressão"):
+            try:
+                res = eval(exp)
+                st.success(f"O resultado é: {res}")
+            except:
+                st.error("Expressão inválida.")
 
     elif op_atual == "fin":
-        st.header("💰 Financeira")
-        pv = st.number_input("Capital:", 100.0)
-        i = st.number_input("Taxa %:", 1.0)
-        n = st.number_input("Meses:", 1.0)
-        if st.button("Calcular"): st.metric("Montante", f"{pv * (1 + i/100)**n:.2f}")
+        st.header("💰 Calculadora Financeira (Juros Compostos)")
+        c1, c2, c3 = st.columns(3)
+        with c1: pv = st.number_input("Capital Inicial (PV):", 1000.0)
+        with c2: taxa = st.number_input("Taxa de Juros (% ao mês):", 1.0)
+        with c3: meses = st.number_input("Tempo (Meses):", 1.0)
+        
+        if st.button("Calcular Montante"):
+            fv = pv * (1 + taxa/100)**meses
+            st.metric("Montante Final (FV)", f"R$ {fv:.2f}")
+            st.info(f"Juros Totais: R$ {fv - pv:.2f}")
+
+# --- 6. VISUALIZAÇÃO UNIFICADA (CARDS + REGRAS) ---
+# Este bloco agora atende tanto ao Gerador Manual quanto aos Automáticos
+if st.session_state.preview_questoes:
+    st.divider()
+    
+    # 1. CABEÇALHO (Sempre no topo)
+    if os.path.exists("cabecalho.png"):
+        st.image("cabecalho.png", use_container_width=True)
+    else:
+        st.warning("⚠️ Adicione 'cabecalho.png' para exibir o topo da atividade.")
+    
+    letras = "abcdefghijklmnopqrstuvwxyz"
+    l_idx = 0
+
+    for q in st.session_state.preview_questoes:
+        line = q.strip()
+        if not line: continue
+        
+        # A) Reconhecimento de Título (t.) - Centralizado e Azul
+        if line.lower().startswith(("t.", "titulo:", "título:")):
+            t_clean = re.sub(r'^(t\.|titulo:|título:)\s*', '', line, flags=re.IGNORECASE)
+            st.markdown(f"<h1 style='text-align: center; color: #007bff; border-bottom: 2px solid #007bff; padding-bottom: 10px;'>{t_clean}</h1>", unsafe_allow_html=True)
+            continue
+
+        # B) Seção Numerada (Reseta letras para 'a' na próxima linha)
+        elif re.match(r'^\d+', line):
+            st.markdown(f"### {line}")
+            l_idx = 0 
+            
+        # C) Itens em Cards (a, b, c...)
+        else:
+            with st.container(border=True):
+                c1, c2 = st.columns([0.05, 0.95])
+                with c1:
+                    st.write(f"**{letras[l_idx%26]})**")
+                with c2:
+                    # Lógica para Sistemas de Equações
+                    if "{" in line or "|" in line:
+                        cont = line.replace("{", "").strip()
+                        partes = cont.split("|") if "|" in cont else [cont]
+                        if len(partes) > 1:
+                            st.latex(r" \begin{cases} " + partes[0].strip() + r" \\ " + partes[1].strip() + r" \end{cases} ")
+                        else: st.write(line)
+                    else:
+                        # Limpa vírgula e trata matemática (Raiz/Potência)
+                        f = tratar_math(line)
+                        if "\\" in f or "^" in f:
+                            st.latex(f)
+                        else:
+                            st.write(line.lstrip(','))
+            l_idx += 1
+
+    # --- 7. EXPORTAÇÃO PDF ---
+    st.markdown("---")
+    if st.button("📥 Gerar Arquivo PDF"):
+        pdf = FPDF()
+        pdf.add_page()
+        
+        if os.path.exists("cabecalho.png"):
+            pdf.image("cabecalho.png", x=10, y=8, w=190)
+            pdf.set_y(50)
+        else: pdf.set_y(20)
+        
+        l_idx = 0
+        for q in st.session_state.preview_questoes:
+            line = q.strip()
+            if not line: continue
+            
+            # Título no PDF
+            if line.lower().startswith(("t.", "titulo:", "título:")):
+                t_pdf = re.sub(r'^(t\.|titulo:|título:)\s*', '', line, flags=re.IGNORECASE)
+                pdf.set_font("Arial", 'B', 16)
+                pdf.cell(0, 12, clean_txt(t_pdf), ln=True, align='C')
+                pdf.ln(5)
+            # Número no PDF (Reseta letras)
+            elif re.match(r'^\d+', line):
+                pdf.ln(4)
+                pdf.set_font("Arial", 'B', 12)
+                pdf.multi_cell(0, 8, clean_txt(line))
+                pdf.set_font("Arial", size=11)
+                l_idx = 0
+            # Itens a, b, c no PDF
+            else:
+                pdf.set_font("Arial", size=11)
+                texto_item = f"{letras[l_idx%26]}) {clean_txt(line.lstrip(','))}"
+                pdf.multi_cell(0, 8, texto_item)
+                l_idx += 1
+                
+        st.download_button("✅ Baixar Atividade Finalizada", pdf.output(dest='S').encode('latin-1'), "atividade_quantum.pdf")
 
 else:
-    st.title("📖 Estudante")
-    st.info("Painel de consulta liberado.")
+    # Caso o perfil seja 'aluno' ou não haja questões em preview
+    if st.session_state.perfil == "aluno":
+        st.title("📖 Área do Estudante")
+        st.info("Utilize as ferramentas de cálculo no menu lateral para seus estudos.")
