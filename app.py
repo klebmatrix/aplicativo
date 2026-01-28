@@ -17,19 +17,18 @@ if 'preview_questoes' not in st.session_state: st.session_state.preview_questoes
 
 # --- 2. LOGIN ---
 if st.session_state.perfil is None:
-    st.title("🔐 Acesso")
+    st.title("🔐 Login")
     pin = st.text_input("PIN:", type="password")
     if st.button("Entrar"):
         s_prof = str(st.secrets.get("chave_mestra", "12345678")).strip()
-        s_aluno = str(st.secrets.get("acesso_aluno", "123456")).strip()
-        if pin == s_prof: st.session_state.perfil = "admin"
-        elif pin == s_aluno: st.session_state.perfil = "aluno"
+        if pin == s_prof: 
+            st.session_state.perfil = "admin"
+            st.rerun()
         else: st.error("PIN Inválido.")
-        st.rerun()
     st.stop()
 
 # --- 3. MENU LATERAL ---
-st.sidebar.title(f"👤 {st.session_state.perfil.upper()}")
+st.sidebar.title(f"🚀 {st.session_state.perfil.upper()}")
 st.session_state.menu_ativo = st.sidebar.radio("Módulos:", 
     ["🔢 Operações", "📐 Equações", "📚 Colegial", "⚖️ Álgebra Linear", "📄 Manual", "🧮 Calculadoras"])
 
@@ -37,69 +36,47 @@ if st.sidebar.button("Sair"):
     st.session_state.perfil = None
     st.rerun()
 
-# --- 4. LÓGICA DOS MÓDULOS ---
 menu = st.session_state.menu_ativo
 st.title(f"Módulo: {menu}")
 
-# --- MÓDULO OPERAÇÕES ---
-if menu == "🔢 Operações":
-    ops = st.multiselect("Operações:", ["+", "-", "x", "÷"], ["+"])
-    qtd = st.number_input("Quantidade:", 5, 50, 10)
-    if st.button("🎲 Gerar Operações"):
-        st.session_state.preview_questoes = [f"{random.randint(10,500)} {random.choice(ops)} {random.randint(2,50)} =" for _ in range(qtd)]
+# --- 4. LÓGICA DE ÁLGEBRA LINEAR (CORRIGIDA) ---
+if menu == "⚖️ Álgebra Linear":
+    ordem = st.radio("Ordem da Matriz:", ["2x2", "3x3"], horizontal=True)
+    if st.button("🎲 Gerar Matrizes"):
+        size = 2 if ordem == "2x2" else 3
+        qs = []
+        for i in range(3):
+            m = np.random.randint(-10, 10, size=(size, size))
+            # Formatação manual para evitar erro de exibição
+            m_str = "\n" + "\n".join([" | ".join(map(str, linha)) for linha in m])
+            qs.append(f"Calcule o determinante da matriz {ordem}:{m_str}")
+        st.session_state.preview_questoes = qs
 
-# --- MÓDULO EQUAÇÕES (CORRIGIDO) ---
+# --- 5. OUTROS MÓDULOS (OPERAÇÕES, EQUAÇÕES, COLEGIAL, MANUAL) ---
+elif menu == "🔢 Operações":
+    ops = st.multiselect("Sinais:", ["+", "-", "x", "÷"], ["+"])
+    if st.button("🎲 Gerar"):
+        st.session_state.preview_questoes = [f"{random.randint(10,500)} {random.choice(ops)} {random.randint(2,50)} =" for _ in range(10)]
+
 elif menu == "📐 Equações":
-    grau = st.radio("Escolha o Grau:", ["1º Grau", "2º Grau", "Misto"], horizontal=True)
-    qtd_eq = st.number_input("Quantidade:", 4, 30, 8)
-    if st.button("🎲 Gerar Equações"):
-        qs = []
-        for _ in range(qtd_eq):
-            tipo = grau if grau != "Misto" else random.choice(["1º Grau", "2º Grau"])
-            if tipo == "1º Grau":
-                a, b = random.randint(2, 10), random.randint(1, 30)
-                qs.append(f"{a}x + {b} = {a * random.randint(1, 10) + b}")
-            else:
-                x1, x2 = random.randint(1, 5), random.randint(1, 5)
-                s, p = x1 + x2, x1 * x2
-                qs.append(f"x² - {s}x + {p} = 0")
-        st.session_state.preview_questoes = qs
+    grau = st.radio("Grau:", ["1º Grau", "2º Grau"], horizontal=True)
+    if st.button("🎲 Gerar"):
+        st.session_state.preview_questoes = [f"{random.randint(2,9)}x + {random.randint(1,20)} = {random.randint(21,99)}" if grau == "1º Grau" else f"x² - {random.randint(2,10)}x + {random.randint(1,20)} = 0" for _ in range(8)]
 
-# --- MÓDULO COLEGIAL ---
 elif menu == "📚 Colegial":
-    temas = st.multiselect("Tópicos:", ["Frações", "Potência", "Raiz", "Sistemas 2x2", "Matrizes"], ["Frações"])
-    if st.button("🎲 Gerar Colegial"):
-        qs = []
-        for _ in range(10):
-            t = random.choice(temas)
-            if t == "Frações": qs.append(f"{random.randint(1,9)}/{random.randint(2,5)} {random.choice(['+', '-', 'x', '÷'])} {random.randint(1,9)}/{random.randint(2,5)} =")
-            elif t == "Potência": qs.append(f"{random.randint(2,10)}^{random.randint(2,3)} =")
-            elif t == "Raiz": qs.append(f"√{random.randint(2,12)**2} =")
-            elif t == "Sistemas 2x2": qs.append(f"Sistema: {{ x+y={random.randint(5,15)} | x-y={random.randint(1,5)} }}")
-            else: qs.append(f"Matriz 2x2: {np.random.randint(1,9, (2,2)).tolist()}")
-        st.session_state.preview_questoes = qs
+    temas = st.multiselect("Tópicos:", ["Frações", "Sistemas", "Potência"], ["Frações"])
+    if st.button("🎲 Gerar"):
+        st.session_state.preview_questoes = [f"{random.randint(1,9)}/2 + {random.randint(1,9)}/3 =" for _ in range(8)]
 
-# --- MÓDULO MANUAL ---
 elif menu == "📄 Manual":
-    st.info("t. Título | 1. Questão | . Coluna")
-    txt_m = st.text_area("Conteúdo:", height=250)
-    if st.button("🔍 Visualizar"):
-        st.session_state.preview_questoes = txt_m.split('\n')
+    txt_m = st.text_area("t. Título | 1. Questão | . Coluna", height=200)
+    if st.button("🔍 Visualizar"): st.session_state.preview_questoes = txt_m.split('\n')
 
-# --- CALCULADORAS ---
 elif menu == "🧮 Calculadoras":
-    c1, c2 = st.columns(2)
-    with c1:
-        st.subheader("📊 PEMDAS")
-        exp = st.text_input("Expressão:", "2 + 3 * 5")
-        if st.button("Resolver"): st.success(f"Resultado: {eval(exp)}")
-    with c2:
-        st.subheader("𝑓(x) Função")
-        f_in = st.text_input("f(x):", "x**2 + 5")
-        x_in = st.number_input("x:", 3)
-        if st.button("Calcular"): st.metric("Resultado", eval(f_in.replace('x', str(x_in))))
+    exp = st.text_input("PEMDAS:", "2 + 2")
+    if st.button("Calcular"): st.success(f"Res: {eval(exp)}")
 
-# --- 5. VISUALIZAÇÃO E PDF ---
+# --- 6. ÁREA DE PREVIEW E PDF ---
 if st.session_state.preview_questoes and menu != "🧮 Calculadoras":
     st.divider()
     letras = "abcdefghijklmnopqrstuvwxyz"; l_idx = 0
@@ -134,4 +111,4 @@ if st.session_state.preview_questoes and menu != "🧮 Calculadoras":
                     pdf.set_x(10 + (pts-1)*45); pdf.cell(45, 8, f"{letras[l_idx%26]}) {clean_txt(t[pts:].strip())}", ln=True)
                 else: pdf.multi_cell(0, 8, f"{letras[l_idx%26]}) {clean_txt(t)}")
                 l_idx += 1
-        st.download_button("✅ Download", pdf.output(dest='S').encode('latin-1', 'replace'), "atividade.pdf")
+        st.download_button("✅ Download PDF", pdf.output(dest='S').encode('latin-1', 'replace'), "atividade.pdf")
