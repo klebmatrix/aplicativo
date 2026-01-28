@@ -15,20 +15,19 @@ if 'sub_menu' not in st.session_state: st.session_state.sub_menu = None
 if 'preview_questoes' not in st.session_state: st.session_state.preview_questoes = []
 
 def clean_txt(text):
-    """Tradução para o PDF não bugar com símbolos"""
-    if not text: return ""
-    text = str(text).replace("√", "V").replace("²", "^2").replace("³", "^3")
-    return text.encode('latin-1', 'replace').decode('latin-1')
+    return str(text).encode('latin-1', 'replace').decode('latin-1')
 
 def tratar_math(texto):
     """Trata potências e raízes para exibição no LaTeX do Streamlit"""
     t = texto.strip()
+    # Converte x² para x^{2} e trata raízes se necessário
     t = t.replace("²", "^{2}").replace("³", "^{3}")
     return t
 
 def validar_acesso(pin_digitado):
     try:
         senha_aluno = str(st.secrets.get("acesso_aluno", "123456")).strip()
+        # Chave mestra sempre em minúsculo conforme sua regra
         senha_prof = str(st.secrets.get("chave_mestra", "chave_mestra")).strip().lower()
     except:
         senha_aluno, senha_prof = "123456", "chave_mestra"
@@ -87,11 +86,13 @@ if perfil == "admin":
     op_atual = st.session_state.sub_menu
     st.divider()
 
+    # --- MÓDULOS DE GERADORES (ALIMENTAM O PREVIEW) ---
     if op_atual == "op":
         st.header("🔢 Operações")
         escolhas = st.multiselect("Sinais:", ["+", "-", "x", "÷"], ["+", "-"])
         qtd = st.number_input("Qtd:", 4, 30, 10)
         if st.button("Gerar Preview"):
+            # Adiciona título automático conforme suas regras
             st.session_state.preview_questoes = ["t. Atividade de Operações"] + [
                 f"{random.randint(10,500)} {random.choice(escolhas)} {random.randint(2,50)} =" 
                 for _ in range(qtd)
@@ -113,6 +114,7 @@ if perfil == "admin":
         if st.button("Gerar Preview"):
             st.session_state.preview_questoes = txt_m.split('\n')
 
+    # --- MÓDULOS DE CÁLCULO ONLINE ---
     elif op_atual == "calc_f":
         st.header("𝑓(x) Cálculo de Funções")
         f_input = st.text_input("Defina f(x):", "x**2 + 5*x + 6")
@@ -127,6 +129,7 @@ if perfil == "admin":
 # --- 6. VISUALIZAÇÃO UNIFICADA (CARDS) ---
 if st.session_state.preview_questoes:
     st.divider()
+    # Cabeçalho sempre no topo conforme solicitado
     if os.path.exists("cabecalho.png"):
         st.image("cabecalho.png", use_container_width=True)
     
@@ -137,15 +140,18 @@ if st.session_state.preview_questoes:
         line = q.strip()
         if not line: continue
         
+        # Títulos (t.)
         if line.lower().startswith(("t.", "titulo:", "título:")):
             t_clean = re.sub(r'^(t\.|titulo:|título:)\s*', '', line, flags=re.IGNORECASE)
             st.markdown(f"<h1 style='text-align: center; color: #007bff; border-bottom: 2px solid #007bff;'>{t_clean}</h1>", unsafe_allow_html=True)
             continue
 
+        # Seção Numerada (Reseta letras para 'a')
         elif re.match(r'^\d+', line):
             st.markdown(f"### {line}")
             l_idx = 0 
             
+        # Itens em Cards
         else:
             with st.container(border=True):
                 c1, c2 = st.columns([0.05, 0.95])
@@ -156,7 +162,7 @@ if st.session_state.preview_questoes:
                     else: st.write(line)
             l_idx += 1
 
-    # --- 7. EXPORTAÇÃO PDF (DUAS COLUNAS) ---
+    # --- 7. EXPORTAÇÃO PDF ---
     if st.button("📥 Baixar Atividade Finalizada (PDF)"):
         pdf = FPDF()
         pdf.add_page()
@@ -165,27 +171,17 @@ if st.session_state.preview_questoes:
         else: pdf.set_y(20)
         
         l_pdf_idx = 0
-        col_width = 90 # Largura da coluna
-
         for q in st.session_state.preview_questoes:
             line = q.strip()
             if not line: continue
-            
             if line.lower().startswith(("t.", "titulo:", "título:")):
                 t_pdf = re.sub(r'^(t\.|titulo:|título:)\s*', '', line, flags=re.IGNORECASE)
                 pdf.set_font("Arial", 'B', 16); pdf.cell(0, 12, clean_txt(t_pdf), ln=True, align='C')
             elif re.match(r'^\d+', line):
-                pdf.ln(5); pdf.set_font("Arial", 'B', 12); pdf.multi_cell(0, 8, clean_txt(line))
-                l_pdf_idx = 0
+                pdf.ln(5); pdf.set_font("Arial", 'B', 12); pdf.multi_cell(0, 8, clean_txt(line)); l_pdf_idx = 0
             else:
                 pdf.set_font("Arial", size=11)
-                texto_item = f"{letras[l_pdf_idx%26]}) {line}"
-                
-                # Lógica para alternar colunas: Par na esquerda, Ímpar na direita
-                if l_pdf_idx % 2 == 0:
-                    pdf.cell(col_width, 10, clean_txt(texto_item), ln=0)
-                else:
-                    pdf.cell(col_width, 10, clean_txt(texto_item), ln=1)
+                pdf.multi_cell(0, 8, f"{letras[l_pdf_idx%26]}) {clean_txt(line)}")
                 l_pdf_idx += 1
         
         st.download_button("✅ Clique aqui para baixar", pdf.output(dest='S').encode('latin-1'), "atividade.pdf")
