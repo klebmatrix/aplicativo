@@ -37,7 +37,7 @@ if st.session_state.perfil is None:
         else: st.error("PIN incorreto.")
     st.stop()
 
-# --- 2. LOGOUT E SIDEBAR ---
+# --- 2. MENU E LOGOUT ---
 perfil = st.session_state.perfil
 st.sidebar.title(f"🚀 {'Professor' if perfil == 'admin' else 'Estudante'}")
 if st.sidebar.button("Sair/Logout"):
@@ -87,84 +87,79 @@ if perfil == "admin":
         if st.button("💰 Calculadora\nFinanceira", use_container_width=True): st.session_state.sub_menu = "fin"
 
     op_atual = st.session_state.sub_menu
+    st.divider()
 
-    # --- LÓGICA DE CADA MÓDULO ---
+    # --- MÓDULOS DE GERADORES ---
     if op_atual == "op":
-        st.divider(); st.header("🔢 Gerador de Operações")
-        ca, cb = st.columns(2)
-        with ca:
-            escolhas = st.multiselect("Operações:", ["Soma (+)", "Subtração (-)", "Multiplicação (x)", "Divisão (÷)"], ["Soma (+)", "Subtração (-)"])
-        with cb:
-            qtd = st.number_input("Quantidade:", 4, 40, 12)
-        
-        if st.button("Gerar PDF de Operações"):
-            ops_map = {"Soma (+)":"+", "Subtração (-)":"-", "Multiplicação (x)":"x", "Divisão (÷)":"÷"}
-            selecionadas = [ops_map[x] for x in escolhas]
-            qs = [f"{random.randint(10,500)} {random.choice(selecionadas)} {random.randint(2,50)} =" for _ in range(qtd)]
-            st.download_button("📥 Baixar Agora", exportar_pdf(qs, "Operações Básicas"), "op.pdf")
+        st.header("🔢 Operações")
+        escolhas = st.multiselect("Sinais:", ["+", "-", "x", "÷"], ["+", "-"])
+        qtd = st.number_input("Qtd:", 4, 30, 10)
+        if st.button("Gerar PDF"):
+            qs = [f"{random.randint(10,500)} {random.choice(escolhas)} {random.randint(2,50)} =" for _ in range(qtd)]
+            st.download_button("Baixar", exportar_pdf(qs, "Operações"), "op.pdf")
 
     elif op_atual == "eq":
-        st.divider(); st.header("📐 Gerador de Equações")
-        grau = st.radio("Tipo:", ["1º Grau", "2º Grau", "Misto"], horizontal=True)
-        qtd_eq = st.slider("Quantidade:", 4, 20, 8)
-        if st.button("Gerar PDF de Equações"):
-            qs = []
-            for _ in range(qtd_eq):
-                modo = grau if grau != "Misto" else random.choice(["1º Grau", "2º Grau"])
-                if modo == "1º Grau": qs.append(f"{random.randint(2,9)}x + {random.randint(1,20)} = {random.randint(21,99)}")
-                else: qs.append(f"x² + {random.randint(2,10)}x + {random.randint(1,16)} = 0")
-            st.download_button("📥 Baixar Agora", exportar_pdf(qs, "Atividade de Equações"), "eq.pdf")
+        st.header("📐 Equações")
+        grau = st.radio("Grau:", ["1º Grau", "2º Grau"], horizontal=True)
+        if st.button("Gerar PDF"):
+            qs = [f"{random.randint(2,9)}x + {random.randint(1,20)} = {random.randint(21,99)}" if grau == "1º Grau" else f"x² + {random.randint(2,8)}x + {random.randint(1,12)} = 0" for _ in range(8)]
+            st.download_button("Baixar", exportar_pdf(qs, "Equações"), "eq.pdf")
+
+    elif op_atual == "col":
+        st.header("📚 Colegial (Frações e Funções)")
+        tipo_col = st.selectbox("Escolha o tema:", ["Soma de Frações", "Simplificação", "Domínio de Funções"])
+        if st.button("Gerar PDF Colegial"):
+            if "Frações" in tipo_col:
+                qs = [f"{random.randint(1,9)}/{random.randint(2,5)} + {random.randint(1,9)}/{random.randint(2,5)} =" for _ in range(6)]
+            else:
+                qs = [f"Determine o domínio de f(x) = {random.randint(1,10)}/(x - {random.randint(1,20)})" for _ in range(5)]
+            st.download_button("Baixar", exportar_pdf(qs, tipo_col), "colegial.pdf")
+
+    elif op_atual == "alg":
+        st.header("⚖️ Álgebra Linear (Matrizes)")
+        ordem = st.selectbox("Ordem da Matriz:", ["2x2", "3x3"])
+        if st.button("Gerar Matrizes"):
+            qs = [f"Calcule o Determinante da Matriz {ordem}: \n {np.random.randint(1,10, size=(2,2) if ordem=='2x2' else (3,3))}" for _ in range(3)]
+            st.download_button("Baixar", exportar_pdf(qs, f"Matrizes {ordem}"), "algebra.pdf")
 
     elif op_atual == "man":
-        st.divider(); st.header("📄 Gerador Manual")
-        titulo_m = st.text_input("Título:", "Exercícios Propostos")
-        txt_m = st.text_area("Regras: . para colunas | números resetam letras", height=250)
-        if st.button("Gerar PDF Manual"):
-            pdf = FPDF(); pdf.add_page()
-            if os.path.exists("cabecalho.png"): pdf.image("cabecalho.png", x=12.5, y=8, w=185); pdf.set_y(46)
-            pdf.set_font("Arial", 'B', 14); pdf.cell(0, 10, clean_txt(titulo_m), ln=True, align='C'); pdf.ln(5)
-            letras = "abcdefghijklmnopqrstuvwxyz"; l_idx = 0; pdf.set_font("Arial", size=10)
+        st.header("📄 Manual")
+        tit_m = st.text_input("Título:", "Atividade")
+        txt_m = st.text_area("Texto (. para colunas):", height=200)
+        if st.button("Gerar Manual"):
+            pdf = FPDF(); pdf.add_page(); pdf.set_font("Arial", size=10); l_idx = 0; letras = "abcdefghijklmnopqrstuvwxyz"
             for linha in txt_m.split('\n'):
                 t = linha.strip()
                 if not t: continue
                 match = re.match(r'^(\.+)', t); pts = len(match.group(1)) if match else 0
-                if re.match(r'^\d+', t): # Começa com número
-                    pdf.ln(4); pdf.set_font("Arial", 'B', 11); pdf.multi_cell(0, 8, clean_txt(t))
-                    pdf.set_font("Arial", size=10); l_idx = 0
-                elif pts > 0: # Colunas
+                if re.match(r'^\d+', t): # Novo número reseta letra
+                    pdf.ln(5); pdf.set_font("Arial", 'B', 11); pdf.multi_cell(0, 8, clean_txt(t)); pdf.set_font("Arial", size=10); l_idx = 0
+                elif pts > 0:
                     if pts > 1: pdf.set_y(pdf.get_y() - 8)
-                    pdf.set_x(10 + (pts-1)*45); pdf.cell(45, 8, f"{letras[l_idx%26]}) {clean_txt(t[pts:].strip())}", ln=True)
-                    l_idx += 1
+                    pdf.set_x(10 + (pts-1)*45); pdf.cell(45, 8, f"{letras[l_idx%26]}) {clean_txt(t[pts:].strip())}", ln=True); l_idx += 1
                 else: pdf.multi_cell(0, 8, clean_txt(t))
-            st.download_button("📥 Baixar PDF Manual", pdf.output(dest='S').encode('latin-1', 'replace'), "manual.pdf")
+            st.download_button("Baixar", pdf.output(dest='S').encode('latin-1', 'replace'), "manual.pdf")
 
+    # --- MÓDULOS DE CÁLCULO ---
     elif op_atual == "calc_f":
-        st.divider(); st.header("𝑓(x) Calculadora")
-        f_in = st.text_input("Função (use x e ** para potência):", "x**2 + 2*x + 1")
-        x_in = st.number_input("Valor de x:", value=0.0)
+        st.header("𝑓(x) Calculadora")
+        f = st.text_input("f(x):", "x**2")
+        x = st.number_input("x:", value=1.0)
         if st.button("Calcular"):
-            try:
-                res = eval(f_in.replace('x', f'({x_in})'))
-                st.metric(f"f({x_in})", f"{res:.2f}")
-            except: st.error("Erro na fórmula.")
+            st.metric("Resultado", eval(f.replace('x', f'({x})')))
 
     elif op_atual == "pemdas":
-        st.divider(); st.header("📊 Calculadora PEMDAS")
-        exp = st.text_input("Expressão:", "5 + (2 * 3**2)")
-        if st.button("Resolver"):
-            try: st.success(f"Resultado: {eval(exp)}")
-            except: st.error("Expressão inválida.")
+        st.header("📊 PEMDAS")
+        exp = st.text_input("Expressão:", "2 + 3 * 4")
+        if st.button("Resolver"): st.success(f"Resultado: {eval(exp)}")
 
     elif op_atual == "fin":
-        st.divider(); st.header("💰 Financeira")
-        c, i, n = st.columns(3)
-        pv = c.number_input("Capital (PV):", 1000.0)
-        rate = i.number_input("Taxa % (i):", 5.0)
-        time = n.number_input("Meses (n):", 12)
-        if st.button("Calcular Juros Compostos"):
-            fv = pv * (1 + rate/100)**time
-            st.metric("Montante Final (FV)", f"R$ {fv:.2f}")
+        st.header("💰 Financeira")
+        pv = st.number_input("Capital:", 100.0)
+        i = st.number_input("Taxa %:", 1.0)
+        n = st.number_input("Meses:", 1.0)
+        if st.button("Calcular"): st.metric("Montante", f"{pv * (1 + i/100)**n:.2f}")
 
 else:
-    st.title("📖 Área do Estudante")
-    st.write("Bem-vindo! Utilize as calculadoras no menu lateral se disponíveis.")
+    st.title("📖 Estudante")
+    st.info("Painel de consulta liberado.")
