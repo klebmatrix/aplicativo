@@ -1,88 +1,188 @@
-elif menu == "Painel do Professor":
-        import streamlit.components.v1 as components
+import streamlit as st
+import math
+import numpy as np
+import os
+from fpdf import FPDF
+import re
+import streamlit.components.v1 as components
+
+# 1. CONFIGURAÇÃO DA PÁGINA (Deve ser a primeira linha)
+st.set_page_config(page_title="Quantum Math Lab", layout="wide")
+
+# --- 2. SEGURANÇA ---
+def validar_acesso(pin_digitado):
+    try:
+        # Puxa dos Secrets (Streamlit Cloud) ou Variáveis de Ambiente (Render/Local)
+        # Se não encontrar, usa padrões de segurança
+        senha_aluno = st.secrets.get("acesso_aluno", "123456")
+        senha_professor = st.secrets.get("chave_mestra", "admin123")
         
-        st.title("👨‍🏫 Painel de Exercícios Rápidos")
-        st.write("Escolha o tema e clique em imprimir para gerar 4 atividades por folha A4.")
+        if pin_digitado == str(senha_aluno):
+            return "aluno"
+        elif pin_digitado == str(senha_professor):
+            return "admin"
+    except:
+        # Fallback para execução local caso secrets não existam
+        if pin_digitado == "123456": return "aluno"
+        if pin_digitado == "admin123": return "admin"
+    return "negado"
 
-        # O seu HTML profissional integrado
-        html_painel = """
+if 'perfil' not in st.session_state:
+    st.session_state.perfil = None
+
+# --- 3. TELA DE LOGIN ---
+if st.session_state.perfil is None:
+    st.title("🔐 Quantum Math Lab - Acesso")
+    pin = st.text_input("Digite seu PIN de 6 dígitos:", type="password")
+    if st.button("Entrar"):
+        acesso = validar_acesso(pin)
+        if acesso != "negado":
+            st.session_state.perfil = acesso
+            st.rerun()
+        else:
+            st.error("Acesso Negado. Verifique seu PIN.")
+    st.stop()
+
+# --- 4. INTERFACE PRINCIPAL ---
+else:
+    perfil = st.session_state.perfil
+    st.sidebar.title(f"🚀 {'Professor' if perfil == 'admin' else 'Estudante'}")
+    
+    itens = ["Expressões (PEMDAS)", "Equações", "Funções Aritméticas", "Logaritmos"]
+    if perfil == "admin":
+        itens = ["Painel de Exercícios (4x1)", "Gerador de Atividades (PDF)"] + itens + ["Sistemas Lineares", "Matrizes"]
+        
+    menu = st.sidebar.radio("Navegação:", itens)
+    
+    if st.sidebar.button("Encerrar Sessão"):
+        st.session_state.perfil = None
+        st.rerun()
+
+    # --- MÓDULO: PAINEL DE EXERCÍCIOS 4 EM 1 (EXCLUSIVO ADMIN) ---
+    if menu == "Painel de Exercícios (4x1)":
+        st.header("🖨️ Painel de Impressão Rápida (4x1)")
+        with st.expander("📝 Editar Questões do Banco"):
+            tema_edit = st.text_input("Título da Atividade:", "Revisão de Matemática")
+            col_a, col_b = st.columns(2)
+            q_list = []
+            for i in range(10):
+                target_col = col_a if i < 5 else col_b
+                q_list.append(target_col.text_input(f"Questão {chr(97+i)}):", f"Exercício {i+1}"))
+
+        html_custom = f"""
         <!DOCTYPE html>
-        <html lang="pt-br">
+        <html>
         <head>
-            <meta charset="UTF-8">
             <style>
-                :root { --primary: #2c3e50; --accent: #3498db; }
-                body { font-family: 'Segoe UI', Arial, sans-serif; margin: 0; display: flex; background: #f4f7f6; }
-                #sidebar { width: 220px; background: var(--primary); color: white; height: 100vh; position: fixed; padding: 15px; }
-                .menu-btn { width: 100%; padding: 10px; margin: 5px 0; border: none; background: #34495e; color: white; text-align: left; cursor: pointer; border-radius: 4px; font-size: 13px;}
-                .menu-btn:hover { background: var(--accent); }
-                .active { background: var(--accent) !important; }
-                #main-content { margin-left: 230px; padding: 20px; width: 100%; }
-                .print-now { padding: 10px 20px; background: #27ae60; color: white; border: none; border-radius: 5px; cursor: pointer; margin-bottom: 20px; }
-                
-                /* Layout A4 */
-                .a4-page { width: 210mm; display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 5mm; background: white; padding: 5mm; margin: auto; }
-                .atv-box { border: 1px solid #000; padding: 8px; font-size: 10px; height: 135mm; box-sizing: border-box;}
-                .header { border: 1px solid #000; padding: 4px; margin-bottom: 5px; font-size: 9px; }
-                .titulo { text-align: center; font-weight: bold; text-transform: uppercase; margin-bottom: 5px; font-size: 11px; }
-                .questoes { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-
-                @media print {
-                    #sidebar, .print-now { display: none; }
-                    body { background: white; }
-                    #main-content { margin: 0; }
-                    .a4-page { border: none; width: 210mm; height: 297mm; }
-                }
+                body {{ font-family: Arial, sans-serif; background: #f0f2f6; margin: 0; padding: 10px; }}
+                .no-print {{ text-align: center; padding: 20px; }}
+                .btn-print {{ padding: 12px 30px; background: #27ae60; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; font-size: 16px; }}
+                .a4-page {{ width: 210mm; display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 5mm; background: white; padding: 10mm; margin: auto; }}
+                .atv-box {{ border: 1.5px solid black; padding: 15px; height: 132mm; box-sizing: border-box; display: flex; flex-direction: column; }}
+                .header {{ border: 1px solid black; padding: 5px; font-size: 10px; margin-bottom: 10px; line-height: 1.6; }}
+                .titulo {{ text-align: center; font-weight: bold; margin: 10px 0; text-transform: uppercase; font-size: 12px; border-bottom: 1px solid #eee; }}
+                .grid-q {{ display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 11px; }}
+                @media print {{ .no-print {{ display: none; }} body {{ padding: 0; }} .a4-page {{ width: 210mm; height: 297mm; padding: 5mm; }} }}
             </style>
         </head>
         <body>
-            <div id="sidebar">
-                <h3>Menu Exercícios</h3>
-                <button class="menu-btn active" onclick="gerar('1grau', this)">Equação 1º Grau</button>
-                <button class="menu-btn" onclick="gerar('2grau', this)">Equação 2º Grau</button>
-                <button class="menu-btn" onclick="gerar('expressoes', this)">Expressões Numéricas</button>
-                <button class="menu-btn" onclick="gerar('potencia', this)">Potência e Raízes</button>
-                <button class="menu-btn" onclick="gerar('matrizes', this)">Matrizes</button>
-                <button class="menu-btn" onclick="gerar('sistemas', this)">Sistemas</button>
+            <div class="no-print"><button class="btn-print" onclick="window.print()">🖨️ IMPRIMIR FOLHA A4</button></div>
+            <div class="a4-page">
+                {"".join([f'''
+                <div class="atv-box">
+                    <div class="header">Escola:____________________________________ Data: __/__/__ <br> Nome:_____________________________________ Turma: ________</div>
+                    <div class="titulo">{tema_edit}</div>
+                    <div class="grid-q">
+                        <div>a) {q_list[0]} <br><br> b) {q_list[1]} <br><br> c) {q_list[2]} <br><br> d) {q_list[3]} <br><br> e) {q_list[4]}</div>
+                        <div>f) {q_list[5]} <br><br> g) {q_list[6]} <br><br> h) {q_list[7]} <br><br> i) {q_list[8]} <br><br> j) {q_list[9]}</div>
+                    </div>
+                </div>''' for _ in range(4)])}
             </div>
-
-            <div id="main-content">
-                <button class="print-now" onclick="window.print()">🖨️ Imprimir 4 por Página</button>
-                <div id="folha" class="a4-page"></div>
-            </div>
-
-            <script>
-                const banco = {
-                    '1grau': { t: 'Equações 1º Grau', q: ['2x + 4 = 12', '5x - 10 = 15', '3x + 9 = 0', 'x/2 + 5 = 10', '7x - 7 = 14', '4x + 2 = 18', '10x - 5 = 45', 'x + 15 = 30', '8x = 64', '6x - 12 = 0'] },
-                    '2grau': { t: 'Equações 2º Grau', q: ['x² - 5x + 6 = 0', 'x² - 9 = 0', 'x² - 4x + 4 = 0', 'x² + 3x + 2 = 0', '2x² - 32 = 0', 'x² - 7x + 10 = 0', 'x² - 1 = 0', 'x² - 6x + 8 = 0', 'x² - 25 = 0', '3x² - 12 = 0'] },
-                    'expressoes': { t: 'Expressões Numéricas', q: ['(12+8)×2', '50-(10÷2)', '100÷(5+5)', '25+(4×5)', '(15-5)×3', '30÷(2+3)', '7×8-10', '45÷9+7', '12×2+5', '20-(5+5)'] },
-                    'potencia': { t: 'Potência e Raízes', q: ['2³ + √25', '5² - √16', '√100 + 10', '3³ - 7', '√81 × 2', '√144 ÷ 12', '4² ÷ 2', '10² - 90', '√49 + √64', '2⁴ ÷ 4'] },
-                    'matrizes': { t: 'Matrizes e Determinantes', q: ['A+B (2x2)', 'Det(A) [1,2;3,4]', '3×A', 'Matriz Identidade', 'Diagonal Principal', 'Transposta A', 'Matriz Oposta', 'Traço de A', 'Verificar Simetria', 'A-B (2x2)'] },
-                    'sistemas': { t: 'Sistemas de Equações', q: ['x+y=5; x-y=1', '2x+y=10; x-y=2', 'x+y=8; x-y=4', '3x+y=7; x+y=3', 'x+2y=10; x-y=1', '2x+2y=20; x-y=0', 'x+y=12; 2x-y=3', 'x-y=5; x+y=15', '4x+y=9; x+y=3', 'x+3y=10; x-y=2'] }
-                };
-
-                function gerar(tema, btn) {
-                    document.querySelectorAll('.menu-btn').forEach(b => b.classList.remove('active'));
-                    btn.classList.add('active');
-                    const d = banco[tema];
-                    const f = document.getElementById('folha');
-                    f.innerHTML = '';
-                    
-                    const card = `
-                        <div class="atv-box">
-                            <div class="header">Escola:__________________ Data:__/__/__ <br> Nome:__________________ Turma:____</div>
-                            <div class="titulo">\${d.t}</div>
-                            <b>Resolva os exercícios:</b>
-                            <div class="questoes">
-                                <div>a) \${d.q[0]}<br><br> b) \${d.q[1]}<br><br> c) \${d.q[2]}<br><br> d) \${d.q[3]}<br><br> e) \${d.q[4]}</div>
-                                <div>f) \${d.q[5]}<br><br> g) \${d.q[6]}<br><br> h) \${d.q[7]}<br><br> i) \${d.q[8]}<br><br> j) \${d.q[9]}</div>
-                            </div>
-                        </div>`;
-                    for(let i=0; i<4; i++) f.innerHTML += card;
-                }
-                window.onload = () => gerar('1grau', document.querySelector('.menu-btn'));
-            </script>
         </body>
         </html>
         """
-        components.html(html_painel, height=1000, scrolling=True)
+        components.html(html_custom, height=1100, scrolling=True)
+
+    # --- MÓDULO: GERADOR DE ATIVIDADES PDF ---
+    elif menu == "Gerador de Atividades (PDF)":
+        st.header("📄 Criador de Listas de Exercícios")
+        titulo_pdf = st.text_input("Título da Atividade:", "Lista de Exercícios")
+        conteudo = st.text_area("Conteúdo (Use . para colunas):", height=300)
+        
+        if st.button("Gerar e Baixar PDF"):
+            pdf = FPDF()
+            pdf.add_page()
+            if os.path.exists("cabecalho.png"):
+                pdf.image("cabecalho.png", x=12.5, y=8, w=185)
+                pdf.set_y(48)
+            else: pdf.set_y(15)
+            
+            pdf.set_font("Arial", 'B', 12)
+            pdf.cell(0, 10, txt=titulo_pdf, ln=True, align='C')
+            pdf.ln(2)
+            
+            pdf.set_font("Arial", size=10)
+            letras = "abcdefghijklmnopqrstuvwxyz"
+            letra_idx = 0
+            
+            for linha in conteudo.split('\n'):
+                txt = linha.strip()
+                if not txt: continue
+                match = re.match(r'^(\.+)', txt)
+                
+                if re.match(r'^\d+', txt): # Questão
+                    pdf.ln(4)
+                    pdf.set_font("Arial", 'B', 11); pdf.set_x(10)
+                    pdf.multi_cell(0, 8, txt=txt)
+                    pdf.set_font("Arial", size=10); letra_idx = 0
+                elif match: # Colunas
+                    n_p = len(match.group(1))
+                    if n_p > 1: pdf.set_y(pdf.get_y() - 8)
+                    pdf.set_x(10 + (n_p - 1) * 32)
+                    pdf.cell(32, 8, txt=f"{letras[letra_idx%26]}) {txt[n_p:].strip()}", ln=True)
+                    letra_idx += 1
+                else: # Texto normal
+                    pdf.set_x(10); pdf.multi_cell(0, 8, txt=txt)
+            
+            st.download_button("📥 Clique aqui para Baixar", pdf.output(dest='S').encode('latin-1', 'replace'), "atividade.pdf")
+
+    # --- MÓDULO: FUNÇÕES ARITMÉTICAS ---
+    elif menu == "Funções Aritméticas":
+        st.header("🔍 Analisador Numérico")
+        n = st.number_input("Digite um número n:", min_value=1, value=12)
+        divs = [d for d in range(1, n+1) if n % d == 0]
+        col1, col2 = st.columns(2)
+        col1.metric("Qtd. Divisores", len(divs))
+        col2.metric("Soma Divisores", sum(divs))
+        st.write(f"**Divisores:** {divs}")
+        if len(divs) == 2: st.success("Este número é PRIMO!")
+
+    # --- MÓDULO: EXPRESSÕES ---
+    elif menu == "Expressões (PEMDAS)":
+        st.header("🧮 Calculadora PEMDAS")
+        exp = st.text_input("Expressão (ex: 2^3 + 5 * (10/2)):")
+        if st.button("Resolver"):
+            try:
+                res = eval(exp.replace('^', '**'), {"__builtins__": None}, {"math": math})
+                st.success(f"Resultado: {res}")
+            except: st.error("Erro na expressão.")
+
+    # --- MÓDULO: EQUAÇÕES ---
+    elif menu == "Equações":
+        st.header("📐 Equações de 1º e 2º Grau")
+        tipo = st.radio("Grau:", ["1º Grau (ax + b = 0)", "2º Grau (ax² + bx + c = 0)"])
+        if tipo == "1º Grau (ax + b = 0)":
+            a = st.number_input("a", value=1.0); b = st.number_input("b", value=0.0)
+            if st.button("Resolver 1º Grau"):
+                if a != 0: st.success(f"x = {-b/a:.2f}")
+                else: st.error("a não pode ser zero.")
+        else:
+            a2 = st.number_input("a", value=1.0, key="a2")
+            b2 = st.number_input("b", value=-5.0); c2 = st.number_input("c", value=6.0)
+            if st.button("Resolver 2º Grau"):
+                delta = b2**2 - 4*a2*c2
+                if delta >= 0:
+                    x1 = (-b2 + math.sqrt(delta))/(2*a2)
+                    x2 = (-b2 - math.sqrt(delta))/(2*a2)
+                    st.success(f"x1 = {x1:.2f}, x2 = {x2:.2f}")
+                else: st.error("Sem raízes reais.")
