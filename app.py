@@ -6,26 +6,22 @@ import random
 import re
 from fpdf import FPDF
 
-# --- CONFIGURAÇÃO DA PÁGINA (CHAMADA ÚNICA) ---
+# --- CONFIGURAÇÃO ÚNICA DA PÁGINA ---
 st.set_page_config(page_title="Quantum Math Lab", layout="wide")
 
 # --- 1. SEGURANÇA ---
 def validar_acesso(pin_digitado):
     try:
-        # Tenta buscar dos Secrets (Fallback para local se não houver secrets)
         senha_aluno = str(st.secrets.get("acesso_aluno", "123456")).strip()
         senha_professor = str(st.secrets.get("chave_mestra", "12345678")).strip()
-        
         if pin_digitado == senha_aluno: return "aluno"
         elif pin_digitado == senha_professor: return "admin"
     except:
-        # Se estiver rodando puramente local sem secrets.toml
         if pin_digitado == "123456": return "aluno"
         elif pin_digitado == "12345678": return "admin"
     return "negado"
 
-if 'perfil' not in st.session_state: 
-    st.session_state.perfil = None
+if 'perfil' not in st.session_state: st.session_state.perfil = None
 
 # --- 2. LOGIN ---
 if st.session_state.perfil is None:
@@ -36,8 +32,7 @@ if st.session_state.perfil is None:
         if acesso != "negado":
             st.session_state.perfil = acesso
             st.rerun()
-        else:
-            st.error("Acesso negado.")
+        else: st.error("Acesso negado.")
     st.stop()
 
 # --- 3. INTERFACE PRINCIPAL ---
@@ -45,154 +40,128 @@ else:
     perfil = st.session_state.perfil
     st.sidebar.title(f"🚀 {'Professor' if perfil == 'admin' else 'Estudante'}")
     
-    # Lista de Itens (Aluno + Professor)
+    # Itens do Menu (Garantindo que todos apareçam)
     itens = ["Atividades (Drive)", "Expressões (PEMDAS)", "Equações (1º e 2º Grau)", "Cálculo de Funções", "Logaritmos", "Funções Aritméticas"]
     if perfil == "admin":
-        itens = ["Gerador Automático", "Gerador de Atividades (Manual)"] + itens + ["Sistemas Lineares", "Matrizes", "Financeiro"]
+        itens = ["GERADOR COLEGIAL (Auto)", "Gerador de Atividades (Manual)"] + itens + ["Sistemas Lineares", "Matrizes", "Financeiro"]
         
     menu = st.sidebar.radio("Navegação:", itens)
-    
     if st.sidebar.button("Sair"):
         st.session_state.perfil = None
         st.rerun()
 
-    # --- NOVO MÓDULO: GERADOR AUTOMÁTICO (OPERAÇÕES BÁSICAS) ---
-    if menu == "Gerador Automático":
-        st.header("🔢 Gerador de Operações Básicas")
-        tema = st.selectbox("Escolha o tema:", ["Adição", "Subtração", "Multiplicação", "Divisão", "Misto"])
-        qtd = st.slider("Quantidade de questões:", 4, 20, 10)
+    # --- MÓDULO: GERADOR COLEGIAL (AUTO) ---
+    if menu == "GERADOR COLEGIAL (Auto)":
+        st.header("📚 Gerador de Exercícios Nível Colegial")
+        tema = st.selectbox("Escolha o tema:", ["Equações", "Matrizes", "Funções", "Potenciação e Radiciação", "Razão e Proporção"])
         
-        if st.button("Gerar PDF Automático"):
+        if st.button("Gerar PDF de Treino"):
             pdf = FPDF()
             pdf.add_page()
-            
             if os.path.exists("cabecalho.png"):
                 pdf.image("cabecalho.png", x=12.5, y=8, w=185) 
                 pdf.set_y(46)
             else: pdf.set_y(15)
             
-            pdf.set_font("Arial", 'B', 14)
-            pdf.cell(0, 10, txt=f"Exercícios de {tema}", ln=True, align='C')
-            pdf.ln(5)
+            pdf.set_font("Arial", 'B', 14); pdf.cell(0, 10, txt=f"Lista de Exercícios: {tema}", ln=True, align='C'); pdf.ln(5)
             pdf.set_font("Arial", size=11)
             
             letras = "abcdefghijklmnopqrstuvwxyz"
-            for i in range(qtd):
-                # Lógica de sorteio
-                op_atual = tema
-                if tema == "Misto": op_atual = random.choice(["Adição", "Subtração", "Multiplicação", "Divisão"])
+            for i in range(10):
+                if tema == "Equações":
+                    q = f"{random.randint(2,9)}x + {random.randint(1,20)} = {random.randint(30,100)}"
+                elif tema == "Matrizes":
+                    q = f"Calcule o determinante da matriz [{random.randint(1,5)}, {random.randint(1,5)} | {random.randint(1,5)}, {random.randint(1,5)}]"
+                elif tema == "Funções":
+                    q = f"Dada f(x) = {random.randint(2,5)}x + {random.randint(1,10)}, calcule f({random.randint(1,10)})"
+                elif tema == "Potenciação e Radiciação":
+                    q = f"Simplifique: {random.randint(2,5)}^{random.randint(2,4)} * √{random.choice([16, 25, 36, 49, 64, 81, 100])}"
+                else: # Razão e Proporção
+                    q = f"Encontre x: {random.randint(1,10)} / {random.randint(11,20)} = x / {random.randint(21,50)}"
                 
-                n1, n2 = random.randint(10, 500), random.randint(10, 100)
-                if op_atual == "Adição": txt = f"{n1} + {n2} ="
-                elif op_atual == "Subtração": txt = f"{n1+n2} - {n1} ="
-                elif op_atual == "Multiplicação": txt = f"{random.randint(2,20)} x {random.randint(2,12)} ="
-                else: 
-                    divisor = random.randint(2,12)
-                    txt = f"{divisor * random.randint(2,20)} ÷ {divisor} ="
-                
-                pdf.cell(0, 10, txt=f"{letras[i%26]}) {txt}", ln=True)
+                pdf.cell(0, 10, txt=f"{letras[i%26]}) {q}", ln=True)
             
-            st.download_button("📥 Baixar PDF", pdf.output(dest='S').encode('latin-1', 'replace'), "atv_automatica.pdf")
+            st.download_button("📥 Baixar PDF", pdf.output(dest='S').encode('latin-1', 'replace'), "exercicios.pdf")
 
-    # --- MÓDULO: GERADOR MANUAL (PRESERVADO) ---
+    # --- MÓDULO: GERADOR MANUAL (REGRAS DE COLUNAS PRESERVADAS) ---
     elif menu == "Gerador de Atividades (Manual)":
-        st.header("📄 Gerador de Atividades (Manual)")
+        st.header("📄 Gerador Manual")
         titulo_pdf = st.text_input("Título:", "Atividade de Matemática")
-        conteudo = st.text_area("Conteúdo (Use . para colunas):", height=300)
-        
-        if st.button("Gerar PDF"):
-            if conteudo:
-                pdf = FPDF()
-                pdf.add_page()
-                if os.path.exists("cabecalho.png"):
-                    pdf.image("cabecalho.png", x=12.5, y=8, w=185) 
-                    pdf.set_y(46)
-                else: pdf.set_y(15)
-                
-                pdf.set_font("Arial", 'B', 12)
-                pdf.cell(0, 10, txt=titulo_pdf, ln=True, align='C')
-                pdf.ln(2)
-                
-                pdf.set_font("Arial", size=10)
-                letras = "abcdefghijklmnopqrstuvwxyz"
-                letra_idx = 0
-                
-                for linha in conteudo.split('\n'):
-                    txt = linha.strip()
-                    if not txt: continue
-                    match = re.match(r'^(\.+)', txt)
-                    num_pontos = len(match.group(1)) if match else 0
-                    
-                    if re.match(r'^\d+', txt): # Se começar com número
-                        pdf.ln(4)
-                        pdf.set_font("Arial", 'B', 11)
-                        pdf.set_x(10)
-                        pdf.multi_cell(0, 8, txt=txt)
-                        pdf.set_font("Arial", size=10)
-                        letra_idx = 0 
-                    elif num_pontos > 0: # Lógica de colunas por pontos
-                        item = txt[num_pontos:].strip()
-                        prefixo = f"{letras[letra_idx % 26]}) "
-                        if num_pontos > 1: pdf.set_y(pdf.get_y() - 8)
-                        pdf.set_x(10 + (num_pontos - 1) * 32)
-                        pdf.cell(32, 8, txt=f"{prefixo}{item}", ln=True)
-                        letra_idx += 1
-                    else:
-                        pdf.set_x(10)
-                        pdf.multi_cell(0, 8, txt=txt)
-                
-                st.download_button("📥 Baixar PDF Manual", pdf.output(dest='S').encode('latin-1', 'replace'), "atividade.pdf")
+        conteudo = st.text_area("Conteúdo:", height=300)
+        if st.button("Gerar PDF Manual"):
+            pdf = FPDF()
+            pdf.add_page()
+            if os.path.exists("cabecalho.png"): pdf.image("cabecalho.png", x=12.5, y=8, w=185); pdf.set_y(46)
+            else: pdf.set_y(15)
+            pdf.set_font("Arial", 'B', 12); pdf.cell(0, 10, txt=titulo_pdf, ln=True, align='C'); pdf.ln(2)
+            pdf.set_font("Arial", size=10); letra_idx = 0
+            for linha in conteudo.split('\n'):
+                txt = linha.strip()
+                if not txt: continue
+                match = re.match(r'^(\.+)', txt)
+                num_pontos = len(match.group(1)) if match else 0
+                if re.match(r'^\d+', txt):
+                    pdf.ln(4); pdf.set_font("Arial", 'B', 11); pdf.multi_cell(0, 8, txt=txt); pdf.set_font("Arial", size=10); letra_idx = 0 
+                elif num_pontos > 0:
+                    item = txt[num_pontos:].strip()
+                    if num_pontos > 1: pdf.set_y(pdf.get_y() - 8)
+                    pdf.set_x(10 + (num_pontos - 1) * 32); pdf.cell(32, 8, txt=f"{chr(97+letra_idx)}) {item}", ln=True); letra_idx += 1
+                else: pdf.multi_cell(0, 8, txt=txt)
+            st.download_button("📥 Baixar PDF", pdf.output(dest='S').encode('latin-1', 'replace'), "manual.pdf")
 
-    # --- MANTIDOS OS DEMAIS MÓDULOS (DRIVE, EXPRESSÕES, EQUAÇÕES, ETC) ---
-    elif menu == "Atividades (Drive)":
-        st.header("📝 Pasta de Atividades")
-        st.link_button("📂 Abrir Google Drive", "https://drive.google.com/drive/folders/1NkFeom_k3LUJYAFVBBDu4GD5aYVeNEZc")
-
-    elif menu == "Expressões (PEMDAS)":
-        st.header("🧮 Calculadora de Expressões")
-        exp = st.text_input("Digite a expressão:")
-        if st.button("Resolver"):
-            try:
-                res = eval(exp.replace('^', '**'), {"math": math})
-                st.success(f"Resultado: {res}")
-            except: st.error("Erro na expressão.")
-
+    # --- MÓDULOS DE CÁLCULO (ATIVADOS) ---
     elif menu == "Equações (1º e 2º Grau)":
-        st.header("📐 Resolução de Equações")
-        grau = st.selectbox("Escolha o Grau:", ["1º Grau", "2º Grau"])
-        if grau == "1º Grau":
-            a1 = st.number_input("a:", value=1.0)
-            b1 = st.number_input("b:", value=0.0)
-            if st.button("Calcular"):
-                st.success(f"x = {-b1/a1:.2f}")
+        st.header("📐 Equações")
+        tipo = st.radio("Grau:", ["1º Grau", "2º Grau"])
+        if tipo == "1º Grau":
+            a, b = st.number_input("a", value=1.0), st.number_input("b", value=0.0)
+            if st.button("Resolver"): st.success(f"x = {-b/a:.2f}")
         else:
-            a2 = st.number_input("a:", value=1.0)
-            b2 = st.number_input("b:", value=-5.0)
-            c2 = st.number_input("c:", value=6.0)
-            if st.button("Calcular"):
-                delta = b2**2 - 4*a2*c2
+            a, b, c = st.number_input("a", value=1.0), st.number_input("b", value=-5.0), st.number_input("c", value=6.0)
+            if st.button("Resolver"):
+                delta = b**2 - 4*a*c
                 if delta >= 0:
-                    x1 = (-b2 + math.sqrt(delta))/(2*a2)
-                    x2 = (-b2 - math.sqrt(delta))/(2*a2)
-                    st.success(f"x1 = {x1:.2f}, x2 = {x2:.2f}")
-                else: st.error("Delta negativo.")
+                    x1 = (-b + math.sqrt(delta))/(2*a)
+                    x2 = (-b - math.sqrt(delta))/(2*a)
+                    st.write(f"Delta: {delta} | x1 = {x1:.2f}, x2 = {x2:.2f}")
+                else: st.error("Sem raízes reais.")
+
+    elif menu == "Cálculo de Funções":
+        st.header("𝑓(x) Funções")
+        func = st.text_input("Função (ex: 2*x + 5):", "x**2 + 3")
+        x_val = st.number_input("Valor de x:", value=2.0)
+        if st.button("Calcular f(x)"):
+            res = eval(func.replace('x', f'({x_val})'))
+            st.metric("Resultado", res)
+
+    elif menu == "Matrizes":
+        st.header("📊 Determinante 2x2")
+        col1, col2 = st.columns(2)
+        m11 = col1.number_input("M11", value=1.0); m12 = col2.number_input("M12", value=0.0)
+        m21 = col1.number_input("M21", value=0.0); m22 = col2.number_input("M22", value=1.0)
+        if st.button("Calcular Det"):
+            st.success(f"Determinante: {(m11*m22) - (m12*m21)}")
+
+    elif menu == "Logaritmos":
+        st.header("🔢 Logaritmos")
+        log_n = st.number_input("Número:", value=100.0)
+        log_b = st.number_input("Base:", value=10.0)
+        if st.button("Calcular"): st.success(f"Resultado: {math.log(log_n, log_b):.4f}")
 
     elif menu == "Sistemas Lineares":
         st.header("⚖️ Sistema 2x2")
         a1, b1, c1 = st.number_input("a1"), st.number_input("b1"), st.number_input("c1")
         a2, b2, c2 = st.number_input("a2"), st.number_input("b2"), st.number_input("c2")
-        if st.button("Calcular Sistema"):
+        if st.button("Resolver"):
             try:
                 res = np.linalg.solve(np.array([[a1, b1], [a2, b2]]), np.array([c1, c2]))
                 st.success(f"x = {res[0]:.2f}, y = {res[1]:.2f}")
-            except: st.error("Erro no cálculo.")
+            except: st.error("Sem solução única.")
+
+    elif menu == "Atividades (Drive)":
+        st.link_button("📂 Abrir Drive", "https://drive.google.com/drive/folders/1NkFeom_k3LUJYAFVBBDu4GD5aYVeNEZc")
 
     elif menu == "Financeiro":
         st.header("💰 Juros Compostos")
-        c = st.number_input("Capital Inicial:", value=1000.0)
-        i = st.number_input("Taxa mensal (%):", value=5.0) / 100
-        t = st.number_input("Tempo (meses):", value=12.0)
-        if st.button("Calcular Montante"):
-            st.success(f"Montante Final: R$ {c * (1 + i)**t:.2f}")
-
-    # (Cálculo de Funções, Logaritmos e Matrizes seguem a mesma lógica preservada)
+        c, i, t = st.number_input("Capital"), st.number_input("Taxa (%)")/100, st.number_input("Meses")
+        if st.button("Calcular"): st.success(f"Montante: R$ {c * (1+i)**t:.2f}")
