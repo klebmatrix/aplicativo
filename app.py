@@ -5,24 +5,24 @@ import os
 import re
 from fpdf import FPDF
 
-# --- 1. CONFIGURAÇÕES INICIAIS ---
+# --- 1. CONFIGURAÇÕES ---
 st.set_page_config(page_title="Quantum Math Lab", layout="wide")
 
-# Inicialização de estado para evitar que o menu suma
-if 'perfil' not in st.session_state: st.session_state.perfil = None
-if 'preview_questoes' not in st.session_state: st.session_state.preview_questoes = []
-
 def clean_txt(text):
+    """Limpa texto para o PDF não travar"""
     rep = {"√": "V", "²": "^2", "³": "^3", "÷": "/", "×": "x", "{": ""}
     for o, n in rep.items(): text = text.replace(o, n)
     return str(text).encode('latin-1', 'replace').decode('latin-1')
 
-# --- 2. LOGIN (SIMPLIFICADO) ---
+if 'perfil' not in st.session_state: st.session_state.perfil = None
+if 'preview_questoes' not in st.session_state: st.session_state.preview_questoes = []
+
+# --- 2. LOGIN (SIMPLIFICADO PARA NÃO TRAVAR) ---
 if st.session_state.perfil is None:
-    st.title("🔐 Acesso Quantum Lab")
+    st.title("🔐 Login")
     pin = st.text_input("PIN:", type="password")
     if st.button("Entrar"):
-        # Se o secrets falhar, o login será 'chave_mestra' por padrão
+        # Se falhar o segredo, a senha é 'chave_mestra'
         try:
             chave = str(st.secrets.get("chave_mestra", "chave_mestra")).strip().lower()
         except:
@@ -31,46 +31,52 @@ if st.session_state.perfil is None:
         if pin == chave: 
             st.session_state.perfil = "admin"
             st.rerun()
-        else: 
-            st.error("PIN incorreto.")
+        else: st.error("PIN incorreto.")
     st.stop()
 
-# --- 3. MENU LATERAL (SEGURO) ---
+# --- 3. MENU LATERAL ---
 with st.sidebar:
-    st.header("🚀 Menu Principal")
+    st.header("🚀 Menu")
     aba = st.radio("Módulos:", ["📄 Manual", "🔢 Operações", "📐 Equações", "📚 Colegial"])
-    st.divider()
     if st.button("Sair"):
         st.session_state.perfil = None
         st.rerun()
 
-# --- 4. FUNÇÃO DE MATEMÁTICA ---
+# --- 4. TRATAMENTO MATEMÁTICO ---
 def formatar_math(texto):
     t = re.sub(r'^[a-z][\)\.]\s*', '', texto) # Limpa a), b)
     t = t.replace(', ', '').replace(',', '').strip() # Limpa vírgulas
-    t = re.sub(r'(\d*)V(\d+)', r'\1\\sqrt{\2}', t) # Raiz
-    t = re.sub(r'(\^)(\d+)', r'\1{\2}', t) # Potência
-    if "/" in t and "|" not in t: 
-        t = re.sub(r'(\d+)/(\d+)', r'\\frac{\1}{\2}', t) # Fração
+    
+    # Raiz: 3V27 -> \sqrt[3]{27} | V25 -> \sqrt{25}
+    t = re.sub(r'(\d+)V(\d+)', r'\\sqrt[\1]{\2}', t)
+    t = re.sub(r'(?<!\[)V(\d+)', r'\\sqrt{\1}', t)
+    
+    # Potência: 5^4 -> 5^{4}
+    t = re.sub(r'(\^)(\d+)', r'\1{\2}', t)
+    
+    # Fração: 1/2 -> \frac{1}{2}
+    if "/" in t and "|" not in t:
+        t = re.sub(r'(\d+)/(\d+)', r'\\frac{\1}{\2}', t)
     return t
 
 # --- 5. INTERFACE ---
 st.title(f"Módulo: {aba}")
 
 if aba == "📄 Manual":
+    st.info("💡 Use: V para Raiz | ^ para Potência | / para Fração | { eq1 | eq2 para Sistema")
     txt_input = st.text_area("Digite sua atividade:", height=250, 
-                             value="1. Operações:\na) ,2V36\nb) ,5^2\n2. Sistema:\na) { 2x+y=20 | x-y=5")
+                             value="1. Resolva:\na) ,2V36 =\nb) ,5^2 + 10 =\nc) ,3/4 de 200 =\n2. Sistema:\na) { 2x + y = 20 | x - y = 5")
     if st.button("🔍 Gerar Preview"):
         st.session_state.preview_questoes = txt_input.split('\n')
 else:
-    st.info("Módulo em manutenção. Use o Manual para criar questões.")
+    st.warning("Módulo em manutenção. Por favor, use o Manual.")
 
-# --- 6. PREVIEW COM CARDS NATIVOS ---
+# --- 6. VISUALIZAÇÃO EM CARDS ---
 if st.session_state.preview_questoes:
     st.divider()
     letras = "abcdefghijklmnopqrstuvwxyz"; l_idx = 0
     
-    # Cabeçalho no Topo
+    # Tenta carregar imagem se existir
     if os.path.exists("cabecalho.png"):
         st.image("cabecalho.png", use_container_width=True)
 
@@ -78,17 +84,19 @@ if st.session_state.preview_questoes:
         line = q.strip()
         if not line: continue
         
+        # Títulos
         if line.startswith("t."):
             st.markdown(f"<h2 style='text-align: center;'>{line[2:].strip()}</h2>", unsafe_allow_html=True)
+        # Números (Reset de letras)
         elif re.match(r'^\d+', line):
             st.markdown(f"### {line}")
             l_idx = 0
+        # Itens em Cards
         else:
-            # CARD NATIVO COM BORDA
-            with st.container(border=True):
-                c1, c2 = st.columns([0.1, 0.9])
-                with c1: st.write(f"**{letras[l_idx%26]})**")
-                with c2:
+            with st.container(border=True): # O card oficial do Streamlit
+                col1, col2 = st.columns([0.1, 0.9])
+                with col1: st.write(f"**{letras[l_idx%26]})**")
+                with col2:
                     if "{" in line or "|" in line:
                         cont = line.replace("{", "").strip()
                         if "|" in cont:
@@ -101,7 +109,7 @@ if st.session_state.preview_questoes:
                         else: st.write(line.replace(',', ''))
             l_idx += 1
 
-    # --- 7. PDF ---
+    # --- 7. DOWNLOAD ---
     if st.button("📥 Baixar PDF"):
         pdf = FPDF(); pdf.add_page(); pdf.set_font("Arial", size=11); l_idx = 0
         if os.path.exists("cabecalho.png"): pdf.image("cabecalho.png", x=12.5, y=8, w=185); pdf.set_y(46)
@@ -124,4 +132,4 @@ if st.session_state.preview_questoes:
                 item = re.sub(r'^[a-z][\)\.]\s*', '', line).replace(',', '')
                 pdf.multi_cell(0, 8, f"{letras[l_idx%26]}) {clean_txt(item)}")
                 l_idx += 1
-        st.download_button("✅ Salvar PDF", pdf.output(dest='S').encode('latin-1'), "atividade.pdf")
+        st.download_button("✅ Download", pdf.output(dest='S').encode('latin-1'), "atividade.pdf")
