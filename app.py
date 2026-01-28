@@ -42,100 +42,120 @@ else:
     
     itens = ["Atividades (Drive)", "Expressões (PEMDAS)", "Equações (1º e 2º Grau)", "Cálculo de Funções", "Logaritmos"]
     if perfil == "admin":
-        geradores = ["GERADOR: Operações", "GERADOR: Colegial", "GERADOR: Álgebra Linear", "GERADOR: Manual (Colunas)"]
-        itens = geradores + itens + ["Sistemas Lineares", "Matrizes", "Financeiro"]
+        geradores = [
+            "GERADOR: Operações Básicas", 
+            "GERADOR: Equações (1º/2º)", 
+            "GERADOR: Colegial (Frações/Funções)", 
+            "GERADOR: Álgebra Linear", 
+            "GERADOR: Manual (Colunas)"
+        ]
+        itens = geradores + itens + ["Financeiro"]
         
     menu = st.sidebar.radio("Navegação:", itens)
-    
-    # --- FUNÇÃO PARA CRIAR PDF ---
-    def exportar_pdf(lista_questoes, titulo):
+
+    # --- FUNÇÃO EXPORTAR PDF ---
+    def exportar_pdf(questoes, titulo):
         pdf = FPDF()
         pdf.add_page()
         if os.path.exists("cabecalho.png"):
             pdf.image("cabecalho.png", x=12.5, y=8, w=185)
             pdf.set_y(46)
-        else: pdf.set_y(15)
-        pdf.set_font("Arial", 'B', 14); pdf.cell(0, 10, txt=titulo, ln=True, align='C'); pdf.ln(5)
+        else:
+            pdf.set_y(15)
+        pdf.set_font("Arial", 'B', 14)
+        pdf.cell(0, 10, txt=titulo, ln=True, align='C')
+        pdf.ln(5)
         pdf.set_font("Arial", size=11)
         letras = "abcdefghijklmnopqrstuvwxyz"
-        for i, q in enumerate(lista_questoes):
+        for i, q in enumerate(questoes):
             pdf.cell(0, 10, txt=f"{letras[i%26]}) {q}", ln=True)
         return pdf.output(dest='S').encode('latin-1', 'replace')
 
-    # --- 1. GERADOR OPERAÇÕES (COM PREVIEW) ---
-    if menu == "GERADOR: Operações":
-        st.header("🔢 Escolha as Operações")
+    # --- GERADOR 1: OPERAÇÕES BÁSICAS (ESCOLHA E PREVIEW) ---
+    if menu == "GERADOR: Operações Básicas":
+        st.header("🔢 Escolha as Operações para o PDF")
+        
         c1, c2, c3, c4 = st.columns(4)
-        s = c1.checkbox("Soma (+)", value=True); sub = c2.checkbox("Subtração (-)", value=True)
-        m = c3.checkbox("Multiplicação (x)"); d = c4.checkbox("Divisão (÷)")
-        qtd = st.slider("Questões:", 4, 30, 12)
+        soma = c1.checkbox("Soma (+)", value=True)
+        sub = c2.checkbox("Subtração (-)", value=True)
+        mult = c3.checkbox("Multiplicação (x)")
+        div = c4.checkbox("Divisão (÷)")
         
-        ops = [o for o, v in zip(['+', '-', 'x', '÷'], [s, sub, m, d]) if v]
+        qtd = st.slider("Quantidade de questões:", 4, 30, 12)
         
-        if ops:
+        ops_selecionadas = []
+        if soma: ops_selecionadas.append('+')
+        if sub: ops_selecionadas.append('-')
+        if mult: ops_selecionadas.append('x')
+        if div: ops_selecionadas.append('÷')
+        
+        if not ops_selecionadas:
+            st.warning("Por favor, selecione ao menos uma operação para visualizar as questões.")
+        else:
+            # Gerar lista para Preview
+            random.seed(42) # Semente opcional para manter o preview estável até o download
             questoes = []
             for i in range(qtd):
-                op = random.choice(ops)
+                op = random.choice(ops_selecionadas)
                 n1, n2 = random.randint(100, 999), random.randint(10, 99)
-                if op == '+': txt = f"{n1} + {n2} ="
-                elif op == '-': txt = f"{n1+n2} - {n1} ="
-                elif op == 'x': txt = f"{random.randint(10,99)} x {random.randint(2,9)} ="
-                else: div_n = random.randint(2,12); txt = f"{div_n * random.randint(5,40)} ÷ {div_n} ="
+                if op == '+': 
+                    txt = f"{n1} + {n2} ="
+                elif op == '-': 
+                    txt = f"{n1+n2} - {n1} ="
+                elif op == 'x': 
+                    txt = f"{random.randint(10,99)} x {random.randint(2,9)} ="
+                else: 
+                    d = random.randint(2,12)
+                    txt = f"{d * random.randint(5,40)} ÷ {d} ="
                 questoes.append(txt)
             
-            st.subheader("👀 Visualização das Questões")
-            for i, q in enumerate(questoes): st.write(f"{chr(97+i%26)}) {q}")
+            st.subheader("👀 Preview das Questões")
+            cols_preview = st.columns(2)
+            for i, q in enumerate(questoes):
+                cols_preview[i % 2].write(f"{chr(97+i%26)}) {q}")
             
-            pdf_data = exportar_pdf(questoes, "Atividade de Matemática")
-            st.download_button("📥 Baixar este PDF", pdf_data, "operacoes.pdf")
+            pdf_data = exportar_pdf(questoes, "Atividade de Matemática: Operações")
+            st.download_button("📥 Baixar PDF das Operações", pdf_data, "operacoes.pdf")
 
-    # --- 2. GERADOR COLEGIAL (COM PREVIEW) ---
-    elif menu == "GERADOR: Colegial":
-        st.header("📚 Escolha os Temas")
-        c1, c2, c3 = st.columns(3)
-        eq = c1.checkbox("Equações", value=True); fun = c2.checkbox("Funções"); pot = c3.checkbox("Potenciação")
-        qtd = st.slider("Questões:", 4, 20, 8)
+    # --- GERADOR 2: EQUAÇÕES (1º E 2º GRAU) ---
+    elif menu == "GERADOR: Equações (1º/2º)":
+        st.header("📐 Gerador de Equações")
+        grau = st.radio("Escolha o Grau:", ["Somente 1º Grau", "Somente 2º Grau", "Misto"])
+        qtd = st.slider("Questões:", 4, 20, 10)
         
-        temas = [t for t, v in zip(["E", "F", "P"], [eq, fun, pot]) if v]
-        if temas:
-            questoes = []
-            for i in range(qtd):
-                t = random.choice(temas)
-                if t == "E": q = f"{random.randint(2,9)}x + {random.randint(1,20)} = {random.randint(21,80)}"
-                elif t == "F": q = f"Se f(x) = {random.randint(2,5)}x + 10, calcule f({random.randint(1,5)})"
-                else: q = f"Calcule {random.randint(2,10)}² ="
-                questoes.append(q)
-            
-            for i, q in enumerate(questoes): st.write(f"{chr(97+i%26)}) {q}")
-            pdf_data = exportar_pdf(questoes, "Atividade Colegial")
-            st.download_button("📥 Baixar PDF", pdf_data, "colegial.pdf")
+        qs = []
+        for i in range(qtd):
+            tipo = grau
+            if grau == "Misto": tipo = random.choice(["Somente 1º Grau", "Somente 2º Grau"])
+            if tipo == "Somente 1º Grau":
+                qs.append(f"{random.randint(2,9)}x + {random.randint(1,20)} = {random.randint(21,90)}")
+            else:
+                qs.append(f"{random.randint(1,3)}x² + {random.randint(2,8)}x + {random.randint(1,5)} = 0")
+        
+        for i, q in enumerate(qs): st.write(f"{chr(97+i)}) {q}")
+        st.download_button("📥 Baixar PDF", exportar_pdf(qs, "Atividade de Equações"), "equacoes.pdf")
 
-    # --- 4. GERADOR MANUAL (ERRO DE SINTAXE CORRIGIDO) ---
+    # --- GERADOR MANUAL (REGRAS DE COLUNAS) ---
     elif menu == "GERADOR: Manual (Colunas)":
         st.header("📄 Gerador Manual")
-        titulo = st.text_input("Título:", "Atividade")
-        texto = st.text_area("Conteúdo (Use . para colunas):", height=300)
-        
-        if st.button("Gerar PDF Manual"):
+        titulo = st.text_input("Título:", "Atividade Personalizada")
+        texto = st.text_area("Digite o conteúdo:", height=300)
+        if st.button("Gerar PDF"):
             pdf = FPDF()
             pdf.add_page()
             if os.path.exists("cabecalho.png"):
                 pdf.image("cabecalho.png", x=12.5, y=8, w=185)
                 pdf.set_y(46)
-            else: pdf.set_y(15)
-            
+            else:
+                pdf.set_y(15)
             pdf.set_font("Arial", 'B', 12); pdf.cell(0, 10, titulo, ln=True, align='C'); pdf.ln(2)
             pdf.set_font("Arial", size=10); letras = "abcdefghijklmnopqrstuvwxyz"; letra_idx = 0
-            
             for linha in texto.split('\n'):
                 txt = linha.strip()
-                if not txt: 
-                    continue # CORREÇÃO: O if agora está em linha separada
-                
+                if not txt: continue
                 match = re.match(r'^(\.+)', txt)
                 pts = len(match.group(1)) if match else 0
-                
-                if re.match(r'^\d+', txt):
+                if re.match(r'^\d+', txt): # Se começar com número, reseta letra para a)
                     pdf.ln(4); pdf.set_font("Arial", 'B', 11); pdf.multi_cell(0, 8, txt)
                     pdf.set_font("Arial", size=10); letra_idx = 0
                 elif pts > 0:
@@ -146,16 +166,16 @@ else:
                     letra_idx += 1
                 else:
                     pdf.multi_cell(0, 8, txt)
-            
             st.download_button("📥 Baixar PDF Manual", pdf.output(dest='S').encode('latin-1'), "manual.pdf")
 
     # --- MÓDULO DE CÁLCULO ---
     elif menu == "Cálculo de Funções":
-        st.header("𝑓(x) Cálculo")
+        st.header("𝑓(x) Cálculo Direto")
         f_exp = st.text_input("f(x):", "x**2 + 5")
         x_val = st.number_input("x:", value=3.0)
         if st.button("Calcular"):
             try:
-                res = eval(f_exp.replace('x', f'({x_val})'))
-                st.success(f"f({x_val}) = {res}")
-            except: st.error("Erro na fórmula.")
+                # Substitui ^ por ** para o eval entender potência
+                res = eval(f_exp.replace('x', f'({x_val})').replace('^', '**'))
+                st.metric(f"f({x_val})", f"{res:.2f}")
+            except: st.error("Erro na fórmula. Use 'x' e operadores como * e **.")
