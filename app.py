@@ -1,165 +1,136 @@
 import streamlit as st
-import math
 import numpy as np
-import os
 import random
+import os
 import re
 from fpdf import FPDF
 
-# --- 1. CONFIGURAÇÃO ---
-st.set_page_config(page_title="Quantum Math Lab", layout="wide", page_icon="🚀")
+# --- 1. CONFIGURAÇÕES TÉCNICAS ---
+st.set_page_config(page_title="Quantum Math Lab", layout="wide")
 
 def clean_txt(text):
     return str(text).encode('latin-1', 'replace').decode('latin-1')
 
-def validar_acesso(pin_digitado):
-    try:
-        senha_aluno = str(st.secrets.get("acesso_aluno", "123456")).strip()
-        senha_prof = str(st.secrets.get("chave_mestra", "12345678")).strip()
-    except:
-        senha_aluno, senha_prof = "123456", "12345678"
-    if pin_digitado == senha_aluno: return "aluno"
-    elif pin_digitado == senha_prof: return "admin"
-    return "negado"
-
+# Inicialização de Memória Blindada
 if 'perfil' not in st.session_state: st.session_state.perfil = None
-if 'sub_menu' not in st.session_state: st.session_state.sub_menu = None
+if 'menu_ativo' not in st.session_state: st.session_state.menu_ativo = "🔢 Operações"
+if 'preview_questoes' not in st.session_state: st.session_state.preview_questoes = []
 
-# --- LOGIN ---
+# --- 2. SISTEMA DE LOGIN ---
 if st.session_state.perfil is None:
-    st.title("🔐 Login")
-    pin = st.text_input("PIN:", type="password")
-    if st.button("Entrar"):
-        acesso = validar_acesso(pin)
-        if acesso != "negado":
-            st.session_state.perfil = acesso
-            st.rerun()
-        else: st.error("PIN incorreto.")
+    st.title("🔐 Acesso Restrito")
+    pin = st.text_input("Digite seu PIN:", type="password")
+    if st.button("Liberar Sistema"):
+        s_prof = str(st.secrets.get("chave_mestra", "12345678")).strip()
+        s_aluno = str(st.secrets.get("acesso_aluno", "123456")).strip()
+        if pin == s_prof: st.session_state.perfil = "admin"
+        elif pin == s_aluno: st.session_state.perfil = "aluno"
+        else: st.error("PIN Inválido.")
+        st.rerun()
     st.stop()
 
-# --- 2. MENU E LOGOUT ---
-perfil = st.session_state.perfil
-st.sidebar.title(f"🚀 {'Professor' if perfil == 'admin' else 'Estudante'}")
-if st.sidebar.button("Sair/Logout"):
+# --- 3. MENU LATERAL FIXO (NÃO SOME) ---
+st.sidebar.title(f"👤 {st.session_state.perfil.upper()}")
+st.session_state.menu_ativo = st.sidebar.radio("Selecione um Módulo:", 
+    ["🔢 Operações", "📐 Equações", "📚 Colegial", "⚖️ Álgebra Linear", "📄 Manual", "🧮 Calculadoras"])
+
+if st.sidebar.button("🔴 Sair"):
     st.session_state.perfil = None
-    st.session_state.sub_menu = None
     st.rerun()
 
-# --- 3. FUNÇÃO PDF ---
-def exportar_pdf(questoes, titulo):
-    pdf = FPDF()
-    pdf.add_page()
-    if os.path.exists("cabecalho.png"):
-        pdf.image("cabecalho.png", x=12.5, y=8, w=185)
-        pdf.set_y(46)
-    else: pdf.set_y(15)
-    pdf.set_font("Arial", 'B', 14); pdf.cell(0, 10, txt=clean_txt(titulo), ln=True, align='C'); pdf.ln(5)
-    pdf.set_font("Arial", size=11); letras = "abcdefghijklmnopqrstuvwxyz"
-    for i, q in enumerate(questoes):
-        pdf.multi_cell(0, 10, txt=f"{letras[i%26]}) {clean_txt(q)}")
-    return pdf.output(dest='S').encode('latin-1', 'replace')
+# --- 4. LÓGICA DOS MÓDULOS ---
+menu = st.session_state.menu_ativo
+st.title(f"Módulo: {menu}")
 
-# --- 4. PAINEL PRINCIPAL (ADMIN) ---
-if perfil == "admin":
-    st.title("🛠️ Painel de Controle do Professor")
-    
-    st.subheader("📝 Geradores de Atividades (PDF)")
-    c1, c2, c3, c4, c5 = st.columns(5)
-    with c1: 
-        if st.button("🔢 Operações\nBásicas", use_container_width=True): st.session_state.sub_menu = "op"
-    with c2: 
-        if st.button("📐 Equações\n1º e 2º Grau", use_container_width=True): st.session_state.sub_menu = "eq"
-    with c3: 
-        if st.button("📚 Colegial\nFrações/Funções", use_container_width=True): st.session_state.sub_menu = "col"
-    with c4: 
-        if st.button("⚖️ Álgebra\nLinear", use_container_width=True): st.session_state.sub_menu = "alg"
-    with c5: 
-        if st.button("📄 Gerador\nManual", use_container_width=True): st.session_state.sub_menu = "man"
+# --- MÓDULO MANUAL (COM t. PARA TÍTULO) ---
+if menu == "📄 Manual":
+    st.info("Dicas: 't.' no início = Título | '1.' no início = Questão (reseta letras) | '.' no início = Colunas")
+    txt_m = st.text_area("Digite sua atividade:", height=300, placeholder="t. NOME DA ESCOLA\n1. Resolva as contas:\n. 2+2\n. 5+5")
+    if st.button("🔍 Visualizar Conteúdo"):
+        st.session_state.preview_questoes = txt_m.split('\n')
 
-    st.markdown("---")
-    st.subheader("🧮 Ferramentas de Cálculo Online")
-    d1, d2, d3 = st.columns(3)
-    with d1: 
-        if st.button("𝑓(x) Cálculo\nde Funções", use_container_width=True): st.session_state.sub_menu = "calc_f"
-    with d2: 
-        if st.button("📊 Expressões\n(PEMDAS)", use_container_width=True): st.session_state.sub_menu = "pemdas"
-    with d3: 
-        if st.button("💰 Calculadora\nFinanceira", use_container_width=True): st.session_state.sub_menu = "fin"
+# --- MÓDULO COLEGIAL ---
+elif menu == "📚 Colegial":
+    temas = st.multiselect("Tópicos:", ["Frações", "Potência", "Raiz", "Sistemas 2x2", "Matrizes"], ["Frações"])
+    if st.button("🎲 Gerar Atividade Colegial"):
+        qs = []
+        for _ in range(10):
+            t = random.choice(temas)
+            if t == "Frações": qs.append(f"{random.randint(1,9)}/{random.randint(2,5)} + {random.randint(1,9)}/{random.randint(2,5)} =")
+            elif t == "Potência": qs.append(f"{random.randint(2,10)}^{random.randint(2,3)} =")
+            elif t == "Raiz": qs.append(f"√{random.randint(2,12)**2} =")
+            elif t == "Sistemas 2x2": qs.append(f"Sistema: {{ x+y={random.randint(5,10)} | x-y={random.randint(1,4)} }}")
+            elif t == "Matrizes": qs.append(f"Det 2x2: {np.random.randint(1,9, (2,2)).tolist()}")
+        st.session_state.preview_questoes = qs
 
-    op_atual = st.session_state.sub_menu
-    st.divider()
+# --- OUTROS MÓDULOS (OPERAÇÕES, EQUAÇÕES, ÁLGEBRA) ---
+elif menu == "🔢 Operações":
+    ops = st.multiselect("Operações:", ["+", "-", "x", "÷"], ["+"])
+    if st.button("🎲 Gerar"):
+        st.session_state.preview_questoes = [f"{random.randint(10,99)} {random.choice(ops)} {random.randint(2,20)} =" for _ in range(10)]
 
-    # --- MÓDULOS DE GERADORES ---
-    if op_atual == "op":
-        st.header("🔢 Operações")
-        escolhas = st.multiselect("Sinais:", ["+", "-", "x", "÷"], ["+", "-"])
-        qtd = st.number_input("Qtd:", 4, 30, 10)
-        if st.button("Gerar PDF"):
-            qs = [f"{random.randint(10,500)} {random.choice(escolhas)} {random.randint(2,50)} =" for _ in range(qtd)]
-            st.download_button("Baixar", exportar_pdf(qs, "Operações"), "op.pdf")
-
-    elif op_atual == "eq":
-        st.header("📐 Equações")
-        grau = st.radio("Grau:", ["1º Grau", "2º Grau"], horizontal=True)
-        if st.button("Gerar PDF"):
-            qs = [f"{random.randint(2,9)}x + {random.randint(1,20)} = {random.randint(21,99)}" if grau == "1º Grau" else f"x² + {random.randint(2,8)}x + {random.randint(1,12)} = 0" for _ in range(8)]
-            st.download_button("Baixar", exportar_pdf(qs, "Equações"), "eq.pdf")
-
-    elif op_atual == "col":
-        st.header("📚 Colegial (Frações e Funções)")
-        tipo_col = st.selectbox("Escolha o tema:", ["Soma de Frações", "Simplificação", "Domínio de Funções"])
-        if st.button("Gerar PDF Colegial"):
-            if "Frações" in tipo_col:
-                qs = [f"{random.randint(1,9)}/{random.randint(2,5)} + {random.randint(1,9)}/{random.randint(2,5)} =" for _ in range(6)]
-            else:
-                qs = [f"Determine o domínio de f(x) = {random.randint(1,10)}/(x - {random.randint(1,20)})" for _ in range(5)]
-            st.download_button("Baixar", exportar_pdf(qs, tipo_col), "colegial.pdf")
-
-    elif op_atual == "alg":
-        st.header("⚖️ Álgebra Linear (Matrizes)")
-        ordem = st.selectbox("Ordem da Matriz:", ["2x2", "3x3"])
-        if st.button("Gerar Matrizes"):
-            qs = [f"Calcule o Determinante da Matriz {ordem}: \n {np.random.randint(1,10, size=(2,2) if ordem=='2x2' else (3,3))}" for _ in range(3)]
-            st.download_button("Baixar", exportar_pdf(qs, f"Matrizes {ordem}"), "algebra.pdf")
-
-    elif op_atual == "man":
-        st.header("📄 Manual")
-        tit_m = st.text_input("Título:", "Atividade")
-        txt_m = st.text_area("Texto (. para colunas):", height=200)
-        if st.button("Gerar Manual"):
-            pdf = FPDF(); pdf.add_page(); pdf.set_font("Arial", size=10); l_idx = 0; letras = "abcdefghijklmnopqrstuvwxyz"
-            for linha in txt_m.split('\n'):
-                t = linha.strip()
-                if not t: continue
-                match = re.match(r'^(\.+)', t); pts = len(match.group(1)) if match else 0
-                if re.match(r'^\d+', t): # Novo número reseta letra
-                    pdf.ln(5); pdf.set_font("Arial", 'B', 11); pdf.multi_cell(0, 8, clean_txt(t)); pdf.set_font("Arial", size=10); l_idx = 0
-                elif pts > 0:
-                    if pts > 1: pdf.set_y(pdf.get_y() - 8)
-                    pdf.set_x(10 + (pts-1)*45); pdf.cell(45, 8, f"{letras[l_idx%26]}) {clean_txt(t[pts:].strip())}", ln=True); l_idx += 1
-                else: pdf.multi_cell(0, 8, clean_txt(t))
-            st.download_button("Baixar", pdf.output(dest='S').encode('latin-1', 'replace'), "manual.pdf")
-
-    # --- MÓDULOS DE CÁLCULO ---
-    elif op_atual == "calc_f":
-        st.header("𝑓(x) Calculadora")
-        f = st.text_input("f(x):", "x**2")
-        x = st.number_input("x:", value=1.0)
-        if st.button("Calcular"):
-            st.metric("Resultado", eval(f.replace('x', f'({x})')))
-
-    elif op_atual == "pemdas":
-        st.header("📊 PEMDAS")
+elif menu == "🧮 Calculadoras":
+    c1, c2 = st.columns(2)
+    with c1:
+        st.subheader("📊 PEMDAS")
         exp = st.text_input("Expressão:", "2 + 3 * 4")
         if st.button("Resolver"): st.success(f"Resultado: {eval(exp)}")
+    with c2:
+        st.subheader("𝑓(x) Função")
+        f_in = st.text_input("f(x):", "x**2")
+        x_in = st.number_input("x:", 2)
+        if st.button("Calcular"): st.metric("Resultado", eval(f_in.replace('x', str(x_in))))
 
-    elif op_atual == "fin":
-        st.header("💰 Financeira")
-        pv = st.number_input("Capital:", 100.0)
-        i = st.number_input("Taxa %:", 1.0)
-        n = st.number_input("Meses:", 1.0)
-        if st.button("Calcular"): st.metric("Montante", f"{pv * (1 + i/100)**n:.2f}")
+# --- 5. ÁREA DE VISUALIZAÇÃO E PDF (REGRAS DE FORMATAÇÃO) ---
+if st.session_state.preview_questoes and menu != "🧮 Calculadoras":
+    st.divider()
+    st.subheader("👀 Prévia da Atividade")
+    letras = "abcdefghijklmnopqrstuvwxyz"; l_idx = 0
+    
+    with st.container(border=True):
+        for q in st.session_state.preview_questoes:
+            t = q.strip()
+            if not t: continue
+            if t.startswith("t."):
+                st.markdown(f"### {t[2:].strip()}")
+            elif re.match(r'^\d+', t):
+                st.markdown(f"**{t}**")
+                l_idx = 0
+            else:
+                st.write(f"**{letras[l_idx%26]})** {t.replace('.', '').strip()}")
+                l_idx += 1
 
-else:
-    st.title("📖 Estudante")
-    st.info("Painel de consulta liberado.")
+    if st.button("📥 Gerar PDF para Download"):
+        pdf = FPDF(); pdf.add_page(); pdf.set_font("Arial", size=10); l_idx = 0
+        if os.path.exists("cabecalho.png"): pdf.image("cabecalho.png", x=12.5, y=8, w=185); pdf.set_y(46)
+        
+        for q in st.session_state.preview_questoes:
+            t = q.strip()
+            if not t: continue
+            
+            # COMANDO t. (TÍTULO)
+            if t.startswith("t."):
+                pdf.ln(5)
+                pdf.set_font("Arial", 'B', 14)
+                pdf.cell(0, 10, clean_txt(t[2:].strip()), ln=True, align='C')
+                pdf.set_font("Arial", size=10)
+            
+            # COMANDO NÚMERO (QUESTÃO)
+            elif re.match(r'^\d+', t):
+                pdf.ln(4)
+                pdf.set_font("Arial", 'B', 11)
+                pdf.multi_cell(0, 8, clean_txt(t))
+                pdf.set_font("Arial", size=10); l_idx = 0
+            
+            # COMANDO PONTO (COLUNAS/ITENS)
+            else:
+                match = re.match(r'^(\.+)', t); pts = len(match.group(1)) if match else 0
+                if pts > 0:
+                    if pts > 1: pdf.set_y(pdf.get_y() - 8)
+                    pdf.set_x(10 + (pts-1)*45)
+                    pdf.cell(45, 8, f"{letras[l_idx%26]}) {clean_txt(t[pts:].strip())}", ln=True)
+                else:
+                    pdf.multi_cell(0, 8, f"{letras[l_idx%26]}) {clean_txt(t)}")
+                l_idx += 1
+        
+        st.download_button("✅ Baixar Agora", pdf.output(dest='S').encode('latin-1', 'replace'), "atividade.pdf")
