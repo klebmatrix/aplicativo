@@ -20,7 +20,7 @@ if st.session_state.perfil is None:
     st.title("🔐 Login")
     pin = st.text_input("PIN:", type="password")
     if st.button("Entrar"):
-        s_prof = str(st.secrets.get("chave_mestra", "12345678")).strip()
+        s_prof = str(st.secrets.get("chave_mestra", "chave_mestra")).strip().lower()
         if pin == s_prof: 
             st.session_state.perfil = "admin"
             st.rerun()
@@ -39,44 +39,78 @@ if st.sidebar.button("Sair"):
 menu = st.session_state.menu_ativo
 st.title(f"Módulo: {menu}")
 
-# --- 4. LÓGICA DE ÁLGEBRA LINEAR (CORRIGIDA) ---
-if menu == "⚖️ Álgebra Linear":
-    ordem = st.radio("Ordem da Matriz:", ["2x2", "3x3"], horizontal=True)
-    if st.button("🎲 Gerar Matrizes"):
-        size = 2 if ordem == "2x2" else 3
+# --- 4. LÓGICA POR MÓDULO ---
+
+if menu == "📚 Colegial":
+    st.subheader("Aritmética Básica")
+    temas = st.multiselect("Tópicos:", ["Frações (4 ops)", "Potenciação", "Radiciação"], ["Frações (4 ops)"])
+    if st.button("🎲 Gerar Atividade Colegial"):
         qs = []
-        for i in range(3):
-            m = np.random.randint(-10, 10, size=(size, size))
-            # Formatação manual para evitar erro de exibição
-            m_str = "\n" + "\n".join([" | ".join(map(str, linha)) for linha in m])
-            qs.append(f"Calcule o determinante da matriz {ordem}:{m_str}")
+        for _ in range(10):
+            t = random.choice(temas)
+            if t == "Frações (4 ops)":
+                op = random.choice(['+', '-', 'x', '÷'])
+                qs.append(f"{random.randint(1,9)}/{random.randint(2,5)} {op} {random.randint(1,9)}/{random.randint(2,5)} =")
+            elif t == "Potenciação":
+                qs.append(f"{random.randint(2,12)}^{random.randint(2,3)} =")
+            else: # Radiciação
+                qs.append(f"√{random.randint(2,12)**2} =")
         st.session_state.preview_questoes = qs
 
-# --- 5. OUTROS MÓDULOS (OPERAÇÕES, EQUAÇÕES, COLEGIAL, MANUAL) ---
-elif menu == "🔢 Operações":
-    ops = st.multiselect("Sinais:", ["+", "-", "x", "÷"], ["+"])
-    if st.button("🎲 Gerar"):
-        st.session_state.preview_questoes = [f"{random.randint(10,500)} {random.choice(ops)} {random.randint(2,50)} =" for _ in range(10)]
+elif menu == "⚖️ Álgebra Linear":
+    st.subheader("Sistemas, Matrizes e Funções")
+    tipo_alg = st.radio("O que gerar:", ["Sistemas", "Matrizes", "Funções"], horizontal=True)
+    
+    if tipo_alg == "Sistemas":
+        grau_sis = st.radio("Grau:", ["1º Grau", "2º Grau"], horizontal=True)
+        if st.button("🎲 Gerar Sistemas"):
+            qs = []
+            for _ in range(4):
+                if "1º Grau" in grau_sis:
+                    x, y = random.randint(1,5), random.randint(1,5)
+                    qs.append(f"Resolva o sistema:\n{{ x + y = {x+y} \n{{ x - y = {x-y}")
+                else:
+                    qs.append(f"Resolva o sistema de 2º grau:\n{{ x + y = {random.randint(5,10)} \n{{ x² + y² = {random.randint(25,100)}")
+            st.session_state.preview_questoes = qs
+
+    elif tipo_alg == "Matrizes":
+        ordem = st.selectbox("Ordem:", ["2x2", "3x3"])
+        if st.button("🎲 Gerar Matrizes"):
+            size = 2 if ordem == "2x2" else 3
+            qs = []
+            for _ in range(3):
+                m = np.random.randint(-10, 10, size=(size, size))
+                m_str = "\n" + "\n".join([" | ".join(map(str, linha)) for linha in m])
+                qs.append(f"Calcule o determinante da matriz {ordem}:{m_str}")
+            st.session_state.preview_questoes = qs
+            
+    else: # Funções
+        if st.button("🎲 Gerar Questões de Funções"):
+            st.session_state.preview_questoes = [
+                f"Determine o domínio da função f(x) = {random.randint(1,9)} / (x - {random.randint(1,20)})",
+                f"Dada f(x) = {random.randint(2,5)}x + {random.randint(1,10)}, calcule f({random.randint(1,5)})",
+                f"Encontre a raiz da função f(x) = {random.randint(2,10)}x - {random.randint(10,50)}"
+            ]
 
 elif menu == "📐 Equações":
-    grau = st.radio("Grau:", ["1º Grau", "2º Grau"], horizontal=True)
-    if st.button("🎲 Gerar"):
-        st.session_state.preview_questoes = [f"{random.randint(2,9)}x + {random.randint(1,20)} = {random.randint(21,99)}" if grau == "1º Grau" else f"x² - {random.randint(2,10)}x + {random.randint(1,20)} = 0" for _ in range(8)]
-
-elif menu == "📚 Colegial":
-    temas = st.multiselect("Tópicos:", ["Frações", "Sistemas", "Potência"], ["Frações"])
-    if st.button("🎲 Gerar"):
-        st.session_state.preview_questoes = [f"{random.randint(1,9)}/2 + {random.randint(1,9)}/3 =" for _ in range(8)]
+    grau = st.radio("Tipo:", ["1º Grau", "2º Grau"], horizontal=True)
+    if st.button("🎲 Gerar Equações"):
+        qs = []
+        for _ in range(8):
+            if grau == "1º Grau":
+                a, b = random.randint(2,10), random.randint(1,30)
+                qs.append(f"{a}x + {b} = {a*random.randint(1,5) + b}")
+            else:
+                qs.append(f"x² - {random.randint(2,10)}x + {random.randint(1,20)} = 0")
+        st.session_state.preview_questoes = qs
 
 elif menu == "📄 Manual":
-    txt_m = st.text_area("t. Título | 1. Questão | . Coluna", height=200)
-    if st.button("🔍 Visualizar"): st.session_state.preview_questoes = txt_m.split('\n')
+    st.info("Comandos: t. Título | 1. Questão (reseta letras) | . Coluna")
+    txt_m = st.text_area("Digite o conteúdo:", height=250)
+    if st.button("🔍 Visualizar"):
+        st.session_state.preview_questoes = txt_m.split('\n')
 
-elif menu == "🧮 Calculadoras":
-    exp = st.text_input("PEMDAS:", "2 + 2")
-    if st.button("Calcular"): st.success(f"Res: {eval(exp)}")
-
-# --- 6. ÁREA DE PREVIEW E PDF ---
+# --- 5. ÁREA DE PREVIEW E PDF ---
 if st.session_state.preview_questoes and menu != "🧮 Calculadoras":
     st.divider()
     letras = "abcdefghijklmnopqrstuvwxyz"; l_idx = 0
@@ -84,8 +118,11 @@ if st.session_state.preview_questoes and menu != "🧮 Calculadoras":
         for q in st.session_state.preview_questoes:
             t = q.strip()
             if not t: continue
-            if t.startswith("t."): st.markdown(f"### {t[2:].strip()}")
-            elif re.match(r'^\d+', t): st.markdown(f"**{t}**"); l_idx = 0
+            if t.startswith("t."):
+                st.markdown(f"### {t[2:].strip()}")
+            elif re.match(r'^\d+', t):
+                st.markdown(f"**{t}**")
+                l_idx = 0
             else:
                 st.write(f"**{letras[l_idx%26]})** {t.replace('.', '').strip()}")
                 l_idx += 1
