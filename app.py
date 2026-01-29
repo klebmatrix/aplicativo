@@ -87,136 +87,6 @@ if perfil == "admin":
     op_atual = st.session_state.sub_menu
     st.divider()
 
-    # --- LÓGICA DOS 5 GERADORES ---
-    if op_atual == "op":
-        st.header("🔢 Gerador de Operações")
-        escolhas = st.multiselect("Sinais:", ["+", "-", "x", "÷"], ["+", "-"])
-        qtd = st.number_input("Quantidade:", 4, 30, 10)
-        if st.button("Gerar Preview"):
-            st.session_state.preview_questoes = ["t. Atividade de Operações"] + [f"{random.randint(10,500)} {random.choice(escolhas)} {random.randint(2,50)} =" for _ in range(qtd)]
-
-    elif op_atual == "eq":
-        st.header("📐 Gerador de Equações")
-        grau = st.radio("Grau:", ["1º Grau", "2º Grau"], horizontal=True)
-        if st.button("Gerar Preview"):
-            qs = [f"{random.randint(2,9)}x + {random.randint(1,20)} = {random.randint(21,99)}" if grau == "1º Grau" else f"x² + {random.randint(2,8)}x + {random.randint(1,12)} = 0" for _ in range(8)]
-            st.session_state.preview_questoes = [f"t. Equações de {grau}"] + qs
-
-    elif op_atual == "col":
-        st.header("📚 Colegial (Frações)")
-        if st.button("Gerar Preview"):
-            st.session_state.preview_questoes = ["t. Exercícios de Frações"] + [f"{random.randint(1,9)}/{random.randint(2,5)} + {random.randint(1,9)}/{random.randint(2,5)} =" for _ in range(8)]
-
-    elif op_atual == "alg":
-        st.header("⚖️ Álgebra Linear")
-        if st.button("Gerar Preview"):
-            st.session_state.preview_questoes = ["t. Álgebra Linear", "1. Resolva os sistemas:"] + [f"System {i+1}: {random.randint(1,5)}x + {random.randint(1,5)}y = {random.randint(10,30)}" for i in range(4)]
-
-    elif op_atual == "man":
-        st.header("📄 Gerador Manual")
-        txt_m = st.text_area("Digite as questões:", height=200)
-        if st.button("Gerar Preview"):
-            st.session_state.preview_questoes = txt_m.split('\n')
-# --- 5. LÓGICA DE PROCESSAMENTO (AS FERRAMENTAS) ---
-if st.session_state.sub_menu == "man":
-    st.header("📝 Entrada Manual de Questões")
-    input_texto = st.text_area("Cole aqui sua atividade:", height=200, 
-                               placeholder="t. Atividade de Matemática\n-M1. Números\n1. Quanto é 2+2?\n4\n2. Escreva 100 por extenso\nCem")
-    
-    if st.button("🔄 Processar Dados"):
-        if input_texto:
-            st.session_state.preview_questoes = input_texto.split('\n')
-            st.success("Dados processados com sucesso!")
-
-# --- 6. VISUALIZAÇÃO UNIFICADA (PREVIEW NA TELA) ---
-questoes_preview = st.session_state.get('preview_questoes', [])
-if questoes_preview:
-    st.divider()
-    # Cabeçalho no topo da tela
-    if os.path.exists("cabecalho.png"): 
-        st.image("cabecalho.png", use_container_width=True)
-    
-    letras_tela = "abcdefghijklmnopqrstuvwxyz"
-    l_idx = 0
-    
-    for q in questoes_preview:
-        line = q.strip()
-        if not line: continue
-        
-        if line.lower().startswith("t."):
-            st.markdown(f"<h2 style='text-align:center; color:#007bff;'>{line[2:]}</h2>", unsafe_allow_html=True)
-            l_idx = 0
-        elif line.startswith("-M"):
-            st.markdown(f"<div style='border-bottom:2px solid #333;'><h3>{line[1:]}</h3></div>", unsafe_allow_html=True)
-            l_idx = 0
-        elif re.match(r'^\d+', line):
-            st.markdown(f"<p style='font-size:18px;'>{line}</p>", unsafe_allow_html=True)
-            l_idx = 0
-        else:
-            # Organiza itens em colunas no Streamlit
-            cols = st.columns(2)
-            target = cols[0] if l_idx % 2 == 0 else cols[1]
-            with target:
-                st.info(f"**{letras_tela[l_idx%26]})** {line}")
-            l_idx += 1
-
-# --- 7. MOTOR GERADOR DE PDF (COM E SEM CABEÇALHO) ---
-    st.divider()
-    def gerar_pdf_final(com_cabecalho):
-        pdf = FPDF()
-        pdf.add_page()
-        pdf.set_font("Arial", size=12)
-        
-        y_last = 20
-        if com_cabecalho and os.path.exists("cabecalho.png"):
-            pdf.image("cabecalho.png", x=10, y=10, w=190)
-            y_last = 55 # Espaço para o cabeçalho
-
-        pdf.set_y(y_last)
-        l_pdf_idx = 0
-        y_col_1 = y_last # Monitora a altura da coluna da esquerda
-
-        for q in questoes_preview:
-            line = q.strip()
-            if not line: continue
-
-            # Se for um novo bloco (título, módulo ou número), pula para baixo das colunas
-            if line.lower().startswith("t.") or line.startswith("-M") or re.match(r'^\d+', line):
-                if l_pdf_idx > 0: 
-                    pdf.set_y(y_max_coluna + 5)
-                l_pdf_idx = 0
-
-            if line.lower().startswith("t."):
-                pdf.set_font("Arial", 'B', 16)
-                pdf.cell(0, 10, clean_txt(line[2:]), ln=True, align='C')
-                y_max_coluna = pdf.get_y()
-            elif line.startswith("-M"):
-                pdf.set_font("Arial", 'B', 14)
-                pdf.cell(0, 10, clean_txt(line[1:]), ln=True, align='L')
-                pdf.line(10, pdf.get_y(), 200, pdf.get_y()) # Linha divisória
-                y_max_coluna = pdf.get_y()
-            elif re.match(r'^\d+', line):
-                pdf.set_font("Arial", '', 12)
-                pdf.multi_cell(0, 8, clean_txt(line))
-                y_max_coluna = pdf.get_y()
-            else:
-                # Lógica de Duas Colunas no PDF
-                pdf.set_font("Arial", '', 11)
-                txt = f"{letras_tela[l_pdf_idx%26]}) {clean_txt(line)}"
-                curr_y = pdf.get_y()
-                
-                if l_pdf_idx % 2 == 0:
-                    pdf.set_xy(10, curr_y)
-                    pdf.multi_cell(90, 7, txt)
-                    y_col_1 = pdf.get_y()
-                    pdf.set_y(curr_y)
-                    y_max_coluna = y_col_1
-                else:
-                    pdf.set_xy(105, curr_y)
-                    pdf.multi_cell(90, 7, txt)
-                    y_max_coluna = max(y_col_1, pdf.get_y())
-                    pdf.set_y(y_max_coluna)
-                l_pdf_idx += 1
         
         return pdf.output(dest='S').encode('latin-1')
 
@@ -226,3 +96,126 @@ if questoes_preview:
         st.download_button("📄 PDF COM Cabeçalho", gerar_pdf_final(True), "atividade_completa.pdf")
     with c2:
         st.download_button("📄 PDF SEM Cabeçalho", gerar_pdf_final(False), "atividade_simples.pdf")
+
+# --- 5. LÓGICA DE PROCESSAMENTO (A ENTRADA) ---
+st.title("📄 Gerador de Atividades BNCC")
+
+if st.session_state.sub_menu == "📝 Modo Manual":
+    st.header("Entrada de Dados")
+    txt_input = st.text_area(
+        "Digite sua prova (t. Título, -M Módulo, 1. Questão):",
+        height=250,
+        placeholder="t. AVALIAÇÃO DE MATEMÁTICA\n-M1. OPERAÇÕES\n1. Resolva as contas:\n10 + 5 = ....\n20 + 30 = ...."
+    )
+    
+    if st.button("🔄 PROCESSAR DADOS"):
+        if txt_input:
+            st.session_state.preview_questoes = txt_input.split('\n')
+            st.toast("Atividade Processada!")
+
+# --- 6. VISUALIZAÇÃO NA TELA (O PREVIEW) ---
+questoes = st.session_state.get('preview_questoes', [])
+
+if questoes:
+    st.divider()
+    # Mostra o cabeçalho se ele existir
+    if os.path.exists("cabecalho.png"):
+        st.image("cabecalho.png", use_container_width=True)
+    
+    letras = "abcdefghijklmnopqrstuvwxyz"
+    l_idx = 0
+    
+    for linha in questoes:
+        l = linha.strip()
+        if not l: continue
+        
+        # Título Centralizado
+        if l.lower().startswith("t."):
+            st.markdown(f"<h1 style='text-align:center; color:#1E88E5;'>{l[2:]}</h1>", unsafe_allow_html=True)
+            l_idx = 0
+        # Módulo (M1, M2...) igual ao seu HTML
+        elif l.startswith("-M"):
+            st.markdown(f"<div style='border-bottom:3px solid #333; margin-top:20px;'><h3>{l[1:]}</h3></div>", unsafe_allow_html=True)
+            l_idx = 0
+        # Questão Numerada
+        elif re.match(r'^\d+', l):
+            st.markdown(f"#### {l}")
+            l_idx = 0
+        # Itens que viram a, b, c em colunas
+        else:
+            cols = st.columns(2)
+            alvo = cols[0] if l_idx % 2 == 0 else cols[1]
+            with alvo:
+                st.markdown(f"**{letras[l_idx%26]})** {l}")
+            l_idx += 1
+
+# --- 7. MOTOR GERADOR DE PDF (O IMPRESSOR) ---
+    st.divider()
+    
+    def criar_pdf(com_header):
+        pdf = FPDF()
+        pdf.add_page()
+        pdf.set_auto_page_break(auto=True, margin=15)
+        
+        y_atual = 20
+        if com_header and os.path.exists("cabecalho.png"):
+            pdf.image("cabecalho.png", x=10, y=10, w=190)
+            y_atual = 55
+        
+        pdf.set_y(y_atual)
+        l_pdf_idx = 0
+        y_max_linha = y_atual
+
+        for linha in questoes:
+            l = linha.strip()
+            if not l: continue
+
+            # Trava para não encavalar: Se for novo bloco, pula para baixo das colunas
+            if l.lower().startswith("t.") or l.startswith("-M") or re.match(r'^\d+', l):
+                if l_pdf_idx > 0:
+                    pdf.set_y(y_max_linha + 5)
+                l_pdf_idx = 0
+
+            if l.lower().startswith("t."):
+                pdf.set_font("Arial", 'B', 16)
+                pdf.cell(0, 10, clean_txt(l[2:]), ln=True, align='C')
+                y_max_linha = pdf.get_y()
+            elif l.startswith("-M"):
+                pdf.ln(5)
+                pdf.set_font("Arial", 'B', 14)
+                pdf.cell(0, 10, clean_txt(l[1:]), ln=True, align='L')
+                pdf.line(10, pdf.get_y(), 200, pdf.get_y())
+                y_max_linha = pdf.get_y()
+            elif re.match(r'^\d+', l):
+                pdf.ln(2)
+                pdf.set_font("Arial", '', 12)
+                pdf.multi_cell(0, 8, clean_txt(l))
+                y_max_linha = pdf.get_y()
+            else:
+                # Lógica de Duas Colunas
+                pdf.set_font("Arial", '', 11)
+                item_txt = f"{letras[l_pdf_idx%26]}) {clean_txt(l)}"
+                y_antes = pdf.get_y()
+                
+                if l_pdf_idx % 2 == 0:
+                    pdf.set_xy(10, y_antes)
+                    pdf.multi_cell(90, 7, item_txt)
+                    y_col_esquerda = pdf.get_y()
+                    pdf.set_y(y_antes) # Volta para a direita escrever na mesma altura
+                    y_max_linha = y_col_esquerda
+                else:
+                    pdf.set_xy(105, y_antes)
+                    pdf.multi_cell(90, 7, item_txt)
+                    y_max_linha = max(y_col_esquerda, pdf.get_y())
+                    pdf.set_y(y_max_linha)
+                l_pdf_idx += 1
+                
+        return pdf.output(dest='S').encode('latin-1')
+
+    # BOTÕES DE DOWNLOAD
+    st.subheader("📥 Baixar Atividade")
+    c1, c2 = st.columns(2)
+    with c1:
+        st.download_button("📄 Com Cabeçalho", criar_pdf(True), "prova_completa.pdf", "application/pdf")
+    with c2:
+        st.download_button("📄 Sem Cabeçalho", criar_pdf(False), "prova_simples.pdf", "application/pdf")
