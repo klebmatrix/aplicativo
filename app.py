@@ -93,7 +93,7 @@ if perfil == "admin":
     op_atual = st.session_state.sub_menu
     st.divider()
 
-    # --- LÓGICA DOS 5 GERADORES (MODIFICADOS) ---
+    # --- LÓGICA DOS 5 GERADORES ---
     if op_atual == "op":
         st.header("🔢 Gerador de Operações")
         escolhas = st.multiselect("Sinais:", ["+", "-", "x", "÷"], ["+", "-"])
@@ -103,25 +103,35 @@ if perfil == "admin":
 
     elif op_atual == "eq":
         st.header("📐 Gerador de Equações")
-        # Mantido apenas 1º grau para evitar potências
+        grau = st.radio("Grau:", ["1º Grau", "2º Grau"], horizontal=True)
         if st.button("Gerar Preview"):
-            qs = [f"{random.randint(2,9)}x + {random.randint(1,20)} = {random.randint(21,99)}" for _ in range(10)]
-            st.session_state.preview_questoes = ["t. Equações de 1º Grau"] + qs
+            qs = [f"{random.randint(2,9)}x + {random.randint(1,20)} = {random.randint(21,99)}" if grau == "1º Grau" else f"x² + {random.randint(2,8)}x + {random.randint(1,12)} = 0" for _ in range(8)]
+            st.session_state.preview_questoes = [f"t. Equações de {grau}"] + qs
 
     elif op_atual == "col":
-        st.header("📚 Colegial (Apenas Frações)")
+        st.header("📚 Colegial (Frações, Porcentagem e Potenciação)")
         if st.button("Gerar Preview"):
-            # Limpo de porcentagem e raízes, focado em aritmética de frações
-            st.session_state.preview_questoes = ["t. Exercícios de Frações"] + [f"{random.randint(1,9)}/{random.randint(2,6)} + {random.randint(1,9)}/{random.randint(2,6)} =" for _ in range(8)]
+            qs = []
+            for _ in range(12):
+                tema = random.choice(["Fração", "Porcentagem", "Potência"])
+                if tema == "Fração":
+                    qs.append(f"{random.randint(1,9)}/{random.randint(2,5)} + {random.randint(1,9)}/{random.randint(2,5)} =")
+                elif tema == "Porcentagem":
+                    qs.append(f"{random.randint(5,80)}% de {random.randint(100,900)} =")
+                else:
+                    qs.append(f"{random.randint(2,10)} elevado a {random.randint(2,3)} =")
+            st.session_state.preview_questoes = ["t. Exercícios Colegiais"] + qs
 
     elif op_atual == "alg":
-        st.header("⚖️ Álgebra (Sistemas Lineares)")
+        st.header("⚖️ Álgebra (Sistemas de 1º e 2º Grau)")
+        tipo_sist = st.radio("Tipo:", ["1º Grau", "2º Grau"], horizontal=True)
         if st.button("Gerar Preview"):
-            # Apenas sistemas x e y básicos, sem álgebra de potências
-            qs = ["t. Sistemas de Equações", "1. Determine os valores de x e y:"]
-            for i in range(5):
-                n1, n2, res = random.randint(1,5), random.randint(1,5), random.randint(10,30)
-                qs.append(f"Sist. {i+1}: {n1}x + {n2}y = {res}")
+            qs = [f"t. Álgebra: Sistemas de {tipo_sist}", "1. Resolva:"]
+            for i in range(4):
+                if tipo_sist == "1º Grau":
+                    qs.append(f"Sistema {i+1}: {random.randint(1,5)}x + {random.randint(1,5)}y = {random.randint(10,30)}")
+                else:
+                    qs.append(f"Sistema {i+1}: x² + y = {random.randint(10,50)} e x + y = {random.randint(2,10)}")
             st.session_state.preview_questoes = qs
 
     elif op_atual == "man":
@@ -133,7 +143,7 @@ if perfil == "admin":
     # --- FERRAMENTAS ONLINE ---
     elif op_atual == "calc_f":
         st.header("𝑓(x) Calculadora de Funções")
-        f_in = st.text_input("Função f(x):", "2*x + 10") # Sugestão linear
+        f_in = st.text_input("Função f(x):", "x**2 + 5*x + 6")
         x_in = st.number_input("Valor de x:", value=1.0)
         if st.button("Calcular"):
             try:
@@ -154,9 +164,9 @@ if perfil == "admin":
         pv = c_pv.number_input("Capital (R$):", 0.0)
         tx = c_tx.number_input("Taxa (% ao mês):", 0.0)
         tp = c_tp.number_input("Tempo (meses):", 0)
-        if st.button("Calcular Juros Simples"):
-            juros = pv * (tx/100) * tp
-            st.metric("Montante Final", f"R$ {pv + juros:.2f}")
+        if st.button("Calcular Juros Compostos"):
+            fv = pv * (1 + tx/100)**tp
+            st.metric("Montante Final", f"R$ {fv:.2f}")
 
 # --- 6. VISUALIZAÇÃO E PDF ---
 if st.session_state.preview_questoes and st.session_state.sub_menu in ["op", "eq", "col", "alg", "man"]:
