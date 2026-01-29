@@ -15,7 +15,6 @@ if 'preview_questoes' not in st.session_state: st.session_state.preview_questoes
 
 def clean_txt(text):
     if not text: return ""
-    # Substitui caracteres especiais para compatibilidade com FPDF (Latin-1)
     text = str(text).replace("√", "V").replace("²", "^2").replace("³", "^3")
     return text.encode('latin-1', 'replace').decode('latin-1')
 
@@ -49,6 +48,12 @@ if st.session_state.perfil is None:
 # --- MENU LATERAL ---
 perfil = st.session_state.perfil
 st.sidebar.title(f"🚀 {'Professor' if perfil == 'admin' else 'Estudante'}")
+
+if st.sidebar.button("🧹 Limpar Tudo"):
+    st.session_state.preview_questoes = []
+    st.session_state.sub_menu = None
+    st.rerun()
+
 if st.sidebar.button("Sair/Logout"):
     for key in list(st.session_state.keys()): del st.session_state[key]
     st.rerun()
@@ -111,11 +116,11 @@ if perfil == "admin":
     elif op_atual == "alg":
         st.header("⚖️ Álgebra Linear")
         if st.button("Gerar Preview"):
-            st.session_state.preview_questoes = ["t. Álgebra Linear", "1. Resolva os sistemas:"] + [f"Sist. {i+1}: {random.randint(1,5)}x + {random.randint(1,5)}y = {random.randint(10,30)}" for i in range(4)]
+            st.session_state.preview_questoes = ["t. Álgebra Linear", "1. Resolva os sistemas:"] + [f"System {i+1}: {random.randint(1,5)}x + {random.randint(1,5)}y = {random.randint(10,30)}" for i in range(4)]
 
     elif op_atual == "man":
         st.header("📄 Gerador Manual")
-        txt_m = st.text_area("Digite as questões (t. para título, número para início):", height=200)
+        txt_m = st.text_area("Digite as questões:", height=200)
         if st.button("Gerar Preview"):
             st.session_state.preview_questoes = txt_m.split('\n')
 
@@ -150,8 +155,7 @@ if perfil == "admin":
 # --- 6. VISUALIZAÇÃO E PDF ---
 if st.session_state.preview_questoes and st.session_state.sub_menu in ["op", "eq", "col", "alg", "man"]:
     st.divider()
-    if os.path.exists("cabecalho.png"): 
-        st.image("cabecalho.png", use_container_width=True)
+    if os.path.exists("cabecalho.png"): st.image("cabecalho.png", use_container_width=True)
     
     letras = "abcdefghijklmnopqrstuvwxyz"
     l_idx = 0
@@ -174,38 +178,27 @@ if st.session_state.preview_questoes and st.session_state.sub_menu in ["op", "eq
                     with st.container(border=True): st.write(f"**{letras[l_idx%26]})** {line}")
             l_idx += 1
 
-    # --- GERAÇÃO DE PDF ---
-    if st.button("📥 Preparar PDF A4"):
+    if st.button("📥 Baixar PDF A4"):
         pdf = FPDF(orientation='P', unit='mm', format='A4')
         pdf.add_page()
+        y_at = 55 if os.path.exists("cabecalho.png") else 20
+        if os.path.exists("cabecalho.png"): pdf.image("cabecalho.png", x=10, y=10, w=190)
         
-        y_at = 20
-        if os.path.exists("cabecalho.png"):
-            pdf.image("cabecalho.png", x=10, y=10, w=190)
-            y_at = 55
-        
-        pdf.set_y(y_at)
         l_pdf_idx = 0
-        y_max_linha = y_at
-        y_prox = y_at
-
+        y_base = y_at
         for q in st.session_state.preview_questoes:
             line = q.strip()
             if not line: continue
-            
             pdf.set_font("Arial", size=11)
             if line.lower().startswith("t."):
-                pdf.set_font("Arial", 'B', 16)
-                pdf.ln(5)
+                pdf.set_font("Arial", 'B', 16); pdf.set_y(y_at + 5)
                 pdf.cell(0, 10, clean_txt(line[2:]), ln=True, align='C')
-                y_at = pdf.get_y()
+                y_at = pdf.get_y() + 5
                 l_pdf_idx = 0
             elif re.match(r'^\d+', line):
-                pdf.set_font("Arial", 'B', 12)
-                pdf.ln(5)
+                pdf.set_y(y_at + 5); pdf.set_font("Arial", 'B', 12)
                 pdf.multi_cell(0, 8, clean_txt(line))
-                y_at = pdf.get_y()
-                l_pdf_idx = 0
+                y_at, l_pdf_idx = pdf.get_y(), 0
             else:
                 txt = f"{letras[l_pdf_idx%26]}) {line}"
                 if l_pdf_idx % 2 == 0:
@@ -219,6 +212,5 @@ if st.session_state.preview_questoes and st.session_state.sub_menu in ["op", "eq
                     y_at = max(y_prox, pdf.get_y())
                 l_pdf_idx += 1
         
-        # Correção da saída do PDF para bytes
-        pdf_bytes = pdf.output(dest='S').encode('latin-1')
-        st.download_button("✅ Baixar Agora", pdf_bytes, "atividade.pdf", "application/pdf")
+        pdf_out = pdf.output(dest='S').encode('latin-1')
+        st.download_button("✅ Baixar Agora", pdf_out, "atividade.pdf", "application/pdf")
