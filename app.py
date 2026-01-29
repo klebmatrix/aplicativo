@@ -49,87 +49,93 @@ if st.sidebar.button("🧹 Limpar Tudo", use_container_width=True):
     st.session_state.sub_menu = None
     st.rerun()
 
-if st.sidebar.button("🚪 Sair/Logout", use_container_width=True):
+if st.sidebar.button("Sair/Logout", use_container_width=True):
     for key in list(st.session_state.keys()): del st.session_state[key]
     st.rerun()
 
-# --- PAINEL ADMIN ---
-if perfil == "admin":
-    st.title("🛠️ Painel de Controle")
-    
-    st.subheader("📝 Geradores de Atividades (PDF)")
-    c1, c2, c3, c4, c5 = st.columns(5)
-    with c1: 
-        if st.button("🔢 Operações", use_container_width=True): 
-            st.session_state.sub_menu = "op"; st.session_state.preview_questoes = []
-    with c2: 
-        if st.button("📐 Equações", use_container_width=True): 
-            st.session_state.sub_menu = "eq"; st.session_state.preview_questoes = []
-    with c3: 
-        if st.button("📚 Colegial", use_container_width=True): 
-            st.session_state.sub_menu = "col"; st.session_state.preview_questoes = []
-    with c4: 
-        if st.button("⚖️ Álgebra", use_container_width=True): 
-            st.session_state.sub_menu = "alg"; st.session_state.preview_questoes = []
-    with c5: 
-        if st.button("📄 Manual", use_container_width=True): 
-            st.session_state.sub_menu = "man"; st.session_state.preview_questoes = []
+# --- PAINEL ---
+st.title("🛠️ Quantum Math Lab - Painel Principal")
 
-    st.markdown("---")
-    st.subheader("🧮 Ferramentas de Cálculo Online")
-    d1, d2, d3 = st.columns(3)
-    with d1: 
-        if st.button("𝑓(x) Funções", use_container_width=True): st.session_state.sub_menu = "calc_f"
-    with d2: 
-        if st.button("📊 PEMDAS", use_container_width=True): st.session_state.sub_menu = "pemdas"
-    with d3: 
-        if st.button("💰 Financeira", use_container_width=True): st.session_state.sub_menu = "fin"
+# Seção de Geradores de PDF
+st.subheader("📝 Geradores de Atividades (PDF)")
+c1, c2, c3, c4, c5 = st.columns(5)
+with c1: 
+    if st.button("🔢 Operações", use_container_width=True): st.session_state.sub_menu = "op"
+with c2: 
+    if st.button("📐 Equações", use_container_width=True): st.session_state.sub_menu = "eq"
+with c3: 
+    if st.button("📚 Colegial", use_container_width=True): st.session_state.sub_menu = "col"
+with c4: 
+    if st.button("⚖️ Álgebra", use_container_width=True): st.session_state.sub_menu = "alg"
+with c5: 
+    if st.button("📄 Manual", use_container_width=True): st.session_state.sub_menu = "man"
 
-    op_atual = st.session_state.sub_menu
-    st.divider()
+st.markdown("---")
 
-    # --- LÓGICA DE GERAÇÃO ---
-    if op_atual == "col":
-        st.header("📚 Colegial - Escolha o Tema")
-        tema_col = st.radio("Tema:", ["Frações", "Potenciação", "Radiciação"], horizontal=True)
-        if st.button("Gerar Preview"):
-            if tema_col == "Frações":
-                qs = [f"{random.randint(1,9)}/{random.randint(2,9)} + {random.randint(1,9)}/{random.randint(2,9)} =" for _ in range(10)]
-            elif tema_col == "Potenciação":
-                qs = [f"{random.randint(2,12)}^{random.randint(2,3)} =" for _ in range(10)]
-            else:
-                qs = [f"√{random.choice([4,9,16,25,36,49,64,81,100,121,144])} =" for _ in range(10)]
-            st.session_state.preview_questoes = [f"t. Exercícios de {tema_col}"] + qs
+# Seção de Cálculos Online (AQUI!)
+st.subheader("🧮 Calculadoras Online (Resolução em tempo real)")
+d1, d2, d3 = st.columns(3)
+with d1: 
+    if st.button("𝑓(x) Funções", use_container_width=True): st.session_state.sub_menu = "calc_f"
+with d2: 
+    if st.button("📊 PEMDAS / Expressões", use_container_width=True): st.session_state.sub_menu = "pemdas"
+with d3: 
+    if st.button("💰 Financeira", use_container_width=True): st.session_state.sub_menu = "fin"
 
-    elif op_atual == "alg":
-        st.header("⚖️ Álgebra - Sistemas")
-        tipo_alg = st.radio("Tipo de Sistema:", ["1º Grau (x, y)", "2º Grau"], horizontal=True)
-        if st.button("Gerar Preview"):
-            if tipo_alg == "1º Grau (x, y)":
-                qs = [f"{random.randint(1,5)}x + {random.randint(1,5)}y = {random.randint(10,30)}\n{random.randint(1,5)}x - {random.randint(1,5)}y = {random.randint(1,10)}" for _ in range(4)]
-            else:
-                qs = [f"x + y = {random.randint(5,10)}\nx² + y² = {random.randint(25,100)}" for _ in range(3)]
-            st.session_state.preview_questoes = [f"t. Sistemas de {tipo_alg}"] + qs
+st.divider()
+op_atual = st.session_state.sub_menu
 
-    # (Lógica simplificada para os outros para manter o código limpo)
-    elif op_atual == "op":
-        st.header("🔢 Operações")
-        if st.button("Gerar Preview"):
-            st.session_state.preview_questoes = ["t. Operações"] + [f"{random.randint(10,500)} + {random.randint(10,500)} =" for _ in range(10)]
+# --- LÓGICA DAS CALCULADORAS ONLINE ---
+if op_atual == "calc_f":
+    st.header("𝑓(x) Calculadora de Funções")
+    f_in = st.text_input("Função (ex: x**2 + 5*x):", "x**2")
+    x_val = st.number_input("Valor de x:", value=2.0)
+    if st.button("Calcular"):
+        try:
+            res = eval(f_in.replace('x', f'({x_val})'))
+            st.success(f"Resultado: f({x_val}) = {res}")
+        except Exception as e: st.error(f"Erro: {e}")
 
-    elif op_atual == "eq":
-        st.header("📐 Equações")
-        grau = st.radio("Grau:", ["1º", "2º"])
-        if st.button("Gerar Preview"):
-            st.session_state.preview_questoes = [f"t. Equações de {grau} Grau"] + [f"x² + {random.randint(1,10)}x + {random.randint(1,10)} = 0" if grau=="2º" else f"2x + 5 = 15" for _ in range(8)]
+elif op_atual == "pemdas":
+    st.header("📊 Resolutor de Expressões")
+    expr = st.text_input("Digite a expressão (ex: (10+5)*2):", "2 + 2")
+    if st.button("Resolver"):
+        try: st.info(f"Resultado: {eval(expr)}")
+        except: st.error("Expressão inválida.")
 
-    elif op_atual == "man":
-        st.header("📄 Manual")
-        txt = st.text_area("Texto:")
-        if st.button("Gerar Preview"): st.session_state.preview_questoes = txt.split('\n')
+elif op_atual == "fin":
+    st.header("💰 Matemática Financeira")
+    f1, f2, f3 = st.columns(3)
+    p = f1.number_input("Capital (R$):", 1000.0)
+    i = f2.number_input("Taxa (% a.m.):", 2.0)
+    t = f3.number_input("Tempo (meses):", 12)
+    if st.button("Calcular Montante"):
+        m = p * (1 + i/100)**t
+        st.metric("Montante Final", f"R$ {m:.2f}")
 
-# --- VISUALIZAÇÃO E PDF ---
-if st.session_state.preview_questoes:
+# --- LÓGICA DOS GERADORES DE ATIVIDADES ---
+elif op_atual == "col":
+    st.header("📚 Colegial")
+    tema = st.radio("Escolha o Tema:", ["Frações", "Potenciação", "Radiciação"], horizontal=True)
+    if st.button("Gerar Atividade"):
+        if tema == "Frações":
+            st.session_state.preview_questoes = ["t. Frações"] + [f"{random.randint(1,9)}/{random.randint(2,5)} + {random.randint(1,9)}/{random.randint(2,5)} =" for _ in range(10)]
+        elif tema == "Potenciação":
+            st.session_state.preview_questoes = ["t. Potenciação"] + [f"{random.randint(2,15)}^{random.randint(2,3)} =" for _ in range(10)]
+        else:
+            st.session_state.preview_questoes = ["t. Radiciação"] + [f"√{n**2} =" for n in range(2, 12)]
+
+elif op_atual == "alg":
+    st.header("⚖️ Álgebra Linear")
+    grau_alg = st.radio("Sistema:", ["1º Grau (x, y)", "2º Grau"], horizontal=True)
+    if st.button("Gerar Atividade"):
+        if grau_alg == "1º Grau (x, y)":
+            st.session_state.preview_questoes = ["t. Sistemas de 1º Grau"] + [f"{random.randint(1,5)}x + {random.randint(1,5)}y = {random.randint(10,30)}\n{random.randint(1,5)}x - {random.randint(1,5)}y = {random.randint(1,10)}" for _ in range(4)]
+        else:
+            st.session_state.preview_questoes = ["t. Sistemas de 2º Grau"] + [f"x + y = {random.randint(5,10)}\nx² + y² = {random.randint(25,100)}" for _ in range(3)]
+
+# --- PREVIEW E PDF ---
+if st.session_state.preview_questoes and op_atual in ["op", "eq", "col", "alg", "man"]:
     st.divider()
     letras = "abcdefghijklmnopqrstuvwxyz"
     l_idx = 0
@@ -144,8 +150,8 @@ if st.session_state.preview_questoes:
             with (col1 if l_idx % 2 == 0 else col2):
                 st.info(f"**{letras[l_idx%26]})** {line}")
             l_idx += 1
-
-    if st.button("📥 Baixar PDF"):
+    
+    if st.button("📥 Baixar Atividade em PDF"):
         pdf = FPDF()
         pdf.add_page()
         pdf.set_font("Arial", size=12)
@@ -157,4 +163,4 @@ if st.session_state.preview_questoes:
             else:
                 pdf.set_font("Arial", size=11); pdf.cell(0, 8, clean_txt(f"{letras[l_pdf%26]}) {line}"), ln=True)
                 l_pdf += 1
-        st.download_button("Salvar PDF", pdf.output(dest='S').encode('latin-1'), "atividade.pdf")
+        st.download_button("Clique para salvar", pdf.output(dest='S').encode('latin-1'), "atividade.pdf")
