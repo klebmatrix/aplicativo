@@ -200,10 +200,10 @@ if questoes:
                     pdf.set_y(y_max_linha)
                 l_pdf_idx += 1
         
-        # O return deve estar alinhado com o 'for' acima
+        # O return DEVE estar alinhado com o 'for' e o 'pdf = FPDF()'
         return pdf.output(dest='S').encode('latin-1')
 
-    # BOTÕES DE DOWNLOAD
+    # BOTÕES DE DOWNLOAD (Alinhados fora da def criar_pdf)
     st.subheader("📥 Baixar Atividade")
     c1, c2 = st.columns(2)
     with c1:
