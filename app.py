@@ -9,7 +9,7 @@ from fpdf import FPDF
 # --- 1. CONFIGURAÇÃO ---
 st.set_page_config(page_title="Quantum Math Lab", layout="wide", page_icon="🚀")
 
-# Inicialização de estados para evitar erros de atributo
+# Inicialização de estados
 if 'perfil' not in st.session_state: st.session_state.perfil = None
 if 'sub_menu' not in st.session_state: st.session_state.sub_menu = None
 if 'preview_questoes' not in st.session_state: st.session_state.preview_questoes = []
@@ -124,7 +124,7 @@ if perfil == "admin":
                 st.latex(f"f({x_val}) = {resultado}")
             except Exception as e: st.error(f"Erro: {e}")
 
-# --- 6. VISUALIZAÇÃO UNIFICADA (CARDS) ---
+# --- 6. VISUALIZAÇÃO EM CARDS (DUAS COLUNAS NO STREAMLIT) ---
 if st.session_state.preview_questoes:
     st.divider()
     if os.path.exists("cabecalho.png"):
@@ -133,28 +133,48 @@ if st.session_state.preview_questoes:
     letras = "abcdefghijklmnopqrstuvwxyz"
     l_idx = 0
 
+    # Filtramos apenas as questões que serão exibidas em colunas (excluindo títulos e números)
+    items_to_show = []
+    
     for q in st.session_state.preview_questoes:
         line = q.strip()
         if not line: continue
         
-        if line.lower().startswith(("t.", "titulo:", "título:")):
-            t_clean = re.sub(r'^(t\.|titulo:|título:)\s*', '', line, flags=re.IGNORECASE)
-            st.markdown(f"<h1 style='text-align: center; color: #007bff; border-bottom: 2px solid #007bff;'>{t_clean}</h1>", unsafe_allow_html=True)
-            continue
+        # Se for título ou número, interrompe o fluxo de colunas e exibe largura total
+        if line.lower().startswith(("t.", "titulo:", "título:")) or re.match(r'^\d+', line):
+            # Se havia itens pendentes para mostrar em colunas, processamos eles agora
+            if items_to_show:
+                cols = st.columns(2)
+                for i, item in enumerate(items_to_show):
+                    with cols[i % 2]:
+                        with st.container(border=True):
+                            f = tratar_math(item['text'])
+                            st.write(f"**{item['letra']})**")
+                            if "x²" in item['text'] or "^" in item['text']: st.latex(f)
+                            else: st.write(item['text'])
+                items_to_show = [] # Limpa a lista
 
-        elif re.match(r'^\d+', line):
-            st.markdown(f"### {line}")
-            l_idx = 0 
-            
+            if line.lower().startswith(("t.", "titulo:", "título:")):
+                t_clean = re.sub(r'^(t\.|titulo:|título:)\s*', '', line, flags=re.IGNORECASE)
+                st.markdown(f"<h1 style='text-align: center; color: #007bff; border-bottom: 2px solid #007bff;'>{t_clean}</h1>", unsafe_allow_html=True)
+            else:
+                st.markdown(f"### {line}")
+                l_idx = 0 
         else:
-            with st.container(border=True):
-                c1, c2 = st.columns([0.05, 0.95])
-                with c1: st.write(f"**{letras[l_idx%26]})**")
-                with c2:
-                    f = tratar_math(line)
-                    if "x²" in line or "^" in line: st.latex(f)
-                    else: st.write(line)
+            # Adiciona item na fila para exibição em 2 colunas
+            items_to_show.append({'letra': letras[l_idx % 26], 'text': line})
             l_idx += 1
+
+    # Processa os últimos itens se sobraram
+    if items_to_show:
+        cols = st.columns(2)
+        for i, item in enumerate(items_to_show):
+            with cols[i % 2]:
+                with st.container(border=True):
+                    f = tratar_math(item['text'])
+                    st.write(f"**{item['letra']})**")
+                    if "x²" in item['text'] or "^" in item['text']: st.latex(f)
+                    else: st.write(item['text'])
 
 # --- 7. EXPORTAÇÃO PDF (FOLHA A4 - COLUNAS ALINHADAS) ---
     if st.button("📥 Baixar Atividade Finalizada (PDF)"):
@@ -169,54 +189,41 @@ if st.session_state.preview_questoes:
             y_atual = 20
 
         letras = "abcdefghijklmnopqrstuvwxyz"
-        l_idx = 0
+        l_idx_pdf = 0
         
         for q in st.session_state.preview_questoes:
             line = q.strip()
             if not line: continue
             
-            # Títulos
             if line.lower().startswith(("t.", "titulo:", "título:")):
                 t_clean = re.sub(r'^(t\.|titulo:|título:)\s*', '', line, flags=re.IGNORECASE)
                 pdf.set_y(y_atual + 5)
                 pdf.set_font("Arial", 'B', 16)
                 pdf.cell(0, 12, clean_txt(t_clean), ln=True, align='C')
                 y_atual = pdf.get_y() + 5
-                
-            # Números das Questões
             elif re.match(r'^\d+', line):
                 pdf.set_y(y_atual + 5)
                 pdf.set_font("Arial", 'B', 12)
                 pdf.multi_cell(0, 8, clean_txt(line))
                 y_atual = pdf.get_y()
-                l_idx = 0 # Reseta letra para 'a'
-                
-            # Itens (a, b, c...) em Colunas Travadas
+                l_idx_pdf = 0
             else:
                 pdf.set_font("Arial", size=11)
-                texto_item = f"{letras[l_idx%26]}) {line}"
-                
-                if l_idx % 2 == 0:
-                    # Salva a altura para a próxima coluna usar a mesma
+                texto_item = f"{letras[l_idx_pdf % 26]}) {line}"
+                if l_idx_pdf % 2 == 0:
                     y_base_coluna = y_atual 
                     pdf.set_xy(15, y_base_coluna)
                     pdf.multi_cell(90, 8, clean_txt(texto_item))
-                    # Atualiza o y_atual baseado na altura que o texto ocupou
                     y_proxima_linha = pdf.get_y() 
                 else:
-                    # Força a coluna da direita a começar na mesma altura da esquerda
                     pdf.set_xy(110, y_base_coluna)
                     pdf.multi_cell(85, 8, clean_txt(texto_item))
-                    # O y_atual para a próxima dupla será o maior entre as duas colunas
                     y_atual = max(y_proxima_linha, pdf.get_y())
-                
-                l_idx += 1
+                l_idx_pdf += 1
 
-        # Finalização e Download
-        pdf_bytes = bytes(pdf.output())
         st.download_button(
             label="✅ Baixar Atividade A4 Corrigida",
-            data=pdf_bytes,
+            data=bytes(pdf.output()),
             file_name="atividade_perfeita.pdf",
             mime="application/pdf"
         )
