@@ -87,128 +87,116 @@ if perfil == "admin":
     op_atual = st.session_state.sub_menu
     st.divider()
 
-        
-        return pdf.output(dest='S').encode('latin-1')
+    # --- LÓGICA DOS 5 GERADORES ---
+    if op_atual == "op":
+        st.header("🔢 Gerador de Operações")
+        escolhas = st.multiselect("Sinais:", ["+", "-", "x", "÷"], ["+", "-"])
+        qtd = st.number_input("Quantidade:", 4, 30, 10)
+        if st.button("Gerar Preview"):
+            st.session_state.preview_questoes = ["t. Atividade de Operações"] + [f"{random.randint(10,500)} {random.choice(escolhas)} {random.randint(2,50)} =" for _ in range(qtd)]
 
-    # Interface de Download
-    c1, c2 = st.columns(2)
-    with c1:
-        st.download_button("📄 PDF COM Cabeçalho", gerar_pdf_final(True), "atividade_completa.pdf")
-    with c2:
-        st.download_button("📄 PDF SEM Cabeçalho", gerar_pdf_final(False), "atividade_simples.pdf")
-# --- 5. LÓGICA DE PROCESSAMENTO ---
-if st.session_state.sub_menu == "📝 Modo Manual":
-    st.header("Entrada de Dados")
-    txt_input = st.text_area(
-        "Digite sua prova (t. Título, -M Módulo, 1. Questão):",
-        height=250,
-        placeholder="t. AVALIAÇÃO\n-M1. SOMA\n1. Calcule:\n10+5\n20+2"
-    )
-    
-    if st.button("🔄 PROCESSAR DADOS"):
-        if txt_input:
-            st.session_state.preview_questoes = txt_input.split('\n')
-            st.toast("Atividade Processada!")
-# --- 6. VISUALIZAÇÃO NA TELA ---
-questoes = st.session_state.get('preview_questoes', [])
+    elif op_atual == "eq":
+        st.header("📐 Gerador de Equações")
+        grau = st.radio("Grau:", ["1º Grau", "2º Grau"], horizontal=True)
+        if st.button("Gerar Preview"):
+            qs = [f"{random.randint(2,9)}x + {random.randint(1,20)} = {random.randint(21,99)}" if grau == "1º Grau" else f"x² + {random.randint(2,8)}x + {random.randint(1,12)} = 0" for _ in range(8)]
+            st.session_state.preview_questoes = [f"t. Equações de {grau}"] + qs
 
-if questoes:
+    elif op_atual == "col":
+        st.header("📚 Colegial (Frações)")
+        if st.button("Gerar Preview"):
+            st.session_state.preview_questoes = ["t. Exercícios de Frações"] + [f"{random.randint(1,9)}/{random.randint(2,5)} + {random.randint(1,9)}/{random.randint(2,5)} =" for _ in range(8)]
+
+    elif op_atual == "alg":
+        st.header("⚖️ Álgebra Linear")
+        if st.button("Gerar Preview"):
+            st.session_state.preview_questoes = ["t. Álgebra Linear", "1. Resolva os sistemas:"] + [f"System {i+1}: {random.randint(1,5)}x + {random.randint(1,5)}y = {random.randint(10,30)}" for i in range(4)]
+
+    elif op_atual == "man":
+        st.header("📄 Gerador Manual")
+        txt_m = st.text_area("Digite as questões:", height=200)
+        if st.button("Gerar Preview"):
+            st.session_state.preview_questoes = txt_m.split('\n')
+
+    # --- LÓGICA DAS 3 FERRAMENTAS ONLINE ---
+    elif op_atual == "calc_f":
+        st.header("𝑓(x) Calculadora de Funções")
+        f_in = st.text_input("Função f(x):", "x**2 + 5*x + 6")
+        x_in = st.number_input("Valor de x:", value=1.0)
+        if st.button("Calcular"):
+            try:
+                res = eval(f_in.replace('x', f'({x_in})'))
+                st.success(f"Resultado: f({x_in}) = {res}")
+            except Exception as e: st.error(f"Erro na fórmula: {e}")
+
+    elif op_atual == "pemdas":
+        st.header("📊 Resolutor de Expressões")
+        expr = st.text_input("Expressão:", "2 + 3 * (10 / 2)")
+        if st.button("Resolver"):
+            try: st.info(f"Resultado: {eval(expr)}")
+            except: st.error("Expressão inválida.")
+
+    elif op_atual == "fin":
+        st.header("💰 Calculadora Financeira")
+        c_pv, c_tx, c_tp = st.columns(3)
+        pv = c_pv.number_input("Capital (R$):", 0.0)
+        tx = c_tx.number_input("Taxa (% ao mês):", 0.0)
+        tp = c_tp.number_input("Tempo (meses):", 0)
+        if st.button("Calcular Juros Compostos"):
+            fv = pv * (1 + tx/100)**tp
+            st.metric("Montante Final", f"R$ {fv:.2f}")
+
+# --- 6. VISUALIZAÇÃO E PDF (EM DUAS COLUNAS) ---
+if st.session_state.preview_questoes and st.session_state.sub_menu in ["op", "eq", "col", "alg", "man"]:
     st.divider()
-    if os.path.exists("cabecalho.png"):
-        st.image("cabecalho.png", use_container_width=True)
+    if os.path.exists("cabecalho.png"): st.image("cabecalho.png", use_container_width=True)
     
     letras = "abcdefghijklmnopqrstuvwxyz"
     l_idx = 0
-    
-    for linha in questoes:
-        l = linha.strip()
-        if not l: continue
-        
-        if l.lower().startswith("t."):
-            st.markdown(f"<h1 style='text-align:center;'>{l[2:]}</h1>", unsafe_allow_html=True)
-            l_idx = 0
-        elif l.startswith("-M"):
-            st.markdown(f"<div style='border-bottom:3px solid #333;'><h3>{l[1:]}</h3></div>", unsafe_allow_html=True)
-            l_idx = 0
-        elif re.match(r'^\d+', l):
-            st.markdown(f"#### {l}")
+    for q in st.session_state.preview_questoes:
+        line = q.strip()
+        if not line: continue
+        if line.lower().startswith("t."):
+            st.markdown(f"<h1 style='text-align: center; color: #007bff;'>{line[2:].strip()}</h1>", unsafe_allow_html=True)
+        elif re.match(r'^\d+', line):
+            st.markdown(f"### {line}")
             l_idx = 0
         else:
-            cols = st.columns(2)
-            alvo = cols[0] if l_idx % 2 == 0 else cols[1]
-            with alvo:
-                st.markdown(f"**{letras[l_idx%26]})** {l}")
+            if l_idx % 2 == 0:
+                col1, col2 = st.columns(2)
+                with col1:
+                    with st.container(border=True): st.write(f"**{letras[l_idx%26]})** {line}")
+            else:
+                with col2:
+                    with st.container(border=True): st.write(f"**{letras[l_idx%26]})** {line}")
             l_idx += 1
 
-# --- 7. MOTOR GERADOR DE PDF ---
-    st.divider()
-    
-    def criar_pdf(com_header):
-        pdf = FPDF()
+    if st.button("📥 Baixar PDF A4"):
+        pdf = FPDF(orientation='P', unit='mm', format='A4')
         pdf.add_page()
-        pdf.set_auto_page_break(auto=True, margin=15)
+        y_at = 55 if os.path.exists("cabecalho.png") else 20
+        if os.path.exists("cabecalho.png"): pdf.image("cabecalho.png", x=10, y=10, w=190)
         
-        y_atual = 20
-        if com_header and os.path.exists("cabecalho.png"):
-            pdf.image("cabecalho.png", x=10, y=10, w=190)
-            y_atual = 55
-        
-        pdf.set_y(y_atual)
         l_pdf_idx = 0
-        y_max_linha = y_atual
-        y_col_esquerda = y_atual
-
-        for linha in questoes:
-            l = linha.strip()
-            if not l: continue
-
-            if l.lower().startswith("t.") or l.startswith("-M") or re.match(r'^\d+', l):
-                if l_pdf_idx > 0:
-                    pdf.set_y(y_max_linha + 5)
-                l_pdf_idx = 0
-
-            if l.lower().startswith("t."):
-                pdf.set_font("Arial", 'B', 16)
-                pdf.cell(0, 10, clean_txt(l[2:]), ln=True, align='C')
-                y_max_linha = pdf.get_y()
-            elif l.startswith("-M"):
-                pdf.ln(5)
-                pdf.set_font("Arial", 'B', 14)
-                pdf.cell(0, 10, clean_txt(l[1:]), ln=True, align='L')
-                pdf.line(10, pdf.get_y(), 200, pdf.get_y())
-                y_max_linha = pdf.get_y()
-            elif re.match(r'^\d+', l):
-                pdf.ln(2)
-                pdf.set_font("Arial", '', 12)
-                pdf.multi_cell(0, 8, clean_txt(l))
-                y_max_linha = pdf.get_y()
+        for q in st.session_state.preview_questoes:
+            line = q.strip()
+            if not line: continue
+            pdf.set_font("Arial", size=11)
+            if line.lower().startswith("t."):
+                pdf.set_font("Arial", 'B', 16); pdf.set_y(y_at + 5)
+                pdf.cell(0, 10, clean_txt(line[2:]), ln=True, align='C')
+                y_at = pdf.get_y() + 5
+            elif re.match(r'^\d+', line):
+                pdf.set_y(y_at + 5); pdf.set_font("Arial", 'B', 12)
+                pdf.multi_cell(0, 8, clean_txt(line))
+                y_at, l_pdf_idx = pdf.get_y(), 0
             else:
-                pdf.set_font("Arial", '', 11)
-                item_txt = f"{letras[l_pdf_idx%26]}) {clean_txt(l)}"
-                y_antes = pdf.get_y()
-                
+                txt = f"{letras[l_pdf_idx%26]}) {line}"
                 if l_pdf_idx % 2 == 0:
-                    pdf.set_xy(10, y_antes)
-                    pdf.multi_cell(90, 7, item_txt)
-                    y_col_esquerda = pdf.get_y()
-                    pdf.set_y(y_antes)
-                    y_max_linha = y_col_esquerda
+                    y_base = y_at; pdf.set_xy(15, y_base); pdf.multi_cell(90, 8, clean_txt(txt))
+                    y_prox = pdf.get_y()
                 else:
-                    pdf.set_xy(105, y_antes)
-                    pdf.multi_cell(90, 7, item_txt)
-                    y_max_linha = max(y_col_esquerda, pdf.get_y())
-                    pdf.set_y(y_max_linha)
+                    pdf.set_xy(110, y_base); pdf.multi_cell(85, 8, clean_txt(txt))
+                    y_at = max(y_prox, pdf.get_y())
                 l_pdf_idx += 1
-        
-        # O return DEVE estar alinhado com o 'for' e o 'pdf = FPDF()'
-        return pdf.output(dest='S').encode('latin-1')
-
-    # BOTÕES DE DOWNLOAD (Alinhados fora da def criar_pdf)
-    st.subheader("📥 Baixar Atividade")
-    c1, c2 = st.columns(2)
-    with c1:
-        pdf_com = criar_pdf(True)
-        st.download_button("📄 Com Cabeçalho", pdf_com, "prova_completa.pdf", "application/pdf")
-    with c2:
-        pdf_sem = criar_pdf(False)
-        st.download_button("📄 Sem Cabeçalho", pdf_sem, "prova_simples.pdf", "application/pdf")
+        st.download_button("✅ Baixar Atividade", bytes(pdf.output()), "atividade.pdf")
