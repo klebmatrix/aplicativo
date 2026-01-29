@@ -109,14 +109,28 @@ if perfil == "admin":
             st.session_state.preview_questoes = [f"t. Equações de {grau}"] + qs
 
     elif op_atual == "col":
-        st.header("📚 Colegial (Frações)")
+        st.header("📚 Colegial (Temas)")
+        tema_col = st.radio("Escolha o tema:", ["Frações", "Potenciação", "Radiciação", "Porcentagem"], horizontal=True)
         if st.button("Gerar Preview"):
-            st.session_state.preview_questoes = ["t. Exercícios de Frações"] + [f"{random.randint(1,9)}/{random.randint(2,5)} + {random.randint(1,9)}/{random.randint(2,5)} =" for _ in range(8)]
+            if tema_col == "Frações":
+                qs = [f"{random.randint(1,9)}/{random.randint(2,5)} + {random.randint(1,9)}/{random.randint(2,5)} =" for _ in range(8)]
+            elif tema_col == "Potenciação":
+                qs = [f"{random.randint(2,12)}^{random.randint(2,3)} =" for _ in range(8)]
+            elif tema_col == "Radiciação":
+                qs = [f"√{n**2} =" for n in random.sample(range(2, 15), 8)]
+            else:
+                qs = [f"{random.choice([5,10,20,25,50])}% de {random.randint(100, 1000)} =" for _ in range(8)]
+            st.session_state.preview_questoes = [f"t. Exercícios de {tema_col}"] + qs
 
     elif op_atual == "alg":
-        st.header("⚖️ Álgebra Linear")
+        st.header("⚖️ Álgebra (Sistemas)")
+        tipo_alg = st.radio("Tipo:", ["1º Grau (x, y)", "2º Grau"], horizontal=True)
         if st.button("Gerar Preview"):
-            st.session_state.preview_questoes = ["t. Álgebra Linear", "1. Resolva os sistemas:"] + [f"System {i+1}: {random.randint(1,5)}x + {random.randint(1,5)}y = {random.randint(10,30)}" for i in range(4)]
+            if "1º" in tipo_alg:
+                qs = [f"{random.randint(1,5)}x + {random.randint(1,5)}y = {random.randint(10,30)}\n{random.randint(1,5)}x - {random.randint(1,5)}y = {random.randint(1,10)}" for _ in range(4)]
+            else:
+                qs = [f"x + y = {random.randint(5,12)}\nx² + y² = {random.randint(40,150)}" for _ in range(3)]
+            st.session_state.preview_questoes = [f"t. Sistemas de {tipo_alg}"] + qs
 
     elif op_atual == "man":
         st.header("📄 Gerador Manual")
