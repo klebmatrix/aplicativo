@@ -162,31 +162,34 @@ if questoes_preview and menu_atual in ["op", "eq", "col", "alg", "man"]:
         line = q.strip()
         if not line: continue
         
-        # TÍTULO (Centralizado)
+        # TÍTULO (Centralizado com grande espaçamento)
         if line.lower().startswith("t."):
-            st.markdown(f"<h1 style='text-align: center; color: #007bff;'>{line[2:].strip()}</h1>", unsafe_allow_html=True)
+            st.markdown(f"<div style='margin-top: 40px; margin-bottom: 20px;'><h1 style='text-align: center; color: #007bff;'>{line[2:].strip()}</h1></div>", unsafe_allow_html=True)
             l_idx = 0
             
-        # MODO M (Alinhado à Esquerda - Mesmo Estilo do Título)
+        # MODO M (Esquerda com grande espaçamento)
         elif line.startswith("-M"):
-            st.markdown(f"<h1 style='text-align: left; color: #333;'>{line[1:].strip()}</h1>", unsafe_allow_html=True)
+            st.markdown(f"<div style='margin-top: 35px; margin-bottom: 15px;'><h1 style='text-align: left; color: #333;'>{line[1:].strip()}</h1></div>", unsafe_allow_html=True)
             l_idx = 0
         
         # Seções Numéricas (1., 2., etc)
         elif re.match(r'^\d+', line):
-            st.markdown(f"### {line}")
+            st.markdown(f"<div style='margin-top: 20px;'>### {line}</div>", unsafe_allow_html=True)
             l_idx = 0
             
-        # Itens Normais em Duas Colunas
+        # Itens Normais (Espaçamento reduzido)
         else:
             cols = st.columns(2)
             col_target = cols[0] if l_idx % 2 == 0 else cols[1]
             with col_target:
+                # Padding menor para as questões
+                st.markdown(f"<div style='margin-bottom: -10px;'>", unsafe_allow_html=True)
                 with st.container(border=True):
                     st.write(f"**{letras_tela[l_idx%26]})** {line}")
+                st.markdown("</div>", unsafe_allow_html=True)
             l_idx += 1
 
-    # --- 7. EXPORTAÇÃO PDF A4 (AJUSTE DE ALINHAMENTO MODO M) ---
+    # --- 7. EXPORTAÇÃO PDF A4 (AJUSTE DE ESPAÇAMENTO VERTICAL) ---
     st.markdown("---")
     st.subheader("📥 Exportar Atividade Finalizada")
     
@@ -207,43 +210,44 @@ if questoes_preview and menu_atual in ["op", "eq", "col", "alg", "man"]:
             line = q.strip()
             if not line: continue
             
-            pdf.set_font("Arial", 'B', 16)
-            
-            # 1. TÍTULO PRINCIPAL (Centralizado)
+            # 1. TÍTULO PRINCIPAL (Espaço de 10mm antes)
             if line.lower().startswith("t."):
-                pdf.set_y(y_at + 8)
+                pdf.set_font("Arial", 'B', 16)
+                pdf.set_y(y_at + 10)
                 pdf.cell(0, 12, clean_txt(line[2:]), ln=True, align='C')
-                y_at = pdf.get_y() + 5
+                y_at = pdf.get_y() + 8 # Margem após título
                 l_pdf_idx = 0
                 
-            # 2. MODO M (Alinhado à ESQUERDA - Estilo Título)
+            # 2. MODO M (Espaço de 8mm antes)
             elif line.startswith("-M"):
+                pdf.set_font("Arial", 'B', 16)
                 pdf.set_y(y_at + 8)
-                pdf.cell(0, 12, clean_txt(line[1:]), ln=True, align='L') # 'L' de Left
-                y_at = pdf.get_y() + 5
+                pdf.cell(0, 12, clean_txt(line[1:]), ln=True, align='L')
+                y_at = pdf.get_y() + 6 # Margem após modo M
                 l_pdf_idx = 0
                 
-            # 3. Seções Numéricas
+            # 3. Seções Numéricas (Espaço médio)
             elif re.match(r'^\d+', line):
-                pdf.set_y(y_at + 5)
                 pdf.set_font("Arial", 'B', 12)
+                pdf.set_y(y_at + 5)
                 pdf.multi_cell(0, 8, clean_txt(line))
-                y_at = pdf.get_y()
+                y_at = pdf.get_y() + 2 # Margem pequena antes dos itens
                 l_pdf_idx = 0
                 
-            # 4. Itens Normais
+            # 4. Itens Normais (Espaçamento mínimo entre questões)
             else:
                 pdf.set_font("Arial", size=11)
                 txt_item = f"{letras_pdf[l_pdf_idx%26]}) {clean_txt(line)}"
                 
+                # y_base + 1 para ficarem bem próximas
                 if l_pdf_idx % 2 == 0:
                     y_base = y_at
-                    pdf.set_xy(15, y_base + 2)
-                    pdf.multi_cell(90, 8, txt_item)
+                    pdf.set_xy(15, y_base + 1)
+                    pdf.multi_cell(90, 7, txt_item) # Altura de linha reduzida para 7
                     y_prox = pdf.get_y()
                 else:
-                    pdf.set_xy(110, y_base + 2)
-                    pdf.multi_cell(85, 8, txt_item)
+                    pdf.set_xy(110, y_base + 1)
+                    pdf.multi_cell(85, 7, txt_item)
                     y_at = max(y_prox, pdf.get_y())
                 l_pdf_idx += 1
         
@@ -264,4 +268,3 @@ if questoes_preview and menu_atual in ["op", "eq", "col", "alg", "man"]:
                 pdf_data = gerar_pdf_final(False)
                 st.download_button("✅ Baixar PDF Simples", pdf_data, "atividade_limpa.pdf", "application/pdf")
             except Exception as e: st.error(f"Erro: {e}")
-
