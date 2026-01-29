@@ -161,19 +161,19 @@ if questoes_preview and menu_atual in ["op", "eq", "col", "alg", "man"]:
         line = q.strip()
         if not line: continue
         
-        # TÍTULO (Centralizado)
+        # TÍTULO (Centralizado e Negrito)
         if line.lower().startswith("t."):
-            st.markdown(f"<h2 style='text-align: center; color: #007bff; margin-top: 20px;'>{line[2:].strip()}</h2>", unsafe_allow_html=True)
+            st.markdown(f"<h2 style='text-align: center; color: #007bff; margin-top: 15px;'>{line[2:].strip()}</h2>", unsafe_allow_html=True)
             l_idx = 0
             
-        # MODO M (Alinhado à Esquerda - Estilo Título)
+        # MODO M (Esquerda e Negrito)
         elif line.startswith("-M"):
-            st.markdown(f"<h2 style='text-align: left; color: #333; margin-top: 15px; margin-bottom: 5px;'>{line[1:].strip()}</h2>", unsafe_allow_html=True)
+            st.markdown(f"<h2 style='text-align: left; color: #333; margin-top: 10px; margin-bottom: 5px;'>{line[1:].strip()}</h2>", unsafe_allow_html=True)
             l_idx = 0
         
-        # SEÇÕES NUMÉRICAS (Espaçamento reduzido na tela)
+        # SEÇÕES NUMÉRICAS (Texto Normal - Sem Negrito)
         elif re.match(r'^\d+', line):
-            st.markdown(f"<div style='margin-top: 10px; margin-bottom: 0px;'><b>{line}</b></div>", unsafe_allow_html=True)
+            st.markdown(f"<div style='margin-top: 5px; margin-bottom: 2px; font-weight: normal;'>{line}</div>", unsafe_allow_html=True)
             l_idx = 0
             
         # ITENS EM COLUNAS
@@ -181,13 +181,13 @@ if questoes_preview and menu_atual in ["op", "eq", "col", "alg", "man"]:
             cols = st.columns(2)
             col_target = cols[0] if l_idx % 2 == 0 else cols[1]
             with col_target:
-                st.markdown("<div style='margin: -5px 0;'>", unsafe_allow_html=True)
+                st.markdown("<div style='margin: -8px 0;'>", unsafe_allow_html=True)
                 with st.container(border=True):
                     st.write(f"**{letras_tela[l_idx%26]})** {line}")
                 st.markdown("</div>", unsafe_allow_html=True)
             l_idx += 1
 
-# --- 7. EXPORTAÇÃO PDF A4 (COMPACTO E ALINHADO) ---
+# --- 7. EXPORTAÇÃO PDF A4 (COMPACTO E SEM NEGRITO NAS QUESTÕES) ---
 st.markdown("---")
 st.subheader("📥 Exportar Atividade Finalizada")
 
@@ -197,7 +197,6 @@ def gerar_pdf_final(com_cabecalho):
     pdf.add_page()
     pdf.set_margins(15, 15, 15)
     
-    # Início do Y (Cabeçalho ou Topo)
     y_at = 55 if (com_cabecalho and os.path.exists("cabecalho.png")) else 15
     if com_cabecalho and os.path.exists("cabecalho.png"):
         pdf.image("cabecalho.png", x=12.5, y=10, w=185)
@@ -209,15 +208,15 @@ def gerar_pdf_final(com_cabecalho):
         line = q.strip()
         if not line: continue
         
-        # 1. TÍTULO PRINCIPAL
+        # 1. TÍTULO PRINCIPAL (Negrito)
         if line.lower().startswith("t."):
             pdf.set_font("Arial", 'B', 16)
-            pdf.set_y(y_at + 5)
+            pdf.set_y(y_at + 4)
             pdf.cell(0, 10, clean_txt(line[2:]), ln=True, align='C')
             y_at = pdf.get_y() + 2
             l_pdf_idx = 0
             
-        # 2. MODO M (Esquerda, estilo Título)
+        # 2. MODO M (Negrito)
         elif line.startswith("-M"):
             pdf.set_font("Arial", 'B', 16)
             pdf.set_y(y_at + 4)
@@ -225,13 +224,12 @@ def gerar_pdf_final(com_cabecalho):
             y_at = pdf.get_y() + 2
             l_pdf_idx = 0
             
-        # 3. SEÇÕES NUMERADAS (Mais próximas)
+        # 3. SEÇÕES NUMERADAS (Fonte Normal e Compacta)
         elif re.match(r'^\d+', line):
-            pdf.set_font("Arial", 'B', 12)
-            # Salto mínimo entre o item anterior e o novo número
-            salto = 4 if l_pdf_idx > 0 else 1
+            pdf.set_font("Arial", size=12) # Sem o 'B' de bold
+            salto = 3 if l_pdf_idx > 0 else 1 # Salto reduzido para 3mm
             pdf.set_y(y_at + salto)
-            pdf.multi_cell(0, 6, clean_txt(line)) # Altura 6 para compactar
+            pdf.multi_cell(0, 6, clean_txt(line)) 
             y_at = pdf.get_y() + 0.5
             l_pdf_idx = 0
             
@@ -243,7 +241,7 @@ def gerar_pdf_final(com_cabecalho):
             if l_pdf_idx % 2 == 0:
                 y_base = y_at
                 pdf.set_xy(15, y_base + 0.5)
-                pdf.multi_cell(90, 6, txt_item) # Altura 6
+                pdf.multi_cell(90, 6, txt_item)
                 y_prox = pdf.get_y()
             else:
                 pdf.set_xy(110, y_base + 0.5)
@@ -253,18 +251,13 @@ def gerar_pdf_final(com_cabecalho):
     
     return pdf.output(dest='S').encode('latin-1')
 
-# Interface de Botões
+# Botões de Download
 c1, c2 = st.columns(2)
 with c1:
     if st.button("📄 PDF COM Cabeçalho", use_container_width=True):
-        try:
-            pdf_data = gerar_pdf_final(True)
-            st.download_button("✅ Baixar PDF Completo", pdf_data, "atividade_topo.pdf", "application/pdf")
-        except Exception as e: st.error(f"Erro: {e}")
-        
+        data = gerar_pdf_final(True)
+        st.download_button("✅ Baixar PDF Completo", data, "atividade_topo.pdf", "application/pdf")
 with c2:
     if st.button("📄 PDF SEM Cabeçalho", use_container_width=True):
-        try:
-            pdf_data = gerar_pdf_final(False)
-            st.download_button("✅ Baixar PDF Simples", pdf_data, "atividade_limpa.pdf", "application/pdf")
-        except Exception as e: st.error(f"Erro: {e}")
+        data = gerar_pdf_final(False)
+        st.download_button("✅ Baixar PDF Simples", data, "atividade_limpa.pdf", "application/pdf")
