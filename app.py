@@ -109,7 +109,6 @@ if st.session_state.sub_menu == "📝 Modo Manual":
         if txt_input:
             st.session_state.preview_questoes = txt_input.split('\n')
             st.toast("Atividade Processada!")
-
 # --- 6. VISUALIZAÇÃO NA TELA ---
 questoes = st.session_state.get('preview_questoes', [])
 
@@ -200,14 +199,14 @@ if questoes:
                     y_max_linha = max(y_col_esquerda, pdf.get_y())
                     pdf.set_y(y_max_linha)
                 l_pdf_idx += 1
-                
+        
+        # O return deve estar alinhado com o 'for' acima
         return pdf.output(dest='S').encode('latin-1')
 
     # BOTÕES DE DOWNLOAD
     st.subheader("📥 Baixar Atividade")
     c1, c2 = st.columns(2)
     with c1:
-        # Aqui chamamos a função dentro do botão
         pdf_com = criar_pdf(True)
         st.download_button("📄 Com Cabeçalho", pdf_com, "prova_completa.pdf", "application/pdf")
     with c2:
