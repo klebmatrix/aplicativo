@@ -20,7 +20,6 @@ def clean_txt(text):
 
 def validar_acesso(pin_digitado):
     senha_aluno = str(st.secrets.get("acesso_aluno", "123456")).strip()
-    # "chave_mestra" em lowercase conforme regra
     senha_prof = str(st.secrets.get("chave_mestra", "chave_mestra")).strip().lower()
     if pin_digitado == senha_aluno: return "aluno"
     elif pin_digitado == senha_prof: return "admin"
@@ -119,16 +118,23 @@ if perfil == "admin":
         qtd = st.number_input("Quantidade:", 2, 10, 4)
         if st.button("Gerar Preview") and tipos:
             qs = ["t. Sistemas de Equações", f"{num_ini}. Resolva os sistemas abaixo:"]
-            for _ in range(qtd):
+            for i in range(qtd):
                 t = random.choice(tipos)
                 if t == "1º Grau": qs.append(f"{random.randint(1,5)}x + {random.randint(1,5)}y = {random.randint(10,40)}")
                 else: qs.append(f"x^2 + y = {random.randint(10,30)} e x + y = {random.randint(2,10)}")
             st.session_state.preview_questoes = qs
 
-    # --- LÓGICA DAS CALCULADORAS ONLINE ---
+    elif op_atual == "man":
+        st.header("📄 Módulo Manual")
+        st.info("Dica: Use 't. Nome' para título e números (1., 2.) para questões.")
+        txt_m = st.text_area("Digite ou cole suas questões aqui:", height=300)
+        if st.button("Gerar Atividade Manual"):
+            st.session_state.preview_questoes = txt_m.split('\n')
+
+    # --- LÓGICA DAS CALCULADORAS ---
     elif op_atual == "calc_f":
-        st.header("𝑓(x) Calculadora de Funções")
-        f_in = st.text_input("Função (use * para multiplicar):", "x**2 + 5*x + 6")
+        st.header("𝑓(x) Funções")
+        f_in = st.text_input("Função:", "x**2 + 5*x + 6")
         x_in = st.number_input("Valor de x:", value=1.0)
         if st.button("Calcular"):
             try:
@@ -137,24 +143,24 @@ if perfil == "admin":
             except Exception as e: st.error(f"Erro: {e}")
 
     elif op_atual == "pemdas":
-        st.header("📊 Resolutor PEMDAS")
+        st.header("📊 PEMDAS")
         expr = st.text_input("Expressão:", "2 + 3 * (10 / 2)")
         if st.button("Resolver"):
             try: st.info(f"Resultado: {eval(expr)}")
             except: st.error("Expressão inválida.")
 
     elif op_atual == "fin":
-        st.header("💰 Calculadora Financeira")
+        st.header("💰 Financeira")
         c1, c2, c3 = st.columns(3)
         pv = c1.number_input("Capital (R$):", 0.0)
-        tx = c2.number_input("Taxa (% ao mês):", 0.0)
+        tx = c2.number_input("Taxa (%):", 0.0)
         tp = c3.number_input("Tempo (meses):", 0)
         if st.button("Calcular"):
             fv = pv * (1 + tx/100)**tp
             st.metric("Montante Final", f"R$ {fv:.2f}")
 
 # --- VISUALIZAÇÃO E PDF ---
-if st.session_state.preview_questoes and st.session_state.sub_menu in ["op", "eq", "col", "alg", "man"]:
+if st.session_state.preview_questoes:
     st.divider()
     if os.path.exists("cabecalho.png"): st.image("cabecalho.png", use_container_width=True)
     letras = "abcdefghijklmnopqrstuvwxyz"
