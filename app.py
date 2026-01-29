@@ -145,9 +145,7 @@ if perfil == "admin":
         if st.button("Calcular Juros Compostos"):
             fv = pv * (1 + tx/100)**tp
             st.metric("Montante Final", f"R$ {fv:.2f}")
-
 # --- 6. VISUALIZAÇÃO UNIFICADA (CARDS NA TELA) ---
-# Usamos .get para evitar NameError se a variável sumir da memória
 questoes_preview = st.session_state.get('preview_questoes', [])
 menu_atual = st.session_state.get('sub_menu', None)
 
@@ -163,32 +161,44 @@ if questoes_preview and menu_atual in ["op", "eq", "col", "alg", "man"]:
         line = q.strip()
         if not line: continue
         
-        if line.lower().startswith("t."):
-            st.markdown(f"<h1 style='text-align: center; color: #007bff;'>{line[2:].strip()}</h1>", unsafe_allow_html=True)
+        # MODO M OU TÍTULO (Estilo de Destaque Centralizado)
+        if line.lower().startswith("t.") or line.startswith("-M"):
+            # Limpeza do prefixo para exibição
+            conteudo = line[2:].strip() if line.lower().startswith("t.") else line[1:].strip()
+            st.markdown(f"""
+                <div style='text-align: center; margin: 20px 0;'>
+                    <h1 style='color: #007bff; border-bottom: 2px solid #007bff; display: inline-block; padding: 0 20px;'>
+                        {conteudo}
+                    </h1>
+                </div>
+            """, unsafe_allow_html=True)
+            l_idx = 0 # Reseta colunas após um destaque centralizado
+            
+        # Seções Numéricas (1., 2., etc)
         elif re.match(r'^\d+', line):
             st.markdown(f"### {line}")
             l_idx = 0
+            
+        # Itens Normais em Duas Colunas
         else:
-            # Alternância de colunas na tela
-            col_target = st.columns(2)[0] if l_idx % 2 == 0 else st.columns(2)[1]
+            cols = st.columns(2)
+            col_target = cols[0] if l_idx % 2 == 0 else cols[1]
             with col_target:
                 with st.container(border=True):
-                    if line.startswith("-M"):
-                        st.write(f"**{line[1:].strip()}**")
-                    else:
-                        st.write(f"**{letras_tela[l_idx%26]})** {line}")
+                    st.write(f"**{letras_tela[l_idx%26]})** {line}")
             l_idx += 1
 
-    # --- 7. EXPORTAÇÃO PDF A4 (DOIS BOTÕES) ---
+    # --- 7. EXPORTAÇÃO PDF A4 (DUPLO BOTÃO E MODO M ESTILO TÍTULO) ---
     st.markdown("---")
     st.subheader("📥 Exportar Atividade Finalizada")
     
-    def gerar_pdf_blindado(com_cabecalho):
+    def gerar_pdf_final(com_cabecalho):
         letras_pdf = "abcdefghijklmnopqrstuvwxyz"
         pdf = FPDF(orientation='P', unit='mm', format='A4')
         pdf.add_page()
         pdf.set_margins(15, 15, 15)
         
+        # Define Y inicial com base no cabeçalho
         y_at = 55 if (com_cabecalho and os.path.exists("cabecalho.png")) else 20
         if com_cabecalho and os.path.exists("cabecalho.png"):
             pdf.image("cabecalho.png", x=12.5, y=10, w=185)
@@ -196,42 +206,58 @@ if questoes_preview and menu_atual in ["op", "eq", "col", "alg", "man"]:
         l_pdf_idx = 0
         y_base = y_at
         
-        # Usa a lista local garantida
         for q in questoes_preview:
             line = q.strip()
             if not line: continue
-            pdf.set_font("Arial", size=11)
             
-            if line.lower().startswith("t."):
-                pdf.set_font("Arial", 'B', 16); pdf.set_y(y_at + 5)
-                pdf.cell(0, 12, clean_txt(line[2:]), ln=True, align='C')
+            # 1. TÍTULOS OU MODO M (Mesma configuração no PDF)
+            if line.lower().startswith("t.") or line.startswith("-M"):
+                conteudo = line[2:].strip() if line.lower().startswith("t.") else line[1:].strip()
+                
+                pdf.set_font("Arial", 'B', 16)
+                pdf.set_y(y_at + 8)
+                pdf.cell(0, 12, clean_txt(conteudo), ln=True, align='C')
                 y_at = pdf.get_y() + 5
+                l_pdf_idx = 0 # Reseta para começar nova grade de questões
+                
+            # 2. Seções Numéricas
             elif re.match(r'^\d+', line):
-                pdf.set_y(y_at + 5); pdf.set_font("Arial", 'B', 12)
+                pdf.set_y(y_at + 5)
+                pdf.set_font("Arial", 'B', 12)
                 pdf.multi_cell(0, 8, clean_txt(line))
-                y_at, l_pdf_idx = pdf.get_y(), 0
+                y_at = pdf.get_y()
+                l_pdf_idx = 0
+                
+            # 3. Itens Normais (Letras a, b, c...)
             else:
-                # Lógica Modo M vs Letras
-                txt_final = clean_txt(line[1:]) if line.startswith("-M") else f"{letras_pdf[l_pdf_idx%26]}) {clean_txt(line)}"
+                pdf.set_font("Arial", size=11)
+                txt_item = f"{letras_pdf[l_pdf_idx%26]}) {clean_txt(line)}"
                 
                 if l_pdf_idx % 2 == 0:
-                    y_base = y_at; pdf.set_xy(15, y_base + 2)
-                    pdf.multi_cell(90, 8, txt_final)
+                    y_base = y_at
+                    pdf.set_xy(15, y_base + 2)
+                    pdf.multi_cell(90, 8, txt_item)
                     y_prox = pdf.get_y()
                 else:
-                    pdf.set_xy(110, y_base + 2); pdf.multi_cell(85, 8, txt_final)
+                    pdf.set_xy(110, y_base + 2)
+                    pdf.multi_cell(85, 8, txt_item)
                     y_at = max(y_prox, pdf.get_y())
                 l_pdf_idx += 1
         
         return pdf.output(dest='S').encode('latin-1')
 
-    # Botões de Download
-    c_btn1, c_btn2 = st.columns(2)
-    with c_btn1:
+    # Interface de Botões
+    c1, c2 = st.columns(2)
+    with c1:
         if st.button("📄 PDF COM Cabeçalho", use_container_width=True):
-            data = gerar_pdf_blindado(True)
-            st.download_button("✅ Baixar Com Cabeçalho", data, "atividade_topo.pdf", "application/pdf")
-    with c_btn2:
+            try:
+                pdf_data = gerar_pdf_final(True)
+                st.download_button("✅ Baixar PDF Completo", pdf_data, "atividade_topo.pdf", "application/pdf")
+            except Exception as e: st.error(f"Erro: {e}")
+            
+    with c2:
         if st.button("📄 PDF SEM Cabeçalho", use_container_width=True):
-            data = gerar_pdf_blindado(False)
-            st.download_button("✅ Baixar Sem Cabeçalho", data, "atividade_simples.pdf", "application/pdf")
+            try:
+                pdf_data = gerar_pdf_final(False)
+                st.download_button("✅ Baixar PDF Simples", pdf_data, "atividade_limpa.pdf", "application/pdf")
+            except Exception as e: st.error(f"Erro: {e}")
