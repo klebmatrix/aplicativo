@@ -96,16 +96,13 @@ if perfil == "admin":
         st.download_button("📄 PDF COM Cabeçalho", gerar_pdf_final(True), "atividade_completa.pdf")
     with c2:
         st.download_button("📄 PDF SEM Cabeçalho", gerar_pdf_final(False), "atividade_simples.pdf")
-
-# --- 5. LÓGICA DE PROCESSAMENTO (A ENTRADA) ---
-st.title("📄 Gerador de Atividades BNCC")
-
+# --- 5. LÓGICA DE PROCESSAMENTO ---
 if st.session_state.sub_menu == "📝 Modo Manual":
     st.header("Entrada de Dados")
     txt_input = st.text_area(
         "Digite sua prova (t. Título, -M Módulo, 1. Questão):",
         height=250,
-        placeholder="t. AVALIAÇÃO DE MATEMÁTICA\n-M1. OPERAÇÕES\n1. Resolva as contas:\n10 + 5 = ....\n20 + 30 = ...."
+        placeholder="t. AVALIAÇÃO\n-M1. SOMA\n1. Calcule:\n10+5\n20+2"
     )
     
     if st.button("🔄 PROCESSAR DADOS"):
@@ -113,12 +110,11 @@ if st.session_state.sub_menu == "📝 Modo Manual":
             st.session_state.preview_questoes = txt_input.split('\n')
             st.toast("Atividade Processada!")
 
-# --- 6. VISUALIZAÇÃO NA TELA (O PREVIEW) ---
+# --- 6. VISUALIZAÇÃO NA TELA ---
 questoes = st.session_state.get('preview_questoes', [])
 
 if questoes:
     st.divider()
-    # Mostra o cabeçalho se ele existir
     if os.path.exists("cabecalho.png"):
         st.image("cabecalho.png", use_container_width=True)
     
@@ -129,19 +125,15 @@ if questoes:
         l = linha.strip()
         if not l: continue
         
-        # Título Centralizado
         if l.lower().startswith("t."):
-            st.markdown(f"<h1 style='text-align:center; color:#1E88E5;'>{l[2:]}</h1>", unsafe_allow_html=True)
+            st.markdown(f"<h1 style='text-align:center;'>{l[2:]}</h1>", unsafe_allow_html=True)
             l_idx = 0
-        # Módulo (M1, M2...) igual ao seu HTML
         elif l.startswith("-M"):
-            st.markdown(f"<div style='border-bottom:3px solid #333; margin-top:20px;'><h3>{l[1:]}</h3></div>", unsafe_allow_html=True)
+            st.markdown(f"<div style='border-bottom:3px solid #333;'><h3>{l[1:]}</h3></div>", unsafe_allow_html=True)
             l_idx = 0
-        # Questão Numerada
         elif re.match(r'^\d+', l):
             st.markdown(f"#### {l}")
             l_idx = 0
-        # Itens que viram a, b, c em colunas
         else:
             cols = st.columns(2)
             alvo = cols[0] if l_idx % 2 == 0 else cols[1]
@@ -149,7 +141,7 @@ if questoes:
                 st.markdown(f"**{letras[l_idx%26]})** {l}")
             l_idx += 1
 
-# --- 7. MOTOR GERADOR DE PDF (O IMPRESSOR) ---
+# --- 7. MOTOR GERADOR DE PDF ---
     st.divider()
     
     def criar_pdf(com_header):
@@ -165,12 +157,12 @@ if questoes:
         pdf.set_y(y_atual)
         l_pdf_idx = 0
         y_max_linha = y_atual
+        y_col_esquerda = y_atual
 
         for linha in questoes:
             l = linha.strip()
             if not l: continue
 
-            # Trava para não encavalar: Se for novo bloco, pula para baixo das colunas
             if l.lower().startswith("t.") or l.startswith("-M") or re.match(r'^\d+', l):
                 if l_pdf_idx > 0:
                     pdf.set_y(y_max_linha + 5)
@@ -192,7 +184,6 @@ if questoes:
                 pdf.multi_cell(0, 8, clean_txt(l))
                 y_max_linha = pdf.get_y()
             else:
-                # Lógica de Duas Colunas
                 pdf.set_font("Arial", '', 11)
                 item_txt = f"{letras[l_pdf_idx%26]}) {clean_txt(l)}"
                 y_antes = pdf.get_y()
@@ -201,7 +192,7 @@ if questoes:
                     pdf.set_xy(10, y_antes)
                     pdf.multi_cell(90, 7, item_txt)
                     y_col_esquerda = pdf.get_y()
-                    pdf.set_y(y_antes) # Volta para a direita escrever na mesma altura
+                    pdf.set_y(y_antes)
                     y_max_linha = y_col_esquerda
                 else:
                     pdf.set_xy(105, y_antes)
@@ -216,6 +207,9 @@ if questoes:
     st.subheader("📥 Baixar Atividade")
     c1, c2 = st.columns(2)
     with c1:
-        st.download_button("📄 Com Cabeçalho", criar_pdf(True), "prova_completa.pdf", "application/pdf")
+        # Aqui chamamos a função dentro do botão
+        pdf_com = criar_pdf(True)
+        st.download_button("📄 Com Cabeçalho", pdf_com, "prova_completa.pdf", "application/pdf")
     with c2:
-        st.download_button("📄 Sem Cabeçalho", criar_pdf(False), "prova_simples.pdf", "application/pdf")
+        pdf_sem = criar_pdf(False)
+        st.download_button("📄 Sem Cabeçalho", pdf_sem, "prova_simples.pdf", "application/pdf")
