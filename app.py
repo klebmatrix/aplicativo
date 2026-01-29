@@ -146,7 +146,7 @@ if perfil == "admin":
             fv = pv * (1 + tx/100)**tp
             st.metric("Montante Final", f"R$ {fv:.2f}")
 
-# --- 6. VISUALIZAÇÃO UNIFICADA (CARDS NA TELA) ---
+# --- 6. VISUALIZAÇÃO UNIFICADA (TELA) ---
 questoes_preview = st.session_state.get('preview_questoes', [])
 menu_atual = st.session_state.get('sub_menu', None)
 
@@ -159,7 +159,8 @@ if questoes_preview and menu_atual in ["op", "eq", "col", "alg", "man"]:
     l_idx = 0
     
     for q in questoes_preview:
-        line = q.strip()
+        # Limpeza agressiva de pontos e espaços no início da string
+        line = q.strip().lstrip('.') 
         if not line: continue
         
         if line.lower().startswith("t."):
@@ -179,7 +180,7 @@ if questoes_preview and menu_atual in ["op", "eq", "col", "alg", "man"]:
                     st.write(f"**{letras_tela[l_idx%26]})** {line}")
             l_idx += 1
 
-# --- 7. EXPORTAÇÃO PDF A4 (CONTROLE DE ALTURA DINÂMICO) ---
+# --- 7. EXPORTAÇÃO PDF (CORREÇÃO DE PONTOS E SOBREPOSIÇÃO) ---
 st.markdown("---")
 st.subheader("📥 Exportar para PDF")
 
@@ -196,38 +197,41 @@ def gerar_pdf_final(com_cabecalho):
         pdf.set_y(20)
 
     l_pdf_idx = 0
-    y_last_column = pdf.get_y() # Variável para controlar o fim das colunas
+    y_last_column = pdf.get_y()
     
     for q in questoes_preview:
-        line = q.strip()
+        # Limpa o ponto inicial aqui também para o PDF
+        line = q.strip().lstrip('.')
         if not line: continue
         
-        # ANTES DE QUALQUER TÍTULO OU NÚMERO, GARANTE QUE SAIU DAS COLUNAS
+        # Garante que títulos e módulos esperem as colunas terminarem
         if line.lower().startswith("t.") or line.startswith("-M") or re.match(r'^\d+', line):
             if l_pdf_idx > 0:
-                pdf.set_y(y_last_column + 2) # Pula para depois da maior coluna
+                pdf.set_y(y_last_column + 5)
             l_pdf_idx = 0
 
         # 1. TÍTULO
         if line.lower().startswith("t."):
-            pdf.ln(5)
+            pdf.ln(2)
             pdf.set_font("Arial", 'B', 16)
             pdf.cell(0, 10, clean_txt(line[2:]), ln=True, align='C')
+            y_last_column = pdf.get_y()
             
         # 2. MODO M
         elif line.startswith("-M"):
-            pdf.ln(6)
+            pdf.ln(4)
             pdf.set_font("Arial", 'B', 16)
             pdf.cell(0, 10, clean_txt(line[1:]), ln=True, align='L')
-            pdf.ln(2)
+            y_last_column = pdf.get_y()
             
         # 3. QUESTÕES (1., 2...)
         elif re.match(r'^\d+', line):
             pdf.ln(2)
             pdf.set_font("Arial", '', 12)
             pdf.multi_cell(0, 7, clean_txt(line))
+            y_last_column = pdf.get_y()
             
-        # 4. ITENS (a, b...) EM COLUNAS
+        # 4. ITENS (a, b...) EM DUAS COLUNAS
         else:
             pdf.set_font("Arial", '', 11)
             txt_item = f"{letras_pdf[l_pdf_idx%26]}) {clean_txt(line)}"
@@ -235,19 +239,18 @@ def gerar_pdf_final(com_cabecalho):
             curr_y = pdf.get_y()
             
             if l_pdf_idx % 2 == 0:
-                # Coluna 1
+                # Coluna Esquerda
                 pdf.set_xy(15, curr_y)
                 pdf.multi_cell(90, 6, txt_item)
                 y_col_1 = pdf.get_y()
-                # Prepara para a coluna 2 na mesma altura
-                pdf.set_y(curr_y)
+                pdf.set_y(curr_y) # Volta para a mesma altura para a próxima
                 y_last_column = y_col_1
             else:
-                # Coluna 2
+                # Coluna Direita
                 pdf.set_xy(110, curr_y)
                 pdf.multi_cell(85, 6, txt_item)
                 y_col_2 = pdf.get_y()
-                # A base agora é a maior entre as duas
+                # A próxima linha começará abaixo da maior coluna
                 y_last_column = max(y_col_1, y_col_2)
                 pdf.set_y(y_last_column)
             
@@ -255,11 +258,11 @@ def gerar_pdf_final(com_cabecalho):
             
     return pdf.output(dest='S').encode('latin-1')
 
-# Botões permanecem iguais
+# Botões de Download
 c1, c2 = st.columns(2)
 with c1:
-    if st.button("📄 PDF COM Cabeçalho"):
-        st.download_button("✅ Baixar", gerar_pdf_final(True), "atividade_topo.pdf", "application/pdf")
+    if st.button("📄 PDF COM Cabeçalho", use_container_width=True):
+        st.download_button("✅ Baixar PDF", gerar_pdf_final(True), "atividade_com_topo.pdf", "application/pdf")
 with c2:
-    if st.button("📄 PDF SEM Cabeçalho"):
-        st.download_button("✅ Baixar", gerar_pdf_final(False), "atividade_limpa.pdf", "application/pdf")
+    if st.button("📄 PDF SEM Cabeçalho", use_container_width=True):
+        st.download_button("✅ Baixar PDF", gerar_pdf_final(False), "atividade_simples.pdf", "application/pdf")
