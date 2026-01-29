@@ -146,123 +146,68 @@ if perfil == "admin":
             fv = pv * (1 + tx/100)**tp
             st.metric("Montante Final", f"R$ {fv:.2f}")
 
-# --- 6. VISUALIZAÇÃO UNIFICADA (TELA) ---
-questoes_preview = st.session_state.get('preview_questoes', [])
-menu_atual = st.session_state.get('sub_menu', None)
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Avaliação Diagnóstica de Matemática - 6º Ano</title>
 
-if questoes_preview and menu_atual in ["op", "eq", "col", "alg", "man"]:
-    st.divider()
-    if os.path.exists("cabecalho.png"): 
-        st.image("cabecalho.png", use_container_width=True)
-    
-    letras_tela = "abcdefghijklmnopqrstuvwxyz"
-    l_idx = 0
-    
-    for q in questoes_preview:
-        line = q.strip() # Mantendo os pontos digitados pelo usuário
-        if not line: continue
-        
-        if line.lower().startswith("t."):
-            st.markdown(f"<h2 style='text-align: center; color: #007bff; margin: 15px 0;'>{line[2:].strip()}</h2>", unsafe_allow_html=True)
-            l_idx = 0
-        elif line.startswith("-M"):
-            st.markdown(f"<h2 style='text-align: left; color: #000; margin: 25px 0 5px 0;'>{line[1:].strip()}</h2>", unsafe_allow_html=True)
-            l_idx = 0
-        elif re.match(r'^\d+', line):
-            st.markdown(f"<p style='margin: 10px 0 2px 0; font-size: 18px; font-weight: normal;'>{line}</p>", unsafe_allow_html=True)
-            l_idx = 0
-        else:
-            cols = st.columns(2)
-            target = cols[0] if l_idx % 2 == 0 else cols[1]
-            with target:
-                with st.container(border=True):
-                    # Exibe os pontos na tela também
-                    st.write(f"**{letras_tela[l_idx%26]})** {line}")
-            l_idx += 1
+    <!-- Biblioteca jsPDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
-# --- 7. EXPORTAÇÃO PDF (MANTENDO PONTOS E COLUNAS ALINHADAS) ---
-st.markdown("---")
-st.subheader("📥 Exportar para PDF")
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 40px;
+        }
+        h1, h2 {
+            text-align: center;
+        }
+        .avaliacao {
+            border: 1px solid #000;
+            padding: 20px;
+        }
+        button {
+            margin-top: 20px;
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
 
-def gerar_pdf_final(com_cabecalho):
-    letras_pdf = "abcdefghijklmnopqrstuvwxyz"
-    pdf = FPDF(orientation='P', unit='mm', format='A4')
-    pdf.add_page()
-    pdf.set_margins(15, 15, 15)
-    
-    if com_cabecalho and os.path.exists("cabecalho.png"):
-        pdf.image("cabecalho.png", x=12.5, y=10, w=185)
-        pdf.set_y(55)
-    else:
-        pdf.set_y(20)
+<div class="avaliacao" id="conteudo">
+    <h1>Avaliação Diagnóstica de Matemática</h1>
+    <h2>6º Ano</h2>
 
-    l_pdf_idx = 0
-    y_last_column = pdf.get_y()
-    y_col_1 = pdf.get_y() # Inicializa para evitar erro de referência
-    
-    for q in questoes_preview:
-        line = q.strip() # PONTOS PRESERVADOS
-        if not line: continue
-        
-        # Sincroniza altura antes de novos blocos (Módulos ou Títulos)
-        if line.lower().startswith("t.") or line.startswith("-M") or re.match(r'^\d+', line):
-            if l_pdf_idx > 0:
-                pdf.set_y(y_last_column + 5)
-            l_pdf_idx = 0
+    <p><strong>M1 – Números e Sistema de Numeração Decimal</strong></p>
 
-        # 1. TÍTULO
-        if line.lower().startswith("t."):
-            pdf.ln(2)
-            pdf.set_font("Arial", 'B', 16)
-            pdf.cell(0, 10, clean_txt(line[2:]), ln=True, align='C')
-            y_last_column = pdf.get_y()
-            
-        # 2. MODO M (Alinhado à Esquerda)
-        elif line.startswith("-M"):
-            pdf.ln(4)
-            pdf.set_font("Arial", 'B', 16)
-            pdf.cell(0, 10, clean_txt(line[1:]), ln=True, align='L')
-            y_last_column = pdf.get_y()
-            
-        # 3. QUESTÕES (Normais)
-        elif re.match(r'^\d+', line):
-            pdf.ln(2)
-            pdf.set_font("Arial", '', 12)
-            pdf.multi_cell(0, 7, clean_txt(line))
-            y_last_column = pdf.get_y()
-            
-        # 4. ITENS EM COLUNAS (Preservando pontos)
-        else:
-            pdf.set_font("Arial", '', 11)
-            txt_item = f"{letras_pdf[l_pdf_idx%26]}) {clean_txt(line)}"
-            
-            curr_y = pdf.get_y()
-            
-            if l_pdf_idx % 2 == 0:
-                # Coluna Esquerda
-                pdf.set_xy(15, curr_y)
-                pdf.multi_cell(90, 6, txt_item)
-                y_col_1 = pdf.get_y()
-                pdf.set_y(curr_y) 
-                y_last_column = y_col_1
-            else:
-                # Coluna Direita
-                pdf.set_xy(110, curr_y)
-                pdf.multi_cell(85, 6, txt_item)
-                y_col_2 = pdf.get_y()
-                # Define a base para a próxima linha como a maior altura
-                y_last_column = max(y_col_1, y_col_2)
-                pdf.set_y(y_last_column)
-            
-            l_pdf_idx += 1
-            
-    return pdf.output(dest='S').encode('latin-1')
+    <ol>
+        <li>Qual o valor posicional do algarismo 7 no número 2.745?</li>
+        <li>Como se escreve por extenso o número 503.042?</li>
+        <li>Qual é o sucessor do número 999.999?</li>
+        <li>Decomponha o número 458 em centenas, dezenas e unidades. Utilize a tabela C | D | U.</li>
+    </ol>
+</div>
 
-# Botões permanecem os mesmos
-c1, c2 = st.columns(2)
-with c1:
-    if st.button("📄 PDF COM Cabeçalho", use_container_width=True):
-        st.download_button("✅ Baixar", gerar_pdf_final(True), "atividade.pdf", "application/pdf")
-with c2:
-    if st.button("📄 PDF SEM Cabeçalho", use_container_width=True):
-        st.download_button("✅ Baixar", gerar_pdf_final(False), "atividade_simples.pdf", "application/pdf")
+<button onclick="gerarPDF()">Gerar PDF</button>
+
+<script>
+    function gerarPDF() {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+
+        doc.html(document.getElementById("conteudo"), {
+            callback: function (pdf) {
+                pdf.save("avaliacao_diagnostica_6ano.pdf");
+            },
+            x: 10,
+            y: 10,
+            width: 180
+        });
+    }
+</script>
+
+</body>
+</html>
