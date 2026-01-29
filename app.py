@@ -145,17 +145,20 @@ if perfil == "admin":
         if st.button("Calcular Juros Compostos"):
             fv = pv * (1 + tx/100)**tp
             st.metric("Montante Final", f"R$ {fv:.2f}")
-
 # --- 6. VISUALIZAÇÃO E PDF (EM DUAS COLUNAS) ---
 if st.session_state.preview_questoes and st.session_state.sub_menu in ["op", "eq", "col", "alg", "man"]:
     st.divider()
-    if os.path.exists("cabecalho.png"): st.image("cabecalho.png", use_container_width=True)
+    if os.path.exists("cabecalho.png"): 
+        st.image("cabecalho.png", use_container_width=True)
     
     letras = "abcdefghijklmnopqrstuvwxyz"
     l_idx = 0
+    
+    # Visualização na Tela
     for q in st.session_state.preview_questoes:
         line = q.strip()
         if not line: continue
+        
         if line.lower().startswith("t."):
             st.markdown(f"<h1 style='text-align: center; color: #007bff;'>{line[2:].strip()}</h1>", unsafe_allow_html=True)
         elif re.match(r'^\d+', line):
@@ -171,32 +174,56 @@ if st.session_state.preview_questoes and st.session_state.sub_menu in ["op", "eq
                     with st.container(border=True): st.write(f"**{letras[l_idx%26]})** {line}")
             l_idx += 1
 
-    if st.button("📥 Baixar PDF A4"):
+    # --- 7. EXPORTAÇÃO PDF (CORRIGIDA) ---
+    st.markdown("---")
+    if st.button("🚀 Preparar PDF para Download"):
         pdf = FPDF(orientation='P', unit='mm', format='A4')
         pdf.add_page()
+        
         y_at = 55 if os.path.exists("cabecalho.png") else 20
-        if os.path.exists("cabecalho.png"): pdf.image("cabecalho.png", x=10, y=10, w=190)
+        if os.path.exists("cabecalho.png"): 
+            pdf.image("cabecalho.png", x=10, y=10, w=190)
         
         l_pdf_idx = 0
+        y_base = y_at
+        
         for q in st.session_state.preview_questoes:
             line = q.strip()
             if not line: continue
+            
             pdf.set_font("Arial", size=11)
+            
             if line.lower().startswith("t."):
-                pdf.set_font("Arial", 'B', 16); pdf.set_y(y_at + 5)
+                pdf.set_font("Arial", 'B', 16)
+                pdf.set_y(y_at + 5)
                 pdf.cell(0, 10, clean_txt(line[2:]), ln=True, align='C')
                 y_at = pdf.get_y() + 5
             elif re.match(r'^\d+', line):
-                pdf.set_y(y_at + 5); pdf.set_font("Arial", 'B', 12)
+                pdf.set_y(y_at + 5)
+                pdf.set_font("Arial", 'B', 12)
                 pdf.multi_cell(0, 8, clean_txt(line))
-                y_at, l_pdf_idx = pdf.get_y(), 0
+                y_at = pdf.get_y()
+                l_pdf_idx = 0
             else:
-                txt = f"{letras[l_pdf_idx%26]}) {line}"
+                txt_item = f"{letras[l_pdf_idx%26]}) {line}"
                 if l_pdf_idx % 2 == 0:
-                    y_base = y_at; pdf.set_xy(15, y_base); pdf.multi_cell(90, 8, clean_txt(txt))
+                    y_base = y_at
+                    pdf.set_xy(15, y_base + 2)
+                    pdf.multi_cell(90, 8, clean_txt(txt_item))
                     y_prox = pdf.get_y()
                 else:
-                    pdf.set_xy(110, y_base); pdf.multi_cell(85, 8, clean_txt(txt))
+                    pdf.set_xy(110, y_base + 2)
+                    pdf.multi_cell(85, 8, clean_txt(txt_item))
                     y_at = max(y_prox, pdf.get_y())
                 l_pdf_idx += 1
-        st.download_button("✅ Baixar Atividade", bytes(pdf.output()), "atividade.pdf")
+
+        # GERA OS BYTES DO PDF UMA ÚNICA VEZ
+        pdf_output = pdf.output(dest='S').encode('latin-1')
+        
+        # BOTÃO DE DOWNLOAD FINAL
+        st.download_button(
+            label="✅ Baixar Atividade Agora",
+            data=pdf_output,
+            file_name="atividade_quantum.pdf",
+            mime="application/pdf"
+        )
