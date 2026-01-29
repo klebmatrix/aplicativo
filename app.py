@@ -159,8 +159,7 @@ if questoes_preview and menu_atual in ["op", "eq", "col", "alg", "man"]:
     l_idx = 0
     
     for q in questoes_preview:
-        # Limpeza agressiva de pontos e espaços no início da string
-        line = q.strip().lstrip('.') 
+        line = q.strip() # Mantendo os pontos digitados pelo usuário
         if not line: continue
         
         if line.lower().startswith("t."):
@@ -170,17 +169,18 @@ if questoes_preview and menu_atual in ["op", "eq", "col", "alg", "man"]:
             st.markdown(f"<h2 style='text-align: left; color: #000; margin: 25px 0 5px 0;'>{line[1:].strip()}</h2>", unsafe_allow_html=True)
             l_idx = 0
         elif re.match(r'^\d+', line):
-            st.markdown(f"<p style='margin: 10px 0 2px 0; font-size: 18px;'>{line}</p>", unsafe_allow_html=True)
+            st.markdown(f"<p style='margin: 10px 0 2px 0; font-size: 18px; font-weight: normal;'>{line}</p>", unsafe_allow_html=True)
             l_idx = 0
         else:
             cols = st.columns(2)
             target = cols[0] if l_idx % 2 == 0 else cols[1]
             with target:
                 with st.container(border=True):
+                    # Exibe os pontos na tela também
                     st.write(f"**{letras_tela[l_idx%26]})** {line}")
             l_idx += 1
 
-# --- 7. EXPORTAÇÃO PDF (CORREÇÃO DE PONTOS E SOBREPOSIÇÃO) ---
+# --- 7. EXPORTAÇÃO PDF (MANTENDO PONTOS E COLUNAS ALINHADAS) ---
 st.markdown("---")
 st.subheader("📥 Exportar para PDF")
 
@@ -198,13 +198,13 @@ def gerar_pdf_final(com_cabecalho):
 
     l_pdf_idx = 0
     y_last_column = pdf.get_y()
+    y_col_1 = pdf.get_y() # Inicializa para evitar erro de referência
     
     for q in questoes_preview:
-        # Limpa o ponto inicial aqui também para o PDF
-        line = q.strip().lstrip('.')
+        line = q.strip() # PONTOS PRESERVADOS
         if not line: continue
         
-        # Garante que títulos e módulos esperem as colunas terminarem
+        # Sincroniza altura antes de novos blocos (Módulos ou Títulos)
         if line.lower().startswith("t.") or line.startswith("-M") or re.match(r'^\d+', line):
             if l_pdf_idx > 0:
                 pdf.set_y(y_last_column + 5)
@@ -217,21 +217,21 @@ def gerar_pdf_final(com_cabecalho):
             pdf.cell(0, 10, clean_txt(line[2:]), ln=True, align='C')
             y_last_column = pdf.get_y()
             
-        # 2. MODO M
+        # 2. MODO M (Alinhado à Esquerda)
         elif line.startswith("-M"):
             pdf.ln(4)
             pdf.set_font("Arial", 'B', 16)
             pdf.cell(0, 10, clean_txt(line[1:]), ln=True, align='L')
             y_last_column = pdf.get_y()
             
-        # 3. QUESTÕES (1., 2...)
+        # 3. QUESTÕES (Normais)
         elif re.match(r'^\d+', line):
             pdf.ln(2)
             pdf.set_font("Arial", '', 12)
             pdf.multi_cell(0, 7, clean_txt(line))
             y_last_column = pdf.get_y()
             
-        # 4. ITENS (a, b...) EM DUAS COLUNAS
+        # 4. ITENS EM COLUNAS (Preservando pontos)
         else:
             pdf.set_font("Arial", '', 11)
             txt_item = f"{letras_pdf[l_pdf_idx%26]}) {clean_txt(line)}"
@@ -243,14 +243,14 @@ def gerar_pdf_final(com_cabecalho):
                 pdf.set_xy(15, curr_y)
                 pdf.multi_cell(90, 6, txt_item)
                 y_col_1 = pdf.get_y()
-                pdf.set_y(curr_y) # Volta para a mesma altura para a próxima
+                pdf.set_y(curr_y) 
                 y_last_column = y_col_1
             else:
                 # Coluna Direita
                 pdf.set_xy(110, curr_y)
                 pdf.multi_cell(85, 6, txt_item)
                 y_col_2 = pdf.get_y()
-                # A próxima linha começará abaixo da maior coluna
+                # Define a base para a próxima linha como a maior altura
                 y_last_column = max(y_col_1, y_col_2)
                 pdf.set_y(y_last_column)
             
@@ -258,11 +258,11 @@ def gerar_pdf_final(com_cabecalho):
             
     return pdf.output(dest='S').encode('latin-1')
 
-# Botões de Download
+# Botões permanecem os mesmos
 c1, c2 = st.columns(2)
 with c1:
     if st.button("📄 PDF COM Cabeçalho", use_container_width=True):
-        st.download_button("✅ Baixar PDF", gerar_pdf_final(True), "atividade_com_topo.pdf", "application/pdf")
+        st.download_button("✅ Baixar", gerar_pdf_final(True), "atividade.pdf", "application/pdf")
 with c2:
     if st.button("📄 PDF SEM Cabeçalho", use_container_width=True):
-        st.download_button("✅ Baixar PDF", gerar_pdf_final(False), "atividade_simples.pdf", "application/pdf")
+        st.download_button("✅ Baixar", gerar_pdf_final(False), "atividade_simples.pdf", "application/pdf")
