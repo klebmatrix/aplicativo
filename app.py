@@ -173,17 +173,24 @@ if st.session_state.preview_questoes and st.session_state.sub_menu in ["op", "eq
                 with col2:
                     with st.container(border=True): st.write(f"**{letras[l_idx%26]})** {line}")
             l_idx += 1
-
-    # --- 7. EXPORTAÇÃO PDF (CORRIGIDA) ---
+# --- 7. EXPORTAÇÃO PDF A4 (DOIS BOTÕES) ---
     st.markdown("---")
-    if st.button("🚀 Preparar PDF para Download"):
+    st.subheader("📥 Exportar para PDF")
+    
+    col_pdf1, col_pdf2 = st.columns(2)
+
+    def gerar_pdf(com_cabecalho):
         pdf = FPDF(orientation='P', unit='mm', format='A4')
         pdf.add_page()
+        pdf.set_margins(15, 15, 15)
         
-        y_at = 55 if os.path.exists("cabecalho.png") else 20
-        if os.path.exists("cabecalho.png"): 
-            pdf.image("cabecalho.png", x=10, y=10, w=190)
-        
+        # Configuração de início com ou sem cabeçalho
+        if com_cabecalho and os.path.exists("cabecalho.png"):
+            pdf.image("cabecalho.png", x=12.5, y=10, w=185)
+            y_at = 55
+        else:
+            y_at = 20 # Começa mais no topo se não tiver cabeçalho
+
         l_pdf_idx = 0
         y_base = y_at
         
@@ -216,14 +223,17 @@ if st.session_state.preview_questoes and st.session_state.sub_menu in ["op", "eq
                     pdf.multi_cell(85, 8, clean_txt(txt_item))
                     y_at = max(y_prox, pdf.get_y())
                 l_pdf_idx += 1
-
-        # GERA OS BYTES DO PDF UMA ÚNICA VEZ
-        pdf_output = pdf.output(dest='S').encode('latin-1')
         
-        # BOTÃO DE DOWNLOAD FINAL
-        st.download_button(
-            label="✅ Baixar Atividade Agora",
-            data=pdf_output,
-            file_name="atividade_quantum.pdf",
-            mime="application/pdf"
-        )
+        return pdf.output(dest='S').encode('latin-1')
+
+    # Botão 1: Com Cabeçalho
+    with col_pdf1:
+        if st.button("📄 PDF COM Cabeçalho", use_container_width=True):
+            pdf_bytes = gerar_pdf(com_cabecalho=True)
+            st.download_button("✅ Baixar PDF (Com Cabeçalho)", pdf_bytes, "atividade_com_topo.pdf", "application/pdf")
+
+    # Botão 2: Sem Cabeçalho
+    with col_pdf2:
+        if st.button("📄 PDF SEM Cabeçalho", use_container_width=True):
+            pdf_bytes = gerar_pdf(com_cabecalho=False)
+            st.download_button("✅ Baixar PDF (Sem Cabeçalho)", pdf_bytes, "atividade_limpa.pdf", "application/pdf")
