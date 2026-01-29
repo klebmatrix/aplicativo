@@ -145,6 +145,8 @@ if perfil == "admin":
         if st.button("Calcular Juros Compostos"):
             fv = pv * (1 + tx/100)**tp
             st.metric("Montante Final", f"R$ {fv:.2f}")
+
+
 # --- 6. VISUALIZAÇÃO UNIFICADA (CARDS NA TELA) ---
 questoes_preview = st.session_state.get('preview_questoes', [])
 menu_atual = st.session_state.get('sub_menu', None)
@@ -161,35 +163,33 @@ if questoes_preview and menu_atual in ["op", "eq", "col", "alg", "man"]:
         line = q.strip()
         if not line: continue
         
-        # TÍTULO (Centralizado e Negrito)
+        # TÍTULO (Centralizado)
         if line.lower().startswith("t."):
-            st.markdown(f"<h2 style='text-align: center; color: #007bff; margin-top: 15px;'>{line[2:].strip()}</h2>", unsafe_allow_html=True)
+            st.markdown(f"<h2 style='text-align: center; color: #007bff; margin: 20px 0;'>{line[2:].strip()}</h2>", unsafe_allow_html=True)
             l_idx = 0
             
-        # MODO M (Esquerda e Negrito)
+        # MODO M (Esquerda, Negrito, estilo Título)
         elif line.startswith("-M"):
-            st.markdown(f"<h2 style='text-align: left; color: #333; margin-top: 10px; margin-bottom: 5px;'>{line[1:].strip()}</h2>", unsafe_allow_html=True)
+            st.markdown(f"<h2 style='text-align: left; color: #000; margin: 15px 0 5px 0;'>{line[1:].strip()}</h2>", unsafe_allow_html=True)
             l_idx = 0
         
-        # SEÇÕES NUMÉRICAS (Texto Normal - Sem Negrito)
+        # QUESTÕES NUMERADAS (Texto Normal, Espaçamento Curto)
         elif re.match(r'^\d+', line):
-            st.markdown(f"<div style='margin-top: 5px; margin-bottom: 2px; font-weight: normal;'>{line}</div>", unsafe_allow_html=True)
+            st.markdown(f"<p style='margin: 5px 0; font-weight: normal; font-size: 18px;'>{line}</p>", unsafe_allow_html=True)
             l_idx = 0
             
-        # ITENS EM COLUNAS
+        # ITENS (a, b, c...)
         else:
             cols = st.columns(2)
-            col_target = cols[0] if l_idx % 2 == 0 else cols[1]
-            with col_target:
-                st.markdown("<div style='margin: -8px 0;'>", unsafe_allow_html=True)
+            target = cols[0] if l_idx % 2 == 0 else cols[1]
+            with target:
                 with st.container(border=True):
                     st.write(f"**{letras_tela[l_idx%26]})** {line}")
-                st.markdown("</div>", unsafe_allow_html=True)
             l_idx += 1
 
-# --- 7. EXPORTAÇÃO PDF A4 (COMPACTO E SEM NEGRITO NAS QUESTÕES) ---
+# --- 7. EXPORTAÇÃO PDF A4 (CORREÇÃO DE SOBREPOSIÇÃO) ---
 st.markdown("---")
-st.subheader("📥 Exportar Atividade Finalizada")
+st.subheader("📥 Exportar para PDF")
 
 def gerar_pdf_final(com_cabecalho):
     letras_pdf = "abcdefghijklmnopqrstuvwxyz"
@@ -197,56 +197,63 @@ def gerar_pdf_final(com_cabecalho):
     pdf.add_page()
     pdf.set_margins(15, 15, 15)
     
-    y_at = 55 if (com_cabecalho and os.path.exists("cabecalho.png")) else 15
+    # Define posição inicial
     if com_cabecalho and os.path.exists("cabecalho.png"):
         pdf.image("cabecalho.png", x=12.5, y=10, w=185)
+        pdf.set_y(55)
+    else:
+        pdf.set_y(20)
 
     l_pdf_idx = 0
-    y_base = y_at
     
     for q in questoes_preview:
         line = q.strip()
         if not line: continue
         
-        # 1. TÍTULO PRINCIPAL (Negrito)
+        # 1. TÍTULO (Centralizado)
         if line.lower().startswith("t."):
+            pdf.ln(5) # Espaço antes
             pdf.set_font("Arial", 'B', 16)
-            pdf.set_y(y_at + 4)
             pdf.cell(0, 10, clean_txt(line[2:]), ln=True, align='C')
-            y_at = pdf.get_y() + 2
             l_pdf_idx = 0
             
-        # 2. MODO M (Negrito)
+        # 2. MODO M (Esquerda, Negrito, Fonte 16)
         elif line.startswith("-M"):
+            pdf.ln(8) # Espaço maior antes de um novo módulo para não misturar
             pdf.set_font("Arial", 'B', 16)
-            pdf.set_y(y_at + 4)
             pdf.cell(0, 10, clean_txt(line[1:]), ln=True, align='L')
-            y_at = pdf.get_y() + 2
+            pdf.ln(2) # Pequeno espaço após o título do módulo
             l_pdf_idx = 0
             
-        # 3. SEÇÕES NUMERADAS (Fonte Normal e Compacta)
+        # 3. QUESTÕES NUMERADAS (Normal, Próximas)
         elif re.match(r'^\d+', line):
-            pdf.set_font("Arial", size=12) # Sem o 'B' de bold
-            salto = 3 if l_pdf_idx > 0 else 1 # Salto reduzido para 3mm
-            pdf.set_y(y_at + salto)
-            pdf.multi_cell(0, 6, clean_txt(line)) 
-            y_at = pdf.get_y() + 0.5
+            pdf.ln(2) # Espaço muito pequeno entre questões
+            pdf.set_font("Arial", '', 12)
+            pdf.multi_cell(0, 7, clean_txt(line))
             l_pdf_idx = 0
             
-        # 4. ITENS (a, b, c...)
+        # 4. ITENS EM COLUNAS (a, b...)
         else:
-            pdf.set_font("Arial", size=11)
+            pdf.set_font("Arial", '', 11)
             txt_item = f"{letras_pdf[l_pdf_idx%26]}) {clean_txt(line)}"
             
+            # Posição atual para as colunas
+            curr_y = pdf.get_y()
+            
             if l_pdf_idx % 2 == 0:
-                y_base = y_at
-                pdf.set_xy(15, y_base + 0.5)
+                pdf.set_x(15)
                 pdf.multi_cell(90, 6, txt_item)
-                y_prox = pdf.get_y()
+                # Guarda a altura da coluna da esquerda
+                y_esq = pdf.get_y()
+                # Mantém o cursor na mesma linha para a próxima coluna
+                pdf.set_y(curr_y)
             else:
-                pdf.set_xy(110, y_base + 0.5)
+                pdf.set_x(110)
                 pdf.multi_cell(85, 6, txt_item)
-                y_at = max(y_prox, pdf.get_y())
+                # A próxima linha deve começar após a coluna mais longa
+                y_dir = pdf.get_y()
+                pdf.set_y(max(y_esq, y_dir))
+            
             l_pdf_idx += 1
     
     return pdf.output(dest='S').encode('latin-1')
@@ -254,10 +261,8 @@ def gerar_pdf_final(com_cabecalho):
 # Botões de Download
 c1, c2 = st.columns(2)
 with c1:
-    if st.button("📄 PDF COM Cabeçalho", use_container_width=True):
-        data = gerar_pdf_final(True)
-        st.download_button("✅ Baixar PDF Completo", data, "atividade_topo.pdf", "application/pdf")
+    if st.button("📄 PDF COM Cabeçalho"):
+        st.download_button("✅ Baixar", gerar_pdf_final(True), "atividade_topo.pdf", "application/pdf")
 with c2:
-    if st.button("📄 PDF SEM Cabeçalho", use_container_width=True):
-        data = gerar_pdf_final(False)
-        st.download_button("✅ Baixar PDF Simples", data, "atividade_limpa.pdf", "application/pdf")
+    if st.button("📄 PDF SEM Cabeçalho"):
+        st.download_button("✅ Baixar", gerar_pdf_final(False), "atividade_limpa.pdf", "application/pdf")
