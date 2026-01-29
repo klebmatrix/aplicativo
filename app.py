@@ -49,88 +49,92 @@ if st.sidebar.button("🧹 Limpar Tudo"):
     st.session_state.sub_menu = None
     st.rerun()
 
-if st.sidebar.button("Sair/Logout"):
-    for key in list(st.session_state.keys()): del st.session_state[key]
-    st.rerun()
-
 # --- PAINEL ADMIN ---
 if perfil == "admin":
     st.title("🛠️ Painel de Controle")
     
-    st.subheader("📝 Geradores de Atividades (PDF)")
+    st.subheader("📝 Geradores de Atividades")
     c1, c2, c3, c4, c5 = st.columns(5)
     with c1: 
-        if st.button("🔢 Operações", use_container_width=True): 
-            st.session_state.sub_menu = "op"; st.session_state.preview_questoes = []
+        if st.button("🔢 Operações", use_container_width=True): st.session_state.sub_menu = "op"
     with c2: 
-        if st.button("📐 Equações", use_container_width=True): 
-            st.session_state.sub_menu = "eq"; st.session_state.preview_questoes = []
+        if st.button("📐 Equações", use_container_width=True): st.session_state.sub_menu = "eq"
     with c3: 
-        if st.button("📚 Colegial", use_container_width=True): 
-            st.session_state.sub_menu = "col"; st.session_state.preview_questoes = []
+        if st.button("📚 Colegial", use_container_width=True): st.session_state.sub_menu = "col"
     with c4: 
-        if st.button("⚖️ Álgebra", use_container_width=True): 
-            st.session_state.sub_menu = "alg"; st.session_state.preview_questoes = []
+        if st.button("⚖️ Álgebra", use_container_width=True): st.session_state.sub_menu = "alg"
     with c5: 
-        if st.button("📄 Manual", use_container_width=True): 
-            st.session_state.sub_menu = "man"; st.session_state.preview_questoes = []
-
-    st.markdown("---")
-    st.subheader("🧮 Ferramentas de Cálculo Online")
-    d1, d2, d3 = st.columns(3)
-    with d1: 
-        if st.button("𝑓(x) Funções", use_container_width=True): st.session_state.sub_menu = "calc_f"
-    with d2: 
-        if st.button("📊 PEMDAS", use_container_width=True): st.session_state.sub_menu = "pemdas"
-    with d3: 
-        if st.button("💰 Financeira", use_container_width=True): st.session_state.sub_menu = "fin"
+        if st.button("📄 Manual", use_container_width=True): st.session_state.sub_menu = "man"
 
     op_atual = st.session_state.sub_menu
     st.divider()
 
-    # --- LÓGICA DE GERAÇÃO (COLEGIAL E ÁLGEBRA PREENCHIDOS) ---
-    if op_atual == "op":
-        st.header("🔢 Operações")
-        escolhas = st.multiselect("Sinais:", ["+", "-", "x", "÷"], ["+", "-"])
-        qtd = st.number_input("Qtd:", 4, 30, 10)
-        if st.button("Gerar Preview"):
-            st.session_state.preview_questoes = ["t. Operações"] + [f"{random.randint(10,500)} {random.choice(escolhas)} {random.randint(2,50)} =" for _ in range(qtd)]
-
-    elif op_atual == "eq":
-        st.header("📐 Equações")
-        grau = st.radio("Grau:", ["1º Grau", "2º Grau"], horizontal=True)
-        if st.button("Gerar Preview"):
-            qs = [f"{random.randint(2,9)}x + {random.randint(1,20)} = {random.randint(21,99)}" if grau == "1º Grau" else f"x² + {random.randint(2,8)}x + {random.randint(1,12)} = 0" for _ in range(8)]
-            st.session_state.preview_questoes = [f"t. Equações {grau}"] + qs
-
-    elif op_atual == "col":
+    # --- LÓGICA DE GERAÇÃO ---
+    if op_atual == "col":
         st.header("📚 Colegial")
-        tema_col = st.radio("Tema:", ["Frações", "Potenciação", "Radiciação", "Porcentagem"], horizontal=True)
+        tema = st.radio("Tema:", ["Frações", "Potenciação", "Radiciação", "Porcentagem"], horizontal=True)
         if st.button("Gerar Preview"):
-            if tema_col == "Frações": qs = [f"{random.randint(1,9)}/{random.randint(2,5)} + {random.randint(1,9)}/{random.randint(2,5)} =" for _ in range(8)]
-            elif tema_col == "Potenciação": qs = [f"{random.randint(2,12)}^{random.randint(2,3)} =" for _ in range(8)]
-            elif tema_col == "Radiciação": qs = [f"√{n**2} =" for n in random.sample(range(2, 15), 8)]
+            if tema == "Frações": qs = [f"{random.randint(1,9)}/{random.randint(2,5)} + {random.randint(1,9)}/{random.randint(2,5)} =" for _ in range(8)]
+            elif tema == "Potenciação": qs = [f"{random.randint(2,12)}^{random.randint(2,3)} =" for _ in range(8)]
+            elif tema == "Radiciação": qs = [f"√{n**2} =" for n in random.sample(range(2, 15), 8)]
             else: qs = [f"{random.choice([10,25,50])}% de {random.randint(100, 1000)} =" for _ in range(8)]
-            st.session_state.preview_questoes = [f"t. Exercícios de {tema_col}"] + qs
+            st.session_state.preview_questoes = [f"t. Atividade de {tema}"] + qs
 
     elif op_atual == "alg":
         st.header("⚖️ Álgebra")
-        tipo_alg = st.radio("Sistemas:", ["1º Grau (x, y)", "2º Grau"], horizontal=True)
+        tipo = st.radio("Sistemas:", ["1º Grau (x, y)", "2º Grau"], horizontal=True)
         if st.button("Gerar Preview"):
-            if "1º" in tipo_alg: qs = [f"{random.randint(1,5)}x + {random.randint(1,5)}y = {random.randint(10,30)}\n{random.randint(1,5)}x - {random.randint(1,5)}y = {random.randint(1,10)}" for _ in range(4)]
-            else: qs = [f"x + y = {random.randint(5,12)}\nx² + y² = {random.randint(40,150)}" for _ in range(3)]
-            st.session_state.preview_questoes = [f"t. {tipo_alg}"] + qs
+            if "1º" in tipo: qs = [f"{random.randint(1,5)}x + {random.randint(1,5)}y = {random.randint(10,30)}\n{random.randint(1,5)}x - {random.randint(1,5)}y = {random.randint(1,10)}" for _ in range(4)]
+            else: qs = [f"x + y = {random.randint(5,12)}\nx^2 + y^2 = {random.randint(40,150)}" for _ in range(3)]
+            st.session_state.preview_questoes = [f"t. Sistemas de {tipo}"] + qs
 
     elif op_atual == "man":
         st.header("📄 Modo Manual")
-        txt_m = st.text_area("Digite (t. para Título ou pule para questões sem título):", height=200)
-        if st.button("Gerar Preview"):
-            st.session_state.preview_questoes = txt_m.split('\n')
+        txt_m = st.text_area("Digite as questões (t. para Título):", height=200)
+        if st.button("Processar"): st.session_state.preview_questoes = txt_m.split('\n')
 
-# --- VISUALIZAÇÃO E PDF (SEM CABEÇALHO NO MANUAL) ---
+# --- FUNÇÃO GERADORA DE PDF ---
+def gerar_pdf(questoes, com_cabecalho=True):
+    pdf = FPDF()
+    pdf.add_page()
+    y_at = 15
+    if com_cabecalho and os.path.exists("cabecalho.png"):
+        pdf.image("cabecalho.png", x=10, y=10, w=190)
+        y_at = 55
+    
+    letras = "abcdefghijklmnopqrstuvwxyz"
+    l_idx = 0
+    y_base = y_at
+    
+    for q in questoes:
+        line = q.strip()
+        if not line: continue
+        
+        if line.lower().startswith("t."):
+            pdf.set_font("Arial", 'B', 16); pdf.set_y(y_at)
+            pdf.cell(0, 10, clean_txt(line[2:]), ln=True, align='C')
+            y_at = pdf.get_y() + 5; l_idx = 0
+        elif re.match(r'^\d+', line):
+            pdf.set_font("Arial", 'B', 12); pdf.set_y(y_at + 2)
+            pdf.multi_cell(0, 8, clean_txt(line))
+            y_at, l_idx = pdf.get_y(), 0
+        else:
+            pdf.set_font("Arial", size=11)
+            txt = f"{letras[l_idx%26]}) {line}"
+            if l_idx % 2 == 0:
+                y_base = y_at; pdf.set_xy(15, y_base); pdf.multi_cell(90, 8, clean_txt(txt))
+                y_prox = pdf.get_y()
+            else:
+                pdf.set_xy(110, y_base); pdf.multi_cell(85, 8, clean_txt(txt))
+                y_at = max(y_prox, pdf.get_y())
+            l_idx += 1
+    return pdf.output(dest='S').encode('latin-1')
+
+# --- VISUALIZAÇÃO E BOTÕES DE DOWNLOAD ---
 if st.session_state.preview_questoes:
     st.divider()
-    # Só exibe imagem se não for manual ou se você quiser manter fixa
+    
+    # Preview na tela (Sempre com imagem se existir, para conferência)
     if os.path.exists("cabecalho.png"): st.image("cabecalho.png", use_container_width=True)
     
     letras = "abcdefghijklmnopqrstuvwxyz"
@@ -149,39 +153,11 @@ if st.session_state.preview_questoes:
                 with st.container(border=True): st.write(f"**{letras[l_idx%26]})** {line}")
             l_idx += 1
 
-    if st.button("📥 Baixar PDF A4"):
-        pdf = FPDF(orientation='P', unit='mm', format='A4')
-        pdf.add_page()
-        
-        # Ajuste de Y: Se houver cabeçalho, começa em 55. Se for manual e sem t., começa em 10.
-        tem_titulo = any(line.strip().lower().startswith("t.") for line in st.session_state.preview_questoes)
-        y_at = 55 if os.path.exists("cabecalho.png") else 15
-        if os.path.exists("cabecalho.png"): pdf.image("cabecalho.png", x=10, y=10, w=190)
-        
-        # Se for manual e não houver título, puxa o texto para cima
-        if op_atual == "man" and not tem_titulo: y_at = 15
-
-        l_pdf_idx = 0
-        y_base = y_at
-        for q in st.session_state.preview_questoes:
-            line = q.strip()
-            if not line: continue
-            if line.lower().startswith("t."):
-                pdf.set_font("Arial", 'B', 16); pdf.set_y(y_at + 5)
-                pdf.cell(0, 10, clean_txt(line[2:]), ln=True, align='C')
-                y_at = pdf.get_y() + 5; l_pdf_idx = 0
-            elif re.match(r'^\d+', line):
-                pdf.set_y(y_at + 5); pdf.set_font("Arial", 'B', 12)
-                pdf.multi_cell(0, 8, clean_txt(line))
-                y_at, l_pdf_idx = pdf.get_y(), 0
-            else:
-                pdf.set_font("Arial", size=11); txt = f"{letras[l_pdf_idx%26]}) {line}"
-                if l_pdf_idx % 2 == 0:
-                    y_base = y_at; pdf.set_xy(15, y_base); pdf.multi_cell(90, 8, clean_txt(txt))
-                    y_prox = pdf.get_y()
-                else:
-                    pdf.set_xy(110, y_base); pdf.multi_cell(85, 8, clean_txt(txt))
-                    y_at = max(y_prox, pdf.get_y())
-                l_pdf_idx += 1
-        
-        st.download_button("✅ Baixar Agora", pdf.output(dest='S').encode('latin-1'), "atividade.pdf", "application/pdf")
+    st.subheader("📥 Escolha como baixar:")
+    btn1, btn2 = st.columns(2)
+    with btn1:
+        pdf_com = gerar_pdf(st.session_state.preview_questoes, com_cabecalho=True)
+        st.download_button("🖼️ PDF COM CABEÇALHO", pdf_com, "atividade_com_cabecalho.pdf", use_container_width=True)
+    with btn2:
+        pdf_sem = gerar_pdf(st.session_state.preview_questoes, com_cabecalho=False)
+        st.download_button("📄 PDF SEM CABEÇALHO", pdf_sem, "atividade_sem_cabecalho.pdf", use_container_width=True)
