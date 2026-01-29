@@ -146,7 +146,6 @@ if perfil == "admin":
             fv = pv * (1 + tx/100)**tp
             st.metric("Montante Final", f"R$ {fv:.2f}")
 
-
 # --- 6. VISUALIZAÇÃO UNIFICADA (CARDS NA TELA) ---
 questoes_preview = st.session_state.get('preview_questoes', [])
 menu_atual = st.session_state.get('sub_menu', None)
@@ -163,22 +162,15 @@ if questoes_preview and menu_atual in ["op", "eq", "col", "alg", "man"]:
         line = q.strip()
         if not line: continue
         
-        # TÍTULO (Centralizado)
         if line.lower().startswith("t."):
-            st.markdown(f"<h2 style='text-align: center; color: #007bff; margin: 20px 0;'>{line[2:].strip()}</h2>", unsafe_allow_html=True)
+            st.markdown(f"<h2 style='text-align: center; color: #007bff; margin: 15px 0;'>{line[2:].strip()}</h2>", unsafe_allow_html=True)
             l_idx = 0
-            
-        # MODO M (Esquerda, Negrito, estilo Título)
         elif line.startswith("-M"):
-            st.markdown(f"<h2 style='text-align: left; color: #000; margin: 15px 0 5px 0;'>{line[1:].strip()}</h2>", unsafe_allow_html=True)
+            st.markdown(f"<h2 style='text-align: left; color: #000; margin: 25px 0 5px 0;'>{line[1:].strip()}</h2>", unsafe_allow_html=True)
             l_idx = 0
-        
-        # QUESTÕES NUMERADAS (Texto Normal, Espaçamento Curto)
         elif re.match(r'^\d+', line):
-            st.markdown(f"<p style='margin: 5px 0; font-weight: normal; font-size: 18px;'>{line}</p>", unsafe_allow_html=True)
+            st.markdown(f"<p style='margin: 10px 0 2px 0; font-size: 18px;'>{line}</p>", unsafe_allow_html=True)
             l_idx = 0
-            
-        # ITENS (a, b, c...)
         else:
             cols = st.columns(2)
             target = cols[0] if l_idx % 2 == 0 else cols[1]
@@ -187,7 +179,7 @@ if questoes_preview and menu_atual in ["op", "eq", "col", "alg", "man"]:
                     st.write(f"**{letras_tela[l_idx%26]})** {line}")
             l_idx += 1
 
-# --- 7. EXPORTAÇÃO PDF A4 (CORREÇÃO DE SOBREPOSIÇÃO) ---
+# --- 7. EXPORTAÇÃO PDF A4 (CONTROLE DE ALTURA DINÂMICO) ---
 st.markdown("---")
 st.subheader("📥 Exportar para PDF")
 
@@ -197,7 +189,6 @@ def gerar_pdf_final(com_cabecalho):
     pdf.add_page()
     pdf.set_margins(15, 15, 15)
     
-    # Define posição inicial
     if com_cabecalho and os.path.exists("cabecalho.png"):
         pdf.image("cabecalho.png", x=12.5, y=10, w=185)
         pdf.set_y(55)
@@ -205,60 +196,66 @@ def gerar_pdf_final(com_cabecalho):
         pdf.set_y(20)
 
     l_pdf_idx = 0
+    y_last_column = pdf.get_y() # Variável para controlar o fim das colunas
     
     for q in questoes_preview:
         line = q.strip()
         if not line: continue
         
-        # 1. TÍTULO (Centralizado)
+        # ANTES DE QUALQUER TÍTULO OU NÚMERO, GARANTE QUE SAIU DAS COLUNAS
+        if line.lower().startswith("t.") or line.startswith("-M") or re.match(r'^\d+', line):
+            if l_pdf_idx > 0:
+                pdf.set_y(y_last_column + 2) # Pula para depois da maior coluna
+            l_pdf_idx = 0
+
+        # 1. TÍTULO
         if line.lower().startswith("t."):
-            pdf.ln(5) # Espaço antes
+            pdf.ln(5)
             pdf.set_font("Arial", 'B', 16)
             pdf.cell(0, 10, clean_txt(line[2:]), ln=True, align='C')
-            l_pdf_idx = 0
             
-        # 2. MODO M (Esquerda, Negrito, Fonte 16)
+        # 2. MODO M
         elif line.startswith("-M"):
-            pdf.ln(8) # Espaço maior antes de um novo módulo para não misturar
+            pdf.ln(6)
             pdf.set_font("Arial", 'B', 16)
             pdf.cell(0, 10, clean_txt(line[1:]), ln=True, align='L')
-            pdf.ln(2) # Pequeno espaço após o título do módulo
-            l_pdf_idx = 0
+            pdf.ln(2)
             
-        # 3. QUESTÕES NUMERADAS (Normal, Próximas)
+        # 3. QUESTÕES (1., 2...)
         elif re.match(r'^\d+', line):
-            pdf.ln(2) # Espaço muito pequeno entre questões
+            pdf.ln(2)
             pdf.set_font("Arial", '', 12)
             pdf.multi_cell(0, 7, clean_txt(line))
-            l_pdf_idx = 0
             
-        # 4. ITENS EM COLUNAS (a, b...)
+        # 4. ITENS (a, b...) EM COLUNAS
         else:
             pdf.set_font("Arial", '', 11)
             txt_item = f"{letras_pdf[l_pdf_idx%26]}) {clean_txt(line)}"
             
-            # Posição atual para as colunas
             curr_y = pdf.get_y()
             
             if l_pdf_idx % 2 == 0:
-                pdf.set_x(15)
+                # Coluna 1
+                pdf.set_xy(15, curr_y)
                 pdf.multi_cell(90, 6, txt_item)
-                # Guarda a altura da coluna da esquerda
-                y_esq = pdf.get_y()
-                # Mantém o cursor na mesma linha para a próxima coluna
+                y_col_1 = pdf.get_y()
+                # Prepara para a coluna 2 na mesma altura
                 pdf.set_y(curr_y)
+                y_last_column = y_col_1
             else:
-                pdf.set_x(110)
+                # Coluna 2
+                pdf.set_xy(110, curr_y)
                 pdf.multi_cell(85, 6, txt_item)
-                # A próxima linha deve começar após a coluna mais longa
-                y_dir = pdf.get_y()
-                pdf.set_y(max(y_esq, y_dir))
+                y_col_2 = pdf.get_y()
+                # A base agora é a maior entre as duas
+                y_last_column = max(y_col_1, y_col_2)
+                pdf.set_y(y_last_column)
             
             l_pdf_idx += 1
-    
+            
     return pdf.output(dest='S').encode('latin-1')
 
-# Botões de Download
+# Botões permanecem iguais
 c1, c2 = st.columns(2)
 with c1:
     if st.button("📄 PDF COM Cabeçalho"):
