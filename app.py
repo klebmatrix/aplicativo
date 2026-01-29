@@ -18,11 +18,6 @@ def clean_txt(text):
     text = str(text).replace("√", "V").replace("²", "^2").replace("³", "^3")
     return text.encode('latin-1', 'replace').decode('latin-1')
 
-def tratar_math(texto):
-    t = texto.strip()
-    t = t.replace("²", "^{2}").replace("³", "^{3}")
-    return t
-
 def validar_acesso(pin_digitado):
     try:
         senha_aluno = str(st.secrets.get("acesso_aluno", "123456")).strip()
@@ -49,12 +44,13 @@ if st.session_state.perfil is None:
 perfil = st.session_state.perfil
 st.sidebar.title(f"🚀 {'Professor' if perfil == 'admin' else 'Estudante'}")
 
-if st.sidebar.button("🧹 Limpar Tudo"):
+# --- BOTÃO LIMPAR (AQUI ESTÁ ELE!) ---
+if st.sidebar.button("🧹 Limpar Tudo", use_container_width=True):
     st.session_state.preview_questoes = []
     st.session_state.sub_menu = None
     st.rerun()
 
-if st.sidebar.button("Sair/Logout"):
+if st.sidebar.button("🚪 Sair/Logout", use_container_width=True):
     for key in list(st.session_state.keys()): del st.session_state[key]
     st.rerun()
 
@@ -93,7 +89,7 @@ if perfil == "admin":
     op_atual = st.session_state.sub_menu
     st.divider()
 
-    # --- LÓGICA DOS 5 GERADORES ---
+    # --- LÓGICA DOS GERADORES ---
     if op_atual == "op":
         st.header("🔢 Gerador de Operações")
         escolhas = st.multiselect("Sinais:", ["+", "-", "x", "÷"], ["+", "-"])
@@ -108,23 +104,13 @@ if perfil == "admin":
             qs = [f"{random.randint(2,9)}x + {random.randint(1,20)} = {random.randint(21,99)}" if grau == "1º Grau" else f"x² + {random.randint(2,8)}x + {random.randint(1,12)} = 0" for _ in range(8)]
             st.session_state.preview_questoes = [f"t. Equações de {grau}"] + qs
 
-    elif op_atual == "col":
-        st.header("📚 Colegial (Frações)")
-        if st.button("Gerar Preview"):
-            st.session_state.preview_questoes = ["t. Exercícios de Frações"] + [f"{random.randint(1,9)}/{random.randint(2,5)} + {random.randint(1,9)}/{random.randint(2,5)} =" for _ in range(8)]
-
-    elif op_atual == "alg":
-        st.header("⚖️ Álgebra Linear")
-        if st.button("Gerar Preview"):
-            st.session_state.preview_questoes = ["t. Álgebra Linear", "1. Resolva os sistemas:"] + [f"System {i+1}: {random.randint(1,5)}x + {random.randint(1,5)}y = {random.randint(10,30)}" for i in range(4)]
-
     elif op_atual == "man":
         st.header("📄 Gerador Manual")
         txt_m = st.text_area("Digite as questões:", height=200)
         if st.button("Gerar Preview"):
             st.session_state.preview_questoes = txt_m.split('\n')
 
-    # --- FERRAMENTAS ONLINE ---
+    # --- FERRAMENTAS ONLINE (RESTURADAS) ---
     elif op_atual == "calc_f":
         st.header("𝑓(x) Calculadora de Funções")
         f_in = st.text_input("Função f(x):", "x**2 + 5*x + 6")
@@ -178,7 +164,7 @@ if st.session_state.preview_questoes and st.session_state.sub_menu in ["op", "eq
                     with st.container(border=True): st.write(f"**{letras[l_idx%26]})** {line}")
             l_idx += 1
 
-    if st.button("📥 Baixar PDF A4"):
+    if st.button("📥 Gerar PDF"):
         pdf = FPDF(orientation='P', unit='mm', format='A4')
         pdf.add_page()
         y_at = 55 if os.path.exists("cabecalho.png") else 20
@@ -203,14 +189,11 @@ if st.session_state.preview_questoes and st.session_state.sub_menu in ["op", "eq
                 txt = f"{letras[l_pdf_idx%26]}) {line}"
                 if l_pdf_idx % 2 == 0:
                     y_base = y_at
-                    pdf.set_xy(15, y_base)
-                    pdf.multi_cell(90, 8, clean_txt(txt))
+                    pdf.set_xy(15, y_base); pdf.multi_cell(90, 8, clean_txt(txt))
                     y_prox = pdf.get_y()
                 else:
-                    pdf.set_xy(110, y_base)
-                    pdf.multi_cell(85, 8, clean_txt(txt))
+                    pdf.set_xy(110, y_base); pdf.multi_cell(85, 8, clean_txt(txt))
                     y_at = max(y_prox, pdf.get_y())
                 l_pdf_idx += 1
         
-        pdf_out = pdf.output(dest='S').encode('latin-1')
-        st.download_button("✅ Baixar Agora", pdf_out, "atividade.pdf", "application/pdf")
+        st.download_button("✅ Baixar Arquivo", pdf.output(dest='S').encode('latin-1'), "atividade.pdf")
