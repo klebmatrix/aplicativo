@@ -145,6 +145,7 @@ if perfil == "admin":
         if st.button("Calcular Juros Compostos"):
             fv = pv * (1 + tx/100)**tp
             st.metric("Montante Final", f"R$ {fv:.2f}")
+
 # --- 6. VISUALIZAÇÃO UNIFICADA (CARDS NA TELA) ---
 questoes_preview = st.session_state.get('preview_questoes', [])
 menu_atual = st.session_state.get('sub_menu', None)
@@ -161,19 +162,16 @@ if questoes_preview and menu_atual in ["op", "eq", "col", "alg", "man"]:
         line = q.strip()
         if not line: continue
         
-        # MODO M OU TÍTULO (Estilo de Destaque Centralizado)
-        if line.lower().startswith("t.") or line.startswith("-M"):
-            # Limpeza do prefixo para exibição
-            conteudo = line[2:].strip() if line.lower().startswith("t.") else line[1:].strip()
-            st.markdown(f"""
-                <div style='text-align: center; margin: 20px 0;'>
-                    <h1 style='color: #007bff; border-bottom: 2px solid #007bff; display: inline-block; padding: 0 20px;'>
-                        {conteudo}
-                    </h1>
-                </div>
-            """, unsafe_allow_html=True)
-            l_idx = 0 # Reseta colunas após um destaque centralizado
+        # TÍTULO (Centralizado)
+        if line.lower().startswith("t."):
+            st.markdown(f"<h1 style='text-align: center; color: #007bff;'>{line[2:].strip()}</h1>", unsafe_allow_html=True)
+            l_idx = 0
             
+        # MODO M (Alinhado à Esquerda - Mesmo Estilo do Título)
+        elif line.startswith("-M"):
+            st.markdown(f"<h1 style='text-align: left; color: #333;'>{line[1:].strip()}</h1>", unsafe_allow_html=True)
+            l_idx = 0
+        
         # Seções Numéricas (1., 2., etc)
         elif re.match(r'^\d+', line):
             st.markdown(f"### {line}")
@@ -188,7 +186,7 @@ if questoes_preview and menu_atual in ["op", "eq", "col", "alg", "man"]:
                     st.write(f"**{letras_tela[l_idx%26]})** {line}")
             l_idx += 1
 
-    # --- 7. EXPORTAÇÃO PDF A4 (DUPLO BOTÃO E MODO M ESTILO TÍTULO) ---
+    # --- 7. EXPORTAÇÃO PDF A4 (AJUSTE DE ALINHAMENTO MODO M) ---
     st.markdown("---")
     st.subheader("📥 Exportar Atividade Finalizada")
     
@@ -198,7 +196,6 @@ if questoes_preview and menu_atual in ["op", "eq", "col", "alg", "man"]:
         pdf.add_page()
         pdf.set_margins(15, 15, 15)
         
-        # Define Y inicial com base no cabeçalho
         y_at = 55 if (com_cabecalho and os.path.exists("cabecalho.png")) else 20
         if com_cabecalho and os.path.exists("cabecalho.png"):
             pdf.image("cabecalho.png", x=12.5, y=10, w=185)
@@ -210,17 +207,23 @@ if questoes_preview and menu_atual in ["op", "eq", "col", "alg", "man"]:
             line = q.strip()
             if not line: continue
             
-            # 1. TÍTULOS OU MODO M (Mesma configuração no PDF)
-            if line.lower().startswith("t.") or line.startswith("-M"):
-                conteudo = line[2:].strip() if line.lower().startswith("t.") else line[1:].strip()
-                
-                pdf.set_font("Arial", 'B', 16)
+            pdf.set_font("Arial", 'B', 16)
+            
+            # 1. TÍTULO PRINCIPAL (Centralizado)
+            if line.lower().startswith("t."):
                 pdf.set_y(y_at + 8)
-                pdf.cell(0, 12, clean_txt(conteudo), ln=True, align='C')
+                pdf.cell(0, 12, clean_txt(line[2:]), ln=True, align='C')
                 y_at = pdf.get_y() + 5
-                l_pdf_idx = 0 # Reseta para começar nova grade de questões
+                l_pdf_idx = 0
                 
-            # 2. Seções Numéricas
+            # 2. MODO M (Alinhado à ESQUERDA - Estilo Título)
+            elif line.startswith("-M"):
+                pdf.set_y(y_at + 8)
+                pdf.cell(0, 12, clean_txt(line[1:]), ln=True, align='L') # 'L' de Left
+                y_at = pdf.get_y() + 5
+                l_pdf_idx = 0
+                
+            # 3. Seções Numéricas
             elif re.match(r'^\d+', line):
                 pdf.set_y(y_at + 5)
                 pdf.set_font("Arial", 'B', 12)
@@ -228,7 +231,7 @@ if questoes_preview and menu_atual in ["op", "eq", "col", "alg", "man"]:
                 y_at = pdf.get_y()
                 l_pdf_idx = 0
                 
-            # 3. Itens Normais (Letras a, b, c...)
+            # 4. Itens Normais
             else:
                 pdf.set_font("Arial", size=11)
                 txt_item = f"{letras_pdf[l_pdf_idx%26]}) {clean_txt(line)}"
@@ -261,3 +264,4 @@ if questoes_preview and menu_atual in ["op", "eq", "col", "alg", "man"]:
                 pdf_data = gerar_pdf_final(False)
                 st.download_button("✅ Baixar PDF Simples", pdf_data, "atividade_limpa.pdf", "application/pdf")
             except Exception as e: st.error(f"Erro: {e}")
+
