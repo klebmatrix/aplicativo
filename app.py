@@ -93,7 +93,6 @@ if perfil == "admin":
     op_atual = st.session_state.sub_menu
     st.divider()
 
-    # --- LÓGICA DOS 5 GERADORES ---
     if op_atual == "op":
         st.header("🔢 Gerador de Operações")
         escolhas = st.multiselect("Sinais:", ["+", "-", "x", "÷"], ["+", "-"])
@@ -123,34 +122,6 @@ if perfil == "admin":
         txt_m = st.text_area("Digite as questões:", height=200)
         if st.button("Gerar Preview"):
             st.session_state.preview_questoes = txt_m.split('\n')
-
-    # --- FERRAMENTAS ONLINE ---
-    elif op_atual == "calc_f":
-        st.header("𝑓(x) Calculadora de Funções")
-        f_in = st.text_input("Função f(x):", "x**2 + 5*x + 6")
-        x_in = st.number_input("Valor de x:", value=1.0)
-        if st.button("Calcular"):
-            try:
-                res = eval(f_in.replace('x', f'({x_in})'))
-                st.success(f"Resultado: f({x_in}) = {res}")
-            except Exception as e: st.error(f"Erro na fórmula: {e}")
-
-    elif op_atual == "pemdas":
-        st.header("📊 Resolutor de Expressões")
-        expr = st.text_input("Expressão:", "2 + 3 * (10 / 2)")
-        if st.button("Resolver"):
-            try: st.info(f"Resultado: {eval(expr)}")
-            except: st.error("Expressão inválida.")
-
-    elif op_atual == "fin":
-        st.header("💰 Calculadora Financeira")
-        c_pv, c_tx, c_tp = st.columns(3)
-        pv = c_pv.number_input("Capital (R$):", 0.0)
-        tx = c_tx.number_input("Taxa (% ao mês):", 0.0)
-        tp = c_tp.number_input("Tempo (meses):", 0)
-        if st.button("Calcular Juros Compostos"):
-            fv = pv * (1 + tx/100)**tp
-            st.metric("Montante Final", f"R$ {fv:.2f}")
 
 # --- 6. VISUALIZAÇÃO E PDF ---
 if st.session_state.preview_questoes and st.session_state.sub_menu in ["op", "eq", "col", "alg", "man"]:
@@ -186,6 +157,7 @@ if st.session_state.preview_questoes and st.session_state.sub_menu in ["op", "eq
             pdf.image("cabecalho.png", x=10, y=10, w=190)
             y_at = 55
         
+        letras = "abcdefghijklmnopqrstuvwxyz"
         l_pdf_idx = 0
         y_base = y_at
         for q in st.session_state.preview_questoes:
@@ -193,16 +165,18 @@ if st.session_state.preview_questoes and st.session_state.sub_menu in ["op", "eq
             if not line: continue
             
             if line.lower().startswith("t."):
-                pdf.set_font("Arial", 'B', 14); pdf.set_y(y_at + 5)
+                pdf.set_font("Arial", 'B', 14) # Negrito somente no Título
+                pdf.set_y(y_at + 2)
                 pdf.cell(0, 10, clean_txt(line[2:]), ln=True, align='C')
                 y_at = pdf.get_y() + 5
                 l_pdf_idx = 0
             elif re.match(r'^\d+', line):
-                pdf.set_y(y_at + 5); pdf.set_font("Arial", 'B', 10)
+                pdf.set_font("Arial", size=10) # Sem negrito
+                pdf.set_y(y_at + 2)
                 pdf.multi_cell(0, 8, clean_txt(line))
                 y_at, l_pdf_idx = pdf.get_y(), 0
             else:
-                pdf.set_font("Arial", size=9) # Fonte 9 e sem Negrito
+                pdf.set_font("Arial", size=9) # Sem negrito e menor
                 txt = f"{letras[l_pdf_idx%26]}) {line}"
                 if l_pdf_idx % 2 == 0:
                     y_base = y_at
@@ -216,7 +190,7 @@ if st.session_state.preview_questoes and st.session_state.sub_menu in ["op", "eq
                 l_pdf_idx += 1
         return pdf.output(dest='S').encode('latin-1')
 
-    st.subheader("📥 Gerar Arquivo Final")
+    st.subheader("📥 Baixar Atividade")
     b1, b2 = st.columns(2)
     with b1:
         st.download_button("📄 PDF SEM CABEÇALHO", gerar_pdf_final(False), "atividade_limpa.pdf", use_container_width=True)
