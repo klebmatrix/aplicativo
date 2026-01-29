@@ -117,7 +117,6 @@ if perfil == "admin":
         txt_m = st.text_area("Digite as questões:", height=200)
         if st.button("Gerar Preview"):
             st.session_state.preview_questoes = txt_m.split('\n')
-
 # --- 5. LÓGICA DE PROCESSAMENTO (AS FERRAMENTAS) ---
 if st.session_state.sub_menu == "man":
     st.header("📝 Entrada Manual de Questões")
