@@ -15,16 +15,18 @@ if 'preview_questoes' not in st.session_state: st.session_state.preview_questoes
 
 def clean_txt(text):
     if not text: return ""
-    # Traduz símbolos comuns para o padrão latin-1 do PDF
+    # Substitui caracteres que o PDF básico não reconhece
     text = str(text).replace("√", "V").replace("²", "^2").replace("³", "^3")
     return text.encode('latin-1', 'replace').decode('latin-1')
 
 def validar_acesso(pin_digitado):
     try:
+        # Busca segredos do Render/Streamlit Cloud
         senha_aluno = str(st.secrets.get("acesso_aluno", "123456")).strip()
         senha_prof = str(st.secrets.get("chave_mestra", "chave_mestra")).strip().lower()
     except:
         senha_aluno, senha_prof = "123456", "chave_mestra"
+    
     if pin_digitado == senha_aluno: return "aluno"
     elif pin_digitado == senha_prof: return "admin"
     return "negado"
@@ -38,7 +40,8 @@ if st.session_state.perfil is None:
         if acesso != "negado":
             st.session_state.perfil = acesso
             st.rerun()
-        else: st.error("PIN incorreto.")
+        else: 
+            st.error("PIN incorreto.")
     st.stop()
 
 # --- MENU LATERAL ---
@@ -51,6 +54,7 @@ if st.sidebar.button("Sair/Logout"):
 # --- PAINEL ADMIN ---
 if perfil == "admin":
     st.title("🛠️ Painel de Controle")
+    
     st.subheader("📝 Geradores de Atividades (PDF)")
     c1, c2, c3, c4, c5 = st.columns(5)
     with c1: 
@@ -89,22 +93,25 @@ if perfil == "admin":
 
     elif op_atual == "man":
         st.header("📄 Gerador Manual")
-        txt_m = st.text_area("Digite as questões (t. para título, número para questão):", height=200)
+        txt_m = st.text_area("Digite as questões (uma por linha):", height=200)
         if st.button("Gerar Preview"):
             st.session_state.preview_questoes = txt_m.split('\n')
 
 # --- 6. VISUALIZAÇÃO E PDF ---
 if st.session_state.preview_questoes and st.session_state.sub_menu in ["op", "eq", "col", "alg", "man"]:
     st.divider()
-    if os.path.exists("cabecalho.png"): st.image("cabecalho.png", use_container_width=True)
+    # Header da Atividade
+    if os.path.exists("cabecalho.png"): 
+        st.image("cabecalho.png", use_container_width=True)
     
     letras = "abcdefghijklmnopqrstuvwxyz"
     l_idx = 0
     
-    # Preview na tela
+    # Loop de Visualização na Tela
     for q in st.session_state.preview_questoes:
         line = q.strip()
         if not line: continue
+        
         if line.lower().startswith("t."):
             st.markdown(f"<h1 style='text-align: center; color: #007bff;'>{line[2:].strip()}</h1>", unsafe_allow_html=True)
             l_idx = 0
@@ -115,12 +122,13 @@ if st.session_state.preview_questoes and st.session_state.sub_menu in ["op", "eq
             cols = st.columns(2)
             alvo = cols[0] if l_idx % 2 == 0 else cols[1]
             with alvo:
-                st.info(f"**{letras[l_idx%26]})** {line}")
+                with st.container(border=True):
+                    st.write(f"**{letras[l_idx%26]})** {line}")
             l_idx += 1
 
-    # Geração do PDF
+    # Botão para gerar e baixar PDF
     st.divider()
-    if st.button("🛠️ Preparar PDF para Download"):
+    if st.button("📥 Gerar Arquivo para Download"):
         pdf = FPDF(orientation='P', unit='mm', format='A4')
         pdf.add_page()
         
@@ -137,9 +145,11 @@ if st.session_state.preview_questoes and st.session_state.sub_menu in ["op", "eq
             line = q.strip()
             if not line: continue
             
+            pdf.set_font("Arial", size=11)
+            
             if line.lower().startswith("t."):
                 pdf.set_font("Arial", 'B', 16)
-                pdf.ln(10)
+                pdf.ln(5)
                 pdf.cell(0, 10, clean_txt(line[2:]), ln=True, align='C')
                 y_at = pdf.get_y()
                 l_pdf_idx = 0
@@ -150,19 +160,21 @@ if st.session_state.preview_questoes and st.session_state.sub_menu in ["op", "eq
                 y_at = pdf.get_y()
                 l_pdf_idx = 0
             else:
-                pdf.set_font("Arial", size=11)
-                txt = f"{letras[l_pdf_idx%26]}) {line}"
+                txt_pdf = f"{letras[l_pdf_idx%26]}) {line}"
                 if l_pdf_idx % 2 == 0:
                     y_base = y_at
                     pdf.set_xy(15, y_base)
-                    pdf.multi_cell(90, 8, clean_txt(txt))
-                    y_temp = pdf.get_y()
+                    pdf.multi_cell(90, 8, clean_txt(txt_pdf))
+                    y_prox = pdf.get_y()
                 else:
                     pdf.set_xy(110, y_base)
-                    pdf.multi_cell(85, 8, clean_txt(txt))
-                    y_at = max(y_temp, pdf.get_y())
+                    pdf.multi_cell(85, 8, clean_txt(txt_pdf))
+                    y_at = max(y_prox, pdf.get_y())
                 l_pdf_idx += 1
-
-        # Conversão segura para download
-        pdf_output = pdf.output(dest='S').encode('latin-1')
-        st.download_button("✅ Clique aqui para Baixar", pdf_output, "atividade.pdf", "application/pdf")
+        
+        # Gera os bytes do PDF e cria o botão de download real
+        pdf_bytes = pdf.output(dest='S').encode('latin-1')
+        st.download_button(label="✅ Clique aqui para Baixar PDF", 
+                           data=pdf_bytes, 
+                           file_name="atividade.pdf", 
+                           mime="application/pdf")
