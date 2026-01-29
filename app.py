@@ -41,6 +41,9 @@ if st.session_state.perfil is None:
 perfil = st.session_state.perfil
 st.sidebar.title(f"🚀 {'Professor' if perfil == 'admin' else 'Estudante'}")
 
+# OPÇÃO DE CABEÇALHO NO MENU LATERAL
+usar_cabecalho = st.sidebar.checkbox("Incluir Cabeçalho no PDF", value=True)
+
 if st.sidebar.button("🧹 Limpar Tudo"):
     st.session_state.preview_questoes = []
     st.session_state.sub_menu = None
@@ -126,12 +129,10 @@ if perfil == "admin":
 
     elif op_atual == "man":
         st.header("📄 Módulo Manual")
-        st.info("Dica: Use 't. Nome' para título e números (1., 2.) para questões.")
         txt_m = st.text_area("Digite ou cole suas questões aqui:", height=300)
         if st.button("Gerar Atividade Manual"):
             st.session_state.preview_questoes = txt_m.split('\n')
 
-    # --- LÓGICA DAS CALCULADORAS ---
     elif op_atual == "calc_f":
         st.header("𝑓(x) Funções")
         f_in = st.text_input("Função:", "x**2 + 5*x + 6")
@@ -162,7 +163,10 @@ if perfil == "admin":
 # --- VISUALIZAÇÃO E PDF ---
 if st.session_state.preview_questoes:
     st.divider()
-    if os.path.exists("cabecalho.png"): st.image("cabecalho.png", use_container_width=True)
+    # No Preview da tela, só mostra a imagem se o checkbox estiver marcado
+    if usar_cabecalho and os.path.exists("cabecalho.png"): 
+        st.image("cabecalho.png", use_container_width=True)
+    
     letras = "abcdefghijklmnopqrstuvwxyz"
     l_idx = 0
     for q in st.session_state.preview_questoes:
@@ -182,18 +186,24 @@ if st.session_state.preview_questoes:
     if st.button("📥 Baixar PDF"):
         pdf = FPDF()
         pdf.add_page()
-        y_at = 55 if os.path.exists("cabecalho.png") else 20
-        if os.path.exists("cabecalho.png"): pdf.image("cabecalho.png", x=10, y=10, w=190)
+        
+        # AJUSTE DE POSIÇÃO INICIAL DO PDF
+        if usar_cabecalho and os.path.exists("cabecalho.png"):
+            pdf.image("cabecalho.png", x=10, y=10, w=190)
+            y_at = 55
+        else:
+            y_at = 20 # Começa bem mais em cima se não tiver cabeçalho
+            
         l_pdf_idx = 0
         for q in st.session_state.preview_questoes:
             line = q.strip()
             if not line: continue
             if line.lower().startswith("t."):
-                pdf.set_font("Arial", 'B', 16); pdf.set_y(y_at + 5)
+                pdf.set_font("Arial", 'B', 16); pdf.set_y(y_at)
                 pdf.cell(0, 10, clean_txt(line[2:]), ln=True, align='C')
                 y_at = pdf.get_y() + 5; l_pdf_idx = 0
             elif re.match(r'^\d+', line):
-                pdf.set_y(y_at + 5); pdf.set_font("Arial", 'B', 12)
+                pdf.set_y(y_at + 2); pdf.set_font("Arial", 'B', 12)
                 pdf.multi_cell(0, 8, clean_txt(line))
                 y_at, l_pdf_idx = pdf.get_y(), 0
             else:
