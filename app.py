@@ -128,34 +128,42 @@ if st.session_state.preview_questoes:
             with (col1 if l_idx % 2 == 0 else col2):
                 with st.container(border=True): st.write(f"**{letras[l_idx%26]})** {line}")
             l_idx += 1
+if st.button("📥 Baixar PDF"):
+        pdf = FPDF()
+        pdf.add_page()
+        
+        if usar_cabecalho and os.path.exists("cabecalho.png"):
+            pdf.image("cabecalho.png", x=10, y=10, w=190)
+            y_at = 60
+        else:
+            y_at = 20
+            
+        l_pdf_idx = 0
+        for q in st.session_state.preview_questoes:
+            line = q.strip()
+            if not line: continue
+            
+            # Títulos e Números (1., 2.)
+            if line.lower().startswith("t.") or re.match(r'^\d+', line):
+                pdf.set_y(y_at + 5)
+                pdf.set_font("Arial", 'B', 12)
+                txt = line[2:].strip() if line.lower().startswith("t.") else line
+                pdf.multi_cell(0, 10, clean_txt(txt), align='L')
+                y_at = pdf.get_y() + 5
+                l_pdf_idx = 0 # Reinicia letras para cada questão nova
+            
+            # Itens (a, b, c) - Uma embaixo da outra para não encavalar
+            else:
+                pdf.set_font("Arial", size=12)
+                letra = letras[l_pdf_idx % 26]
+                txt_completo = f"{letra}) {line}"
+                
+                pdf.set_y(y_at)
+                pdf.set_x(15)
+                pdf.multi_cell(0, 10, clean_txt(txt_completo))
+                y_at = pdf.get_y() # Atualiza o Y para a próxima linha nunca bater na anterior
+                l_pdf_idx += 1
+                
+        st.download_button("✅ Baixar Agora", pdf.output(dest='S').encode('latin-1'), "atividade.pdf")
 
-    if st.button("📥 Baixar PDF"):
-        try:
-            pdf = FPDF()
-            pdf.add_page()
-            y_at = 55 if (usar_cabecalho and os.path.exists("cabecalho.png")) else 20
-            if usar_cabecalho and os.path.exists("cabecalho.png"): pdf.image("cabecalho.png", x=10, y=10, w=190)
-            
-            l_pdf_idx = 0
-            for q in st.session_state.preview_questoes:
-                line = q.strip()
-                if not line: continue
-                if line.lower().startswith("t."):
-                    pdf.set_font("Arial", 'B', 16); pdf.set_y(y_at)
-                    pdf.cell(0, 10, clean_txt(line[2:]), ln=True, align='C')
-                    y_at = pdf.get_y() + 5; l_pdf_idx = 0
-                elif re.match(r'^\d+', line):
-                    pdf.set_y(y_at + 2); pdf.set_font("Arial", 'B', 12)
-                    pdf.multi_cell(0, 8, clean_txt(line))
-                    y_at, l_pdf_idx = pdf.get_y(), 0
-                else:
-                    pdf.set_font("Arial", size=11); txt = f"{letras[l_pdf_idx%26]}) {line}"
-                    if l_pdf_idx % 2 == 0:
-                        y_base = y_at; pdf.set_xy(15, y_base); pdf.multi_cell(90, 8, clean_txt(txt)); y_prox = pdf.get_y()
-                    else:
-                        pdf.set_xy(110, y_base); pdf.multi_cell(85, 8, clean_txt(txt)); y_at = max(y_prox, pdf.get_y())
-                    l_pdf_idx += 1
-            
-            st.download_button("✅ Baixar Agora", pdf.output(dest='S').encode('latin-1'), "atividade.pdf", "application/pdf")
-        except Exception as e:
-            st.error(f"Erro ao gerar PDF: {e}. Tente remover caracteres especiais do título ou questões.")
+    
