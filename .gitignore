@@ -5,3 +5,4 @@ gerador.py
 .streamlit/
 __pycache__/
 *.pdf
+*.exe 
