@@ -27,18 +27,18 @@ if st.session_state.perfil is None:
         else: st.error("PIN Incorreto")
     st.stop()
 
-# --- 3. SIDEBAR ---
+# --- 3. SIDEBAR (ALTURA DE VOLTA AQUI) ---
 st.sidebar.title(f"🚀 {st.session_state.perfil.upper()}")
 usar_cabecalho = st.sidebar.checkbox("Usar cabecalho.png", value=True)
-# Slider para você subir ou descer o título manualmente
-recuo_cabecalho = st.sidebar.slider("Ajuste Altura Título:", 20, 80, 45)
+# CONTROLE DE ALTURA QUE VOCÊ PEDIU
+recuo_cabecalho = st.sidebar.slider("Altura do Título (Distância do Topo):", 20, 80, 45)
 layout_cols = st.sidebar.selectbox("Colunas PDF:", [1, 2, 3], index=1)
 
 if st.sidebar.button("🧹 Limpar Tudo", use_container_width=True):
     st.session_state.preview_questoes = []; st.session_state.sub_menu = None; st.session_state.res_calc = None; st.rerun()
 
-# --- 4. BOTÕES ---
-st.title("🛠️ Centro de Comando")
+# --- 4. BOTÕES (5 GERADORES + 3 CÁLCULOS) ---
+st.title("🛠️ Centro de Comando Quantum")
 g1, g2, g3, g4, g5 = st.columns(5)
 if g1.button("🔢 Operações"): st.session_state.sub_menu = "op"
 if g2.button("📐 Equações"): st.session_state.sub_menu = "eq"
@@ -59,22 +59,25 @@ if menu == "op":
     tipo = st.radio("Operação:", ["Soma", "Subtração", "Multiplicação", "Divisão"], horizontal=True)
     if st.button("Gerar"):
         s = {"Soma": "+", "Subtração": "-", "Multiplicação": "x", "Divisão": "÷"}[tipo]
-        st.session_state.preview_questoes = [".M1", f"t. Atividade de {tipo}", "1. Resolva as operações:"] + [f"{random.randint(10, 999)} {s} {random.randint(10, 200)} =" for _ in range(12)]
+        st.session_state.preview_questoes = [".M1", f"t. Atividade de {tipo}", "1. Resolva:"] + [f"{random.randint(10, 999)} {s} {random.randint(10, 200)} =" for _ in range(12)]
 
 elif menu == "eq":
     tipo = st.radio("Grau:", ["1º Grau", "2º Grau"], horizontal=True)
-    if st.button("Gerar"):
-        qs = [f"{random.randint(2,9)}x = {random.randint(10,90)}" for _ in range(8)] if tipo == "1º Grau" else [f"x² - {random.randint(2,10)}x + {random.randint(1,9)} = 0" for _ in range(5)]
-        st.session_state.preview_questoes = [".M1", f"t. Equações de {tipo}", "1. Determine o valor de x:"] + qs
+    if st.button("Gerar Equações"):
+        if tipo == "1º Grau":
+            qs = [f"{random.randint(2,9)}x = {random.randint(10,90)}" for _ in range(8)]
+        else:
+            qs = [f"x² - {random.randint(2,10)}x + {random.randint(1,9)} = 0" for _ in range(5)]
+        st.session_state.preview_questoes = [".M1", f"t. Equações de {tipo}", "1. Resolva:"] + qs
 
 elif menu == "sis":
     tipo = st.radio("Sistemas:", ["1º Grau", "2º Grau"], horizontal=True)
-    if st.button("Gerar"):
+    if st.button("Gerar Sistemas"):
         if tipo == "1º Grau":
             qs = [f"{{ {random.randint(1,3)}x + y = {random.randint(5,15)} \n  {{ x - y = {random.randint(1,5)}" for _ in range(3)]
         else:
             qs = [f"{{ x + y = {random.randint(5,15)} \n  x . y = {random.randint(6,50)}" for _ in range(2)]
-        st.session_state.preview_questoes = [".M1", f"t. Sistemas de {tipo}", "1. Resolva os sistemas:"] + qs
+        st.session_state.preview_questoes = [".M1", f"t. Sistemas de {tipo}", "1. Resolva:"] + qs
 
 elif menu == "alg":
     if st.button("Gerar Álgebra"):
@@ -114,15 +117,18 @@ if st.session_state.preview_questoes:
         for line in st.session_state.preview_questoes:
             line = line.strip()
             if not line: continue
+            
             if line.startswith(".M"):
-                pdf.set_font("Helvetica", 'B', 12); pdf.cell(190, 10, line[1:], ln=True)
+                pdf.set_font("Helvetica", size=12); pdf.cell(190, 10, line[1:], ln=True)
             elif line.lower().startswith("t."):
+                # TÍTULO EM NEGRITO ('B')
                 pdf.set_font("Helvetica", 'B', 14)
-                # REMOVIDO O .upper() AQUI PARA NÃO FICAR EM CAIXA ALTA
                 pdf.cell(190, 10, line[2:].strip(), ln=True, align='C')
             elif re.match(r'^\d+\.', line):
-                pdf.set_font("Helvetica", 'B', 12); pdf.cell(190, 10, line, ln=True); l_idx = 0
+                # QUESTÃO NORMAL
+                pdf.set_font("Helvetica", size=12); pdf.cell(190, 10, line, ln=True); l_idx = 0
             else:
+                # ITENS NORMAL
                 pdf.set_font("Helvetica", size=12)
                 col = l_idx % int(layout_cols)
                 pdf.cell(larg_col, 8, f"{letras[l_idx%26]}) {line.lstrip('. ')}", ln=(col == int(layout_cols)-1))
