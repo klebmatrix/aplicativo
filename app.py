@@ -138,36 +138,21 @@ if perfil == "admin":
             st.metric("Montante Final", f"R$ {fv:.2f}")
 
 # --- 6. PDF ENGINE (CORRIGINDO O PARÂMETRO) ---
-if st.session_state.preview_questoes:
-    
-    # Adicione "com_gabarito=False" aqui para a função aceitar o argumento
-    def export_pdf(com_gabarito=False):
-        try:
-            pdf = FPDF()
-            pdf.add_page()
-            y = 20
-            
-            # ... (todo o resto do seu código de posicionamento Y, imagens, etc) ...
-            
-            # Se você tiver lógica de gabarito, use a variável 'com_gabarito' aqui dentro
-            if com_gabarito:
-                # sua lógica de adicionar as respostas...
-                pass
-
-            return bytes(pdf.output())
-        except Exception as e:
-            st.error(f"Erro no PDF: {e}")
-            return b"" # Retorna bytes vazios em vez de None para evitar erro no botão
-
-    st.divider()
-    
-    # Agora a chamada vai funcionar porque a função aceita o False
-    pdf_sem_gabarito = export_pdf(com_gabarito=False)
-    
-    if pdf_sem_gabarito:
-        st.download_button(
-            label="📥 Baixar Atividade (Sem Gabarito)", 
-            data=pdf_sem_gabarito, 
-            file_name="atividade_quantum.pdf", 
-            mime="application/pdf"
-        )
+if op_atual == "op":
+        st.header("🔢 Gerador de Operações")
+        escolhas = st.multiselect("Sinais:", ["+", "-", "x", "÷"], ["+", "-"])
+        
+        # Aqui você define o 6 como padrão se quiser
+        num_ini = st.number_input("Questão inicial nº:", value=6) 
+        
+        qtd = st.number_input("Qtd de itens:", 4, 30, 10)
+        
+        if st.button("Gerar Preview"):
+            # Usando a variável num_ini para numerar a questão
+            st.session_state.preview_questoes = [
+                "t. Atividade de Operações", 
+                f"{num_ini}. Calcule as seguintes operações:"
+            ] + [
+                f"{random.randint(10,500)} {random.choice(escolhas)} {random.randint(2,50)} =" 
+                for _ in range(qtd)
+            ]
