@@ -171,54 +171,84 @@ if st.session_state.preview_questoes:
     col_d1, col_d2 = st.columns(2)
     
     def export_pdf(com_gab):
-        pdf = FPDF()
-        pdf.add_page()
-        y = 60 if (usar_cabecalho and os.path.exists("cabecalho.png")) else 20
-        if usar_cabecalho and os.path.exists("cabecalho.png"): 
-            pdf.image("cabecalho.png", 10, 10, 190)
-        
-        l_idx = 0
-        letras_lista = "abcdefghijklmnopqrstuvwxyz"
-        
-        for q in st.session_state.preview_questoes:
-            line = q.strip()
-            if not line: continue
-            
-            if line.lower().startswith("t.") or re.match(r'^\d+', line):
-                pdf.set_y(y + 5)
-                pdf.set_font("Arial", 'B', 12)
-                txt_limpo = line[2:].strip() if line.lower().startswith("t.") else line
-                pdf.multi_cell(0, 10, clean_txt(txt_limpo))
-                y = pdf.get_y()
-                l_idx = 0
-            else:
-                pdf.set_font("Arial", size=12)
-                pdf.set_y(y)
-                pdf.set_x(15)
-                item_txt = f"{letras_lista[l_idx % 26]}) {line}"
-                pdf.multi_cell(0, 10, clean_txt(item_txt))
-                y = pdf.get_y()
-                l_idx += 1
-        
-        if com_gab and st.session_state.gabarito:
+        """Gera PDF com as questões e opcionalmente com gabarito"""
+        try:
+            pdf = FPDF()
             pdf.add_page()
-            pdf.set_font("Arial", 'B', 14)
-            pdf.cell(0, 10, "GABARITO", ln=1, align='C')
-            pdf.set_font("Arial", size=12)
-            for g in st.session_state.gabarito:
-                pdf.cell(0, 8, clean_txt(g), ln=1)
+            
+            # Define posição Y inicial baseada na presença do cabeçalho
+            y = 60 if (usar_cabecalho and os.path.exists("cabecalho.png")) else 20
+            
+            # Insere cabeçalho se arquivo existir
+            if usar_cabecalho and os.path.exists("cabecalho.png"): 
+                pdf.image("cabecalho.png", 10, 10, 190)
+            
+            l_idx = 0
+            letras_lista = "abcdefghijklmnopqrstuvwxyz"
+            
+            # Processa cada questão
+            for q in st.session_state.preview_questoes:
+                line = q.strip()
+                if not line: 
+                    continue
+                
+                # Verifica se é título ou número de questão
+                if line.lower().startswith("t.") or re.match(r'^\d+', line):
+                    pdf.set_y(y + 5)
+                    pdf.set_font("Arial", 'B', 12)
+                    txt_limpo = line[2:].strip() if line.lower().startswith("t.") else line
+                    pdf.multi_cell(0, 10, clean_txt(txt_limpo))
+                    y = pdf.get_y()
+                    l_idx = 0
+                else:
+                    # Item da questão
+                    pdf.set_font("Arial", size=11)
+                    pdf.set_y(y)
+                    pdf.set_x(15)
+                    item_txt = f"{letras_lista[l_idx % 26]}) {line}"
+                    pdf.multi_cell(0, 8, clean_txt(item_txt))
+                    y = pdf.get_y()
+                    l_idx += 1
+            
+            # Adiciona gabarito se solicitado
+            if com_gab and st.session_state.gabarito:
+                pdf.add_page()
+                pdf.set_font("Arial", 'B', 14)
+                pdf.cell(0, 10, "GABARITO", ln=1, align='C')
+                pdf.set_font("Arial", size=11)
+                for g in st.session_state.gabarito:
+                    pdf.cell(0, 8, clean_txt(g), ln=1)
+            
+            # Retorna PDF como bytes
+            return pdf.output()
         
-        # CONSERTO AQUI: converter bytearray para bytes
-        return bytes(pdf.output())
+        except Exception as e:
+            st.error(f"Erro ao gerar PDF: {str(e)}")
+            return None
 
+    # Botão para download sem gabarito
     with col_d1:
-        # CONSERTO AQUI: chamar a função no momento do clique para evitar erros de fluxo
-        if st.download_button("📥 Sem Gabarito", data=export_pdf(False), file_name="questoes.pdf", mime="application/pdf"):
-            st.success("PDF gerado!")
+        pdf_data = export_pdf(False)
+        if pdf_data:
+            st.download_button(
+                label="📥 Sem Gabarito",
+                data=pdf_data,
+                file_name="questoes.pdf",
+                mime="application/pdf"
+            )
     
+    # Botão para download com gabarito
     with col_d2:
-        if st.download_button("📥 Com Gabarito", data=export_pdf(True), file_name="gabarito.pdf", mime="application/pdf"):
-            st.success("Gabarito gerado!")
+        pdf_data_gab = export_pdf(True)
+        if pdf_data_gab:
+            st.download_button(
+                label="📥 Com Gabarito",
+                data=pdf_data_gab,
+                file_name="gabarito.pdf",
+                mime="application/pdf"
+            )
 
+    # Visualização das questões
+    st.subheader("📋 Pré-visualização das Questões:")
     for item in st.session_state.preview_questoes:
         st.write(item)
