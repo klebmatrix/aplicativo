@@ -14,9 +14,10 @@ if 'sub_menu' not in st.session_state: st.session_state.sub_menu = None
 if 'preview_questoes' not in st.session_state: st.session_state.preview_questoes = []
 
 def clean_txt(text):
-    """Trata potências e raízes para leitura humana clara no PDF"""
+    """Trata potências e raízes para leitura humana no PDF (padrão latin-1)"""
     if not text: return ""
     text = str(text)
+    # Substitui símbolos para formatos legíveis que não quebram o PDF
     text = text.replace("√", "Raiz de ").replace("²", "^2").replace("³", "^3")
     return text.encode('latin-1', 'replace').decode('latin-1')
 
@@ -84,7 +85,7 @@ if perfil == "admin":
 
     elif op_atual == "man":
         st.header("📄 Módulo Manual")
-        txt_m = st.text_area("Digite as questões (T. para título, número para comando):", height=200)
+        txt_m = st.text_area("Digite as questões:", height=300)
         if st.button("Gerar Preview"): st.session_state.preview_questoes = txt_m.split('\n')
 
 # --- VISUALIZAÇÃO E PDF ---
@@ -99,46 +100,49 @@ if st.session_state.preview_questoes:
         line = q.strip()
         if not line: continue
         if line.lower().startswith("t."):
-            st.markdown(f"<h2 style='text-align: center;'>{line[2:].strip()}</h2>", unsafe_allow_html=True)
+            st.markdown(f"<h1 style='text-align: center;'>{line[2:].strip()}</h1>", unsafe_allow_html=True)
             l_idx = 0
         elif re.match(r'^\d+', line):
-            st.markdown(f"### {line}")
-            l_idx = 0
+            st.markdown(f"### {line}"); l_idx = 0
         else:
             st.write(f"**{letras[l_idx%26]})** {line}")
             l_idx += 1
 
+    # --- O BLOCO QUE VOCÊ ENVIOU ---
     if st.button("📥 Baixar PDF"):
         pdf = FPDF()
         pdf.add_page()
-        y_at = 20
+        
         if usar_cabecalho and os.path.exists("cabecalho.png"):
             pdf.image("cabecalho.png", x=10, y=10, w=190)
             y_at = 60
-        
+        else:
+            y_at = 20
+            
         l_pdf_idx = 0
-        pdf.set_font("Arial", size=12)
-        
         for q in st.session_state.preview_questoes:
             line = q.strip()
             if not line: continue
             
-            # Títulos e Comandos (1., 2.)
+            # Títulos e Números (1., 2.)
             if line.lower().startswith("t.") or re.match(r'^\d+', line):
                 pdf.set_y(y_at + 5)
                 pdf.set_font("Arial", 'B', 12)
-                txt = line[2:] if line.lower().startswith("t.") else line
-                pdf.multi_cell(0, 10, clean_txt(txt))
-                y_at = pdf.get_y()
+                txt = line[2:].strip() if line.lower().startswith("t.") else line
+                pdf.multi_cell(0, 10, clean_txt(txt), align='L')
+                y_at = pdf.get_y() + 5
                 l_pdf_idx = 0 
-            # Itens das questões
+            
+            # Itens (a, b, c) - Uma embaixo da outra
             else:
                 pdf.set_font("Arial", size=12)
-                item_txt = f"{letras[l_pdf_idx%26]}) {line}"
+                letra = letras[l_pdf_idx % 26]
+                txt_completo = f"{letra}) {line}"
+                
                 pdf.set_y(y_at)
                 pdf.set_x(15)
-                pdf.multi_cell(0, 10, clean_txt(item_txt))
-                y_at = pdf.get_y()
+                pdf.multi_cell(0, 10, clean_txt(txt_completo))
+                y_at = pdf.get_y() 
                 l_pdf_idx += 1
                 
         st.download_button("✅ Baixar Agora", pdf.output(dest='S').encode('latin-1'), "atividade.pdf")
