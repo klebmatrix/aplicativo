@@ -12,12 +12,11 @@ st.set_page_config(page_title="Quantum Math Lab", layout="wide", page_icon="🚀
 if 'perfil' not in st.session_state: st.session_state.perfil = None
 if 'sub_menu' not in st.session_state: st.session_state.sub_menu = None
 if 'preview_questoes' not in st.session_state: st.session_state.preview_questoes = []
+if 'gabarito' not in st.session_state: st.session_state.gabarito = []
 
 def clean_txt(text):
-    """Trata potências e raízes para leitura humana no PDF (padrão latin-1)"""
     if not text: return ""
     text = str(text)
-    # Substitui símbolos para formatos legíveis que não quebram o PDF
     text = text.replace("√", "Raiz de ").replace("²", "^2").replace("³", "^3")
     return text.encode('latin-1', 'replace').decode('latin-1')
 
@@ -43,22 +42,17 @@ if st.session_state.perfil is None:
 # --- MENU LATERAL ---
 perfil = st.session_state.perfil
 st.sidebar.title(f"🚀 {'Professor' if perfil == 'admin' else 'Estudante'}")
-
 usar_cabecalho = st.sidebar.checkbox("Incluir Cabeçalho no PDF", value=True)
 
 if st.sidebar.button("🧹 Limpar Tudo"):
     st.session_state.preview_questoes = []
+    st.session_state.gabarito = []
     st.session_state.sub_menu = None
-    st.rerun()
-
-if st.sidebar.button("Sair/Logout"):
-    for key in list(st.session_state.keys()): del st.session_state[key]
     st.rerun()
 
 # --- PAINEL ADMIN ---
 if perfil == "admin":
     st.title("🛠️ Painel de Controle")
-    st.subheader("📝 Geradores de Atividades (PDF)")
     c1, c2, c3, c4, c5 = st.columns(5)
     with c1: 
         if st.button("🔢 Operações", use_container_width=True): st.session_state.sub_menu = "op"
@@ -75,81 +69,89 @@ if perfil == "admin":
     st.divider()
 
     if op_atual == "col":
-        st.header("📚 Colegial (Temas)")
-        temas = st.multiselect("Temas:", ["Frações", "Porcentagem", "Potenciação", "Radiciação"], ["Frações", "Porcentagem"])
+        st.header("📚 Colegial (Temas com Gabarito)")
+        temas = st.multiselect("Temas:", ["Frações", "Porcentagem", "Potenciação", "Radiciação"], ["Potenciação", "Radiciação"])
         num_ini = st.number_input("Começar do número:", 1)
-        qtd = st.number_input("Quantidade:", 4, 30, 10)
-        if st.button("Gerar Preview") and temas:
-            qs = [f"t. Exercícios Colegiais", f"{num_ini}. Resolva os itens:"]
-            for _ in range(qtd):
+        qtd = st.number_input("Quantidade:", 4, 30, 8)
+        
+        if st.button("Gerar Preview"):
+            qs = [f"t. Atividade de Matemática", f"{num_ini}. Resolva os itens:"]
+            gab = ["--- GABARITO ---"]
+            letras = "abcdefghijklmnopqrstuvwxyz"
+            
+            for i in range(qtd):
                 t = random.choice(temas)
-                if t == "Frações": qs.append(f"{random.randint(1,9)}/{random.randint(2,5)} + {random.randint(1,9)}/{random.randint(2,5)} =")
-                elif t == "Porcentagem": qs.append(f"{random.randint(5,95)}% de {random.randint(100,999)} =")
-                elif t == "Potenciação": qs.append(f"{random.randint(2,12)}^2 =")
-                elif t == "Radiciação": qs.append(f"√{random.choice([4, 9, 16, 25, 36, 49, 64, 81, 100])} =")
+                letra = letras[i % 26]
+                if t == "Frações":
+                    n1, d1 = random.randint(1,9), random.randint(2,5)
+                    n2, d2 = random.randint(1,9), random.randint(2,5)
+                    res = (n1/d1) + (n2/d2)
+                    qs.append(f"{n1}/{d1} + {n2}/{d2} =")
+                    gab.append(f"{letra}) {res:.2f}")
+                elif t == "Porcentagem":
+                    p, v = random.randint(5,95), random.randint(100,999)
+                    res = (p/100) * v
+                    qs.append(f"{p}% de {v} =")
+                    gab.append(f"{letra}) {res:.2f}")
+                elif t == "Potenciação":
+                    base = random.randint(2,12)
+                    res = base ** 2
+                    qs.append(f"{base}² =")
+                    gab.append(f"{letra}) {res}")
+                elif t == "Radiciação":
+                    num = random.choice([16, 25, 36, 49, 64, 81, 100])
+                    res = int(math.sqrt(num))
+                    qs.append(f"√{num} =")
+                    gab.append(f"{letra}) {res}")
+            
             st.session_state.preview_questoes = qs
+            st.session_state.gabarito = gab
 
-    elif op_atual == "man":
-        st.header("📄 Módulo Manual")
-        txt_m = st.text_area("Digite ou cole suas questões aqui:", height=300)
-        if st.button("Gerar Atividade Manual"):
-            st.session_state.preview_questoes = txt_m.split('\n')
-
-# --- VISUALIZAÇÃO E PDF ---
+# --- VISUALIZAÇÃO E DOWNLOAD ---
 if st.session_state.preview_questoes:
     st.divider()
-    if usar_cabecalho and os.path.exists("cabecalho.png"): 
-        st.image("cabecalho.png", use_container_width=True)
     
-    letras = "abcdefghijklmnopqrstuvwxyz"
-    l_idx = 0
-    for q in st.session_state.preview_questoes:
-        line = q.strip()
-        if not line: continue
-        if line.lower().startswith("t."):
-            st.markdown(f"<h1 style='text-align: center; color: #007bff;'>{line[2:].strip()}</h1>", unsafe_allow_html=True)
-            l_idx = 0
-        elif re.match(r'^\d+', line):
-            st.markdown(f"### {line}"); l_idx = 0
-        else:
-            col1, col2 = st.columns(2)
-            with (col1 if l_idx % 2 == 0 else col2):
-                with st.container(border=True): st.write(f"**{letras[l_idx%26]})** {line}")
-            l_idx += 1
-
-    if st.button("📥 Baixar PDF"):
+    col_pdf1, col_pdf2 = st.columns(2)
+    
+    def gerar_pdf(com_gabarito):
         pdf = FPDF()
         pdf.add_page()
-        
+        y_at = 60 if (usar_cabecalho and os.path.exists("cabecalho.png")) else 20
         if usar_cabecalho and os.path.exists("cabecalho.png"):
             pdf.image("cabecalho.png", x=10, y=10, w=190)
-            y_at = 60
-        else:
-            y_at = 20
-            
+        
+        letras = "abcdefghijklmnopqrstuvwxyz"
         l_pdf_idx = 0
         for q in st.session_state.preview_questoes:
             line = q.strip()
             if not line: continue
-            
-            # Títulos (T.) e Números (1., 2.)
             if line.lower().startswith("t.") or re.match(r'^\d+', line):
-                pdf.set_y(y_at + 5)
-                pdf.set_font("Arial", 'B', 12)
-                txt = line[2:].strip() if line.lower().startswith("t.") else line
-                pdf.multi_cell(0, 10, clean_txt(txt), align='L')
-                y_at = pdf.get_y() + 5
-                l_pdf_idx = 0
-            
-            # Itens (a, b, c) - Lista Vertical Limpa
+                pdf.set_font("Arial", 'B', 12); pdf.set_y(y_at + 5)
+                pdf.multi_cell(0, 10, clean_txt(line[2:] if line.lower().startswith("t.") else line))
+                y_at = pdf.get_y(); l_pdf_idx = 0
             else:
-                pdf.set_font("Arial", size=12)
-                letra = letras[l_pdf_idx % 26]
-                txt_completo = f"{letra}) {line}"
-                pdf.set_y(y_at)
-                pdf.set_x(15) # Recuo para os itens
-                pdf.multi_cell(0, 10, clean_txt(txt_completo))
-                y_at = pdf.get_y()
-                l_pdf_idx += 1
+                pdf.set_font("Arial", size=12); pdf.set_y(y_at); pdf.set_x(15)
+                pdf.multi_cell(0, 10, clean_txt(f"{letras[l_pdf_idx%26]}) {line}"))
+                y_at = pdf.get_y(); l_pdf_idx += 1
+        
+        if com_gabarito and st.session_state.gabarito:
+            pdf.add_page()
+            pdf.set_font("Arial", 'B', 14)
+            pdf.cell(0, 10, "GABARITO", ln=True, align='C')
+            pdf.set_font("Arial", size=12)
+            for g in st.session_state.gabarito:
+                pdf.cell(0, 8, clean_txt(g), ln=True)
                 
-        st.download_button("✅ Baixar Agora", pdf.output(dest='S').encode('latin-1'), "atividade.pdf", "application/pdf")
+        return pdf.output(dest='S').encode('latin-1')
+
+    with col_pdf1:
+        if st.button("📥 PDF (Sem Gabarito)", use_container_width=True):
+            st.download_button("Clique para Baixar", gerar_pdf(False), "atividade.pdf")
+            
+    with col_pdf2:
+        if st.button("📥 PDF (Com Gabarito)", use_container_width=True):
+            st.download_button("Clique para Baixar", gerar_pdf(True), "atividade_com_gabarito.pdf")
+
+    # Preview na tela
+    for q in st.session_state.preview_questoes:
+        st.write(q)
