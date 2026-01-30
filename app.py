@@ -105,26 +105,26 @@ if st.session_state.perfil == "admin":
             st.session_state.preview_questoes = txt.split('\n')
             st.rerun()
 
-# --- 6. PREVIEW E MOTOR PDF (REVISADO) ---
+# --- 6. PREVIEW E MOTOR PDF (CABEÇALHO NO TOPO) ---
 if st.session_state.preview_questoes:
     st.subheader("👁️ Preview")
-    for item in st.session_state.preview_questoes: 
-        st.text(item)
+    for item in st.session_state.preview_questoes: st.text(item)
 
     def export_pdf():
         try:
             pdf = FPDF()
             pdf.add_page()
-            y_pos = 10
+            
+            # Posição inicial no topo da folha
+            y_pos = 5 
             
             if usar_cabecalho:
-                # Aqui preenchemos os dados: Escola, Matéria, Professor
-                # A imagem é salva como 'cabecalho_pronto.png' e inserida no PDF
+                # Preenche com os dados: Escola, Matéria, Professor
                 img_path = preparar_cabecalho("Republ", "Matemática", "PROF. KLEBER")
                 
-                # Centralização: x=10 em página de 210mm com imagem de 190mm
-                pdf.image(img_path, 10, 10, 190)
-                y_pos = 65 # Pula o espaço do cabeçalho
+                # Insere a imagem centralizada (10mm margem esquerda em 210mm total)
+                pdf.image(img_path, x=10, y=y_pos, w=190)
+                y_pos = 60  # Ajuste do salto para o texto começar após o cabeçalho
             
             pdf.set_y(y_pos)
             letras, l_idx = "abcdefghijklmnopqrstuvwxyz", 0
@@ -135,33 +135,31 @@ if st.session_state.preview_questoes:
                 line = line.strip()
                 if not line: continue
                 
-                # Módulo (ex: .M1) -> Negrito à Esquerda
+                # .M1 -> Módulo em Negrito
                 if line.startswith(".M"):
                     pdf.set_font("Helvetica", 'B', 12)
                     pdf.cell(190, 10, line[1:], ln=True, align='L')
                     l_idx = 0
-                # Título (ex: t. Título) -> Negrito Centralizado
+                # t. -> Título Centralizado
                 elif line.lower().startswith("t."):
                     pdf.set_font("Helvetica", 'B', 14)
                     pdf.cell(190, 10, line[2:].strip().upper(), ln=True, align='C')
                     l_idx = 0
-                # Questão Numerada (ex: 6. Calcule) -> Normal à Esquerda
+                # Se a linha começa com NÚMERO (ex: 6.)
                 elif re.match(r'^\d+\.', line):
                     pdf.set_font("Helvetica", size=12)
                     pdf.cell(190, 10, line, ln=True, align='L')
-                    l_idx = 0 # Reinicia o contador de letras para a nova questão
-                # Itens da Questão -> Letras automáticas a), b), c)
+                    l_idx = 0 # Reinicia para os próximos itens serem letras
+                # Itens automáticos em letras (a, b, c...)
                 else:
                     pdf.set_font("Helvetica", size=12)
                     col = l_idx % n_cols
-                    # Formata como "a) Conteúdo"
                     texto_item = f"{letras[l_idx % 26]}) {line.lstrip('. ')}"
                     pdf.cell(larg_col, 8, texto_item, align='L', ln=(col == n_cols - 1))
                     l_idx += 1
             
             return pdf.output(dest='S').encode('latin-1')
-        except Exception as e:
-            print(f"Erro no PDF: {e}")
+        except:
             return b""
 
-    st.download_button("📥 Baixar PDF", data=export_pdf(), file_name="atividade_republ.pdf")
+    st.download_button("📥 Baixar PDF Quantum", data=export_pdf(), file_name="atividade_republ.pdf")
