@@ -12,7 +12,7 @@ if 'perfil' not in st.session_state: st.session_state.perfil = None
 if 'sub_menu' not in st.session_state: st.session_state.sub_menu = None
 if 'preview_questoes' not in st.session_state: st.session_state.preview_questoes = []
 
-# --- 2. LOGIN (Secrets Render) ---
+# --- 2. LOGIN ---
 def validar_acesso(pin):
     p_aluno = str(st.secrets.get("acesso_aluno", "123456")).strip()
     p_prof = str(st.secrets.get("chave_mestra", "chave_mestra")).strip().lower()
@@ -27,7 +27,7 @@ if st.session_state.perfil is None:
         else: st.error("PIN Incorreto")
     st.stop()
 
-# --- 3. SIDEBAR ---
+# --- 3. SIDEBAR (CONTROLES) ---
 st.sidebar.title(f"🚀 {st.session_state.perfil.upper()}")
 usar_cabecalho = st.sidebar.checkbox("Usar cabecalho.png", value=True)
 layout_cols = st.sidebar.selectbox("Colunas PDF:", [1, 2, 3], index=1)
@@ -38,7 +38,7 @@ if st.sidebar.button("🧹 Limpar Tudo", use_container_width=True):
 if st.sidebar.button("🚪 Sair", use_container_width=True):
     st.session_state.clear(); st.rerun()
 
-# --- 4. PAINEL COM 8 BOTÕES ---
+# --- 4. PAINEL DE COMANDO (8 BOTÕES) ---
 st.title("🛠️ Centro de Comando")
 g1, g2, g3, g4, g5 = st.columns(5)
 if g1.button("🔢 Operações"): st.session_state.sub_menu = "op"
@@ -59,14 +59,14 @@ menu = st.session_state.sub_menu
 if menu == "op":
     n = st.number_input("Início:", value=6)
     if st.button("Gerar"):
-        st.session_state.preview_questoes = [".M1", "t. OPERAÇÕES", f"{n}. Resolva:"] + \
+        st.session_state.preview_questoes = [".M1", "t. OPERAÇÕES", f"{n}. Calcule:"] + \
             [f"{random.randint(10,99)} + {random.randint(10,99)} =" for _ in range(12)]
         st.rerun()
 
 elif menu == "eq":
     n = st.number_input("Início:", value=6)
     if st.button("Gerar"):
-        st.session_state.preview_questoes = [".M1", "t. EQUAÇÕES", f"{n}. Ache o x:"] + \
+        st.session_state.preview_questoes = [".M1", "t. EQUAÇÕES", f"{n}. Resolva x:"] + \
             [f"{random.randint(2,9)}x = {random.randint(10,90)}" for _ in range(10)]
         st.rerun()
 
@@ -80,58 +80,61 @@ elif menu == "col":
 elif menu == "alg":
     n = st.number_input("Início:", value=6)
     if st.button("Gerar"):
-        st.session_state.preview_questoes = [".M1", "t. ÁLGEBRA", f"{n}. Simplifique:"] + ["(x+1)^2 =", "(x-2)^2 =", "x(x+3) ="]
+        st.session_state.preview_questoes = [".M1", "t. ÁLGEBRA", f"{n}. Desenvolva:"] + ["(x+1)^2 =", "(x-2)^2 =", "x(x+3) ="]
         st.rerun()
 
 elif menu == "man":
-    txt = st.text_area("Manual:")
+    txt = st.text_area("Entrada Manual:")
     if st.button("Aplicar"): st.session_state.preview_questoes = txt.split("\n"); st.rerun()
 
 elif menu == "calc_f":
+    st.subheader("𝑓(x) Funções")
     a = st.number_input("a", value=1.0)
     b = st.number_input("b", value=-5.0)
     c = st.number_input("c", value=6.0)
-    if st.button("Calcular"):
+    if st.button("Calcular Raízes"):
         d = b**2 - 4*a*c
         if d >= 0: st.success(f"x1: {(-b+math.sqrt(d))/(2*a)} | x2: {(-b-math.sqrt(d))/(2*a)}")
 
 elif menu == "pemdas":
+    st.subheader("📊 PEMDAS")
     exp = st.text_input("Expressão:", "10 / 2 + 5")
-    if st.button("Resolver"): st.write(f"Res: {eval(exp)}")
+    if st.button("Resolver"): st.write(f"Resultado: {eval(exp)}")
 
 elif menu == "fin":
+    st.subheader("💰 Financeira")
     cap = st.number_input("Capital", value=1000.0)
-    if st.button("Calcular"): st.write(f"Total (+10%): {cap * 1.1}")
+    if st.button("Simular +10%"): st.write(f"Total: {cap * 1.1}")
 
-# --- 5. MOTOR PDF (SOMENTE IMAGEM NO TOPO) ---
+# --- 5. VISUALIZAÇÃO E PDF ---
 if st.session_state.preview_questoes:
-    st.divider()
+    st.subheader("👁️ Visualização da Atividade")
+    # Este bloco faz o Preview aparecer na tela do Streamlit
+    container = st.container(border=True)
+    for l in st.session_state.preview_questoes:
+        container.write(l)
+
     def export_pdf():
         pdf = FPDF()
         pdf.add_page()
         y_pos = 10
-        
-        # Pega a imagem da pasta e coloca no topo
         if usar_cabecalho and os.path.exists("cabecalho.png"):
-            pdf.image("cabecalho.png", x=10, y=10, w=190)
+            pdf.image("cabecalho.png", 10, 10, 190)
             y_pos = 65 
-        
         pdf.set_y(y_pos)
         letras, l_idx = "abcdefghijklmnopqrstuvwxyz", 0
         n_cols = int(layout_cols)
         larg_col = 190 / n_cols
-        
         for line in st.session_state.preview_questoes:
             line = line.strip()
             if not line: continue
-            
             if line.startswith(".M"):
                 pdf.set_font("Helvetica", 'B', 12); pdf.cell(190, 10, line[1:], ln=True)
             elif line.lower().startswith("t."):
                 pdf.set_font("Helvetica", 'B', 14); pdf.cell(190, 10, line[2:].strip().upper(), ln=True, align='C')
-            elif re.match(r'^\d+\.', line): # Linha começa com número
+            elif re.match(r'^\d+\.', line):
                 pdf.set_font("Helvetica", size=12); pdf.cell(190, 10, line, ln=True); l_idx = 0
-            else: # Linha vira letra (a, b, c) automaticamente
+            else:
                 pdf.set_font("Helvetica", size=12)
                 col = l_idx % n_cols
                 pdf.cell(larg_col, 8, f"{letras[l_idx%26]}) {line.lstrip('. ')}", ln=(col == n_cols-1))
