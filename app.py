@@ -14,12 +14,16 @@ if 'sub_menu' not in st.session_state: st.session_state.sub_menu = None
 if 'preview_questoes' not in st.session_state: st.session_state.preview_questoes = []
 
 def clean_txt(text):
+    """Trata potências e raízes para leitura humana no PDF (padrão latin-1)"""
     if not text: return ""
-    text = str(text).replace("√", "V").replace("²", "^2").replace("³", "^3")
+    text = str(text)
+    # Substitui símbolos para formatos legíveis que não quebram o PDF
+    text = text.replace("√", "Raiz de ").replace("²", "^2").replace("³", "^3")
     return text.encode('latin-1', 'replace').decode('latin-1')
 
 def validar_acesso(pin_digitado):
     senha_aluno = str(st.secrets.get("acesso_aluno", "123456")).strip()
+    # Conforme solicitado, chave_mestra em lowercase
     senha_prof = str(st.secrets.get("chave_mestra", "chave_mestra")).strip().lower()
     if pin_digitado == senha_aluno: return "aluno"
     elif pin_digitado == senha_prof: return "admin"
@@ -102,17 +106,19 @@ if perfil == "admin":
 
     elif op_atual == "col":
         st.header("📚 Colegial (Temas)")
-        temas = st.multiselect("Temas:", ["Frações", "Porcentagem", "Potenciação"], ["Frações", "Porcentagem"])
+        # Incluída Radiciação nas opções
+        temas = st.multiselect("Temas:", ["Frações", "Porcentagem", "Potenciação", "Radiciação"], ["Frações", "Porcentagem"])
         num_ini = st.number_input("Começar do número:", 1)
         qtd = st.number_input("Quantidade:", 4, 30, 10)
         if st.button("Gerar Preview") and temas:
-            qs = []
+            qs = [f"t. Exercícios Colegiais", f"{num_ini}. Resolva os itens:"]
             for _ in range(qtd):
                 t = random.choice(temas)
                 if t == "Frações": qs.append(f"{random.randint(1,9)}/{random.randint(2,5)} + {random.randint(1,9)}/{random.randint(2,5)} =")
                 elif t == "Porcentagem": qs.append(f"{random.randint(5,95)}% de {random.randint(100,999)} =")
-                else: qs.append(f"{random.randint(2,12)}^2 =")
-            st.session_state.preview_questoes = ["t. Exercícios Colegiais", f"{num_ini}. Resolva os itens:"] + qs
+                elif t == "Potenciação": qs.append(f"{random.randint(2,12)}^2 =")
+                elif t == "Radiciação": qs.append(f"√{random.choice([4, 9, 16, 25, 36, 49, 64, 81, 100])} =")
+            st.session_state.preview_questoes = qs
 
     elif op_atual == "alg":
         st.header("⚖️ Álgebra (Sistemas)")
@@ -163,7 +169,6 @@ if perfil == "admin":
 # --- VISUALIZAÇÃO E PDF ---
 if st.session_state.preview_questoes:
     st.divider()
-    # No Preview da tela, só mostra a imagem se o checkbox estiver marcado
     if usar_cabecalho and os.path.exists("cabecalho.png"): 
         st.image("cabecalho.png", use_container_width=True)
     
@@ -187,12 +192,11 @@ if st.session_state.preview_questoes:
         pdf = FPDF()
         pdf.add_page()
         
-        # AJUSTE DE POSIÇÃO INICIAL DO PDF
         if usar_cabecalho and os.path.exists("cabecalho.png"):
             pdf.image("cabecalho.png", x=10, y=10, w=190)
             y_at = 55
         else:
-            y_at = 20 # Começa bem mais em cima se não tiver cabeçalho
+            y_at = 20
             
         l_pdf_idx = 0
         for q in st.session_state.preview_questoes:
