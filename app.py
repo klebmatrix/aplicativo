@@ -27,14 +27,20 @@ if st.session_state.perfil is None:
         else: st.error("PIN Incorreto")
     st.stop()
 
-# --- 3. SIDEBAR (CONFIGURAÇÕES) ---
+# --- 3. SIDEBAR (CONFIGURAÇÕES E LOGOUT) ---
 st.sidebar.title(f"🚀 {st.session_state.perfil.upper()}")
 usar_cabecalho = st.sidebar.checkbox("Usar cabecalho.png", value=True)
-recuo_cabecalho = st.sidebar.slider("Altura do Título (Ajuste):", 20, 80, 45)
+recuo_cabecalho = st.sidebar.slider("Altura do Título:", 20, 80, 45)
 layout_cols = st.sidebar.selectbox("Colunas PDF:", [1, 2, 3], index=1)
 
-if st.sidebar.button("🧹 Limpar Tudo"):
+st.sidebar.divider()
+if st.sidebar.button("🧹 Limpar Atividade", use_container_width=True):
     st.session_state.preview_questoes = []; st.session_state.res_calc = ""; st.rerun()
+
+# BOTÃO SAIR REINSTALADO AQUI
+if st.sidebar.button("🚪 Sair / Logout", use_container_width=True):
+    st.session_state.clear()
+    st.rerun()
 
 # --- 4. CENTRO DE COMANDO (8 BOTÕES) ---
 st.title("🛠️ Centro de Comando Quantum")
