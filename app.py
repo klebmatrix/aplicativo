@@ -164,91 +164,59 @@ if perfil == "admin":
         if st.button("Calcular"):
             fv = pv * (1 + tx/100)**tp
             st.metric("Montante Final", f"R$ {fv:.2f}")
-
-# --- PDF E VISUALIZAÇÃO ---
+# --- PDF ENGINE CORRIGIDO ---
 if st.session_state.preview_questoes:
-    st.divider()
-    col_d1, col_d2 = st.columns(2)
-    
     def export_pdf(com_gab):
-        """Gera PDF com as questões e opcionalmente com gabarito"""
         try:
-            pdf = FPDF()
+            pdf = FPDF(orientation='P', unit='mm', format='A4')
+            pdf.set_auto_page_break(auto=True, margin=15)
             pdf.add_page()
             
-            # Define posição Y inicial baseada na presença do cabeçalho
-            y = 60 if (usar_cabecalho and os.path.exists("cabecalho.png")) else 20
-            
-            # Insere cabeçalho se arquivo existir
+            # Cabeçalho (Sempre no topo como você pediu)
+            y_coord = 20
             if usar_cabecalho and os.path.exists("cabecalho.png"): 
                 pdf.image("cabecalho.png", 10, 10, 190)
+                y_coord = 65 
             
             l_idx = 0
-            letras_lista = "abcdefghijklmnopqrstuvwxyz"
+            letras = "abcdefghijklmnopqrstuvwxyz"
             
-            # Processa cada questão
             for q in st.session_state.preview_questoes:
                 line = q.strip()
-                if not line: 
-                    continue
+                if not line: continue
                 
-                # Verifica se é título ou número de questão
+                # Regra: Número ou Título -> Próxima linha é Letra
                 if line.lower().startswith("t.") or re.match(r'^\d+', line):
-                    pdf.set_y(y + 5)
-                    pdf.set_font("Arial", 'B', 12)
-                    txt_limpo = line[2:].strip() if line.lower().startswith("t.") else line
-                    pdf.multi_cell(0, 10, clean_txt(txt_limpo))
-                    y = pdf.get_y()
+                    pdf.set_font("Helvetica", 'B', 12)
+                    txt = line[2:].strip() if line.lower().startswith("t.") else line
+                    pdf.set_xy(10, y_coord)
+                    pdf.multi_cell(190, 8, tratar_texto_pdf(txt))
+                    y_coord = pdf.get_y() + 2
                     l_idx = 0
                 else:
-                    # Item da questão
-                    pdf.set_font("Arial", size=11)
-                    pdf.set_y(y)
-                    pdf.set_x(15)
-                    item_txt = f"{letras_lista[l_idx % 26]}) {line}"
-                    pdf.multi_cell(0, 8, clean_txt(item_txt))
-                    y = pdf.get_y()
+                    pdf.set_font("Helvetica", size=12)
+                    pdf.set_xy(15, y_coord)
+                    pdf.multi_cell(180, 7, f"{letras[l_idx % 26]}) {tratar_texto_pdf(line)}")
+                    y_coord = pdf.get_y()
                     l_idx += 1
             
-            # Adiciona gabarito se solicitado
-            if com_gab and st.session_state.gabarito:
-                pdf.add_page()
-                pdf.set_font("Arial", 'B', 14)
-                pdf.cell(0, 10, "GABARITO", ln=1, align='C')
-                pdf.set_font("Arial", size=11)
-                for g in st.session_state.gabarito:
-                    pdf.cell(0, 8, clean_txt(g), ln=1)
+            # O truque para não dar TypeError:
+            # Retorna o buffer de saída como bytes diretamente
+            return pdf.output() 
             
-            # Retorna PDF como bytes
-            return pdf.output()
-        
         except Exception as e:
-            st.error(f"Erro ao gerar PDF: {str(e)}")
-            return None
+            st.error(f"Erro ao gerar PDF: {e}")
+            return b""
 
-    # Botão para download sem gabarito
-    with col_d1:
-        pdf_data = export_pdf(False)
-        if pdf_data:
-            st.download_button(
-                label="📥 Sem Gabarito",
-                data=pdf_data,
-                file_name="questoes.pdf",
-                mime="application/pdf"
-            )
+    # Chame a função antes do botão para garantir que o dado existe
+    pdf_sem_gab = export_pdf(False)
     
-    # Botão para download com gabarito
-    with col_d2:
-        pdf_data_gab = export_pdf(True)
-        if pdf_data_gab:
-            st.download_button(
-                label="📥 Com Gabarito",
-                data=pdf_data_gab,
-                file_name="gabarito.pdf",
-                mime="application/pdf"
-            )
-
-    # Visualização das questões
-    st.subheader("📋 Pré-visualização das Questões:")
-    for item in st.session_state.preview_questoes:
-        st.write(item)
+    col_btn1, col_btn2 = st.columns(2)
+    with col_btn1:
+        st.download_button(
+            label="📥 Sem Gabarito",
+            data=pdf_sem_gab,
+            file_name="questoes.pdf",
+            mime="application/pdf",
+            key="btn_sem_gab"
+        )
