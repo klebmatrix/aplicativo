@@ -6,61 +6,62 @@ import random
 import re
 from fpdf import FPDF
 
-# --- 1. CONFIGURAÇÃO ---
-st.set_page_config(page_title="Quantum Math Lab", layout="wide", page_icon="🚀")
+# --- 1. FUNÇÕES GLOBAIS (DEFINIDAS NO TOPO) ---
 
-if 'perfil' not in st.session_state: st.session_state.perfil = None
-if 'sub_menu' not in st.session_state: st.session_state.sub_menu = None
-if 'preview_questoes' not in st.session_state: st.session_state.preview_questoes = []
-# ADICIONADO: Inicializa o gabarito para não dar erro no PDF
-if 'gabarito' not in st.session_state: st.session_state.gabarito = []
-
-def clean_txt(text):
-    """Trata potências e raízes para leitura humana no PDF (padrão latin-1)"""
+def tratar_texto_pdf(text):
+    """Garante nitidez e evita caracteres que quebram o PDF padrão"""
     if not text: return ""
-    text = str(text)
-    text = text.replace("√", "V").replace("²", "^2").replace("³", "^3")
-    return text.encode('latin-1', 'replace').decode('latin-1')
+    return str(text).replace("√", "V").replace("²", "^2").replace("³", "^3")
 
 def validar_acesso(pin_digitado):
+    """Validação de PIN com base nos Secrets (Render/Streamlit)"""
     senha_aluno = str(st.secrets.get("acesso_aluno", "123456")).strip()
     senha_prof = str(st.secrets.get("chave_mestra", "chave_mestra")).strip().lower()
     if pin_digitado == senha_aluno: return "aluno"
     elif pin_digitado == senha_prof: return "admin"
     return "negado"
 
-# --- LOGIN ---
+# --- 2. CONFIGURAÇÃO ---
+st.set_page_config(page_title="Quantum Math Lab", layout="wide", page_icon="🚀")
+
+# Inicialização de estados
+for key in ['perfil', 'sub_menu', 'preview_questoes', 'gabarito']:
+    if key not in st.session_state:
+        st.session_state[key] = [] if key in ['preview_questoes', 'gabarito'] else None
+
+# --- 3. LOGIN ---
 if st.session_state.perfil is None:
     st.title("🔐 Login")
-    pin = st.text_input("PIN (6 dígitos):", type="password", max_chars=8)
+    pin = st.text_input("PIN de Acesso:", type="password", max_chars=8)
     if st.button("Entrar"):
         acesso = validar_acesso(pin)
         if acesso != "negado":
             st.session_state.perfil = acesso
             st.rerun()
-        else: st.error("PIN incorreto.")
+        else:
+            st.error("PIN incorreto ou acesso negado.")
     st.stop()
 
-# --- MENU LATERAL ---
+# --- 4. INTERFACE E MENU LATERAL ---
 perfil = st.session_state.perfil
 st.sidebar.title(f"🚀 {'Professor' if perfil == 'admin' else 'Estudante'}")
-
 usar_cabecalho = st.sidebar.checkbox("Incluir Cabeçalho no PDF", value=True)
+
+# NOVO: SELETOR DE COLUNAS
+layout_colunas = st.sidebar.selectbox("Layout dos Itens:", ["1 Coluna", "2 Colunas", "3 Colunas"], index=1)
 
 if st.sidebar.button("🧹 Limpar Tudo"):
     st.session_state.preview_questoes = []
-    st.session_state.gabarito = []
     st.session_state.sub_menu = None
     st.rerun()
 
 if st.sidebar.button("Sair/Logout"):
-    for key in list(st.session_state.keys()): del st.session_state[key]
+    st.session_state.clear()
     st.rerun()
 
-# --- PAINEL ADMIN ---
+# --- 5. PAINEL ADMIN ---
 if perfil == "admin":
     st.title("🛠️ Painel de Controle")
-    
     st.subheader("📝 Geradores de Atividades (PDF)")
     c1, c2, c3, c4, c5 = st.columns(5)
     with c1: 
@@ -87,136 +88,120 @@ if perfil == "admin":
     op_atual = st.session_state.sub_menu
     st.divider()
 
-    # --- LÓGICA DOS GERADORES ---
     if op_atual == "op":
-        st.header("🔢 Operações")
+        st.header("🔢 Gerador de Operações")
         escolhas = st.multiselect("Sinais:", ["+", "-", "x", "÷"], ["+", "-"])
-        num_ini = st.number_input("Começar do número:", 1)
-        qtd = st.number_input("Quantidade:", 4, 30, 10)
+        num_ini = st.number_input("Questão inicial nº:", 1)
+        qtd = st.number_input("Qtd de itens:", 4, 30, 10)
         if st.button("Gerar Preview"):
-            st.session_state.preview_questoes = ["t. Atividade de Operações", f"{num_ini}. Calcule:"] + [f"{random.randint(10,500)} {random.choice(escolhas)} {random.randint(2,50)} =" for _ in range(qtd)]
+            st.session_state.preview_questoes = ["t. Atividade de Operações", f"{num_ini}. Calcule:"] + \
+                [f"{random.randint(10,500)} {random.choice(escolhas)} {random.randint(2,50)} =" for _ in range(qtd)]
 
     elif op_atual == "eq":
         st.header("📐 Equações")
         grau = st.radio("Grau:", ["1º Grau", "2º Grau"], horizontal=True)
-        num_ini = st.number_input("Começar do número:", 1)
         if st.button("Gerar Preview"):
             qs = [f"{random.randint(2,9)}x + {random.randint(1,20)} = {random.randint(21,99)}" if grau == "1º Grau" else f"x^2 + {random.randint(2,8)}x + {random.randint(1,12)} = 0" for _ in range(8)]
-            st.session_state.preview_questoes = [f"t. Equações de {grau}", f"{num_ini}. Resolva:"] + qs
-
-    elif op_atual == "col":
-        st.header("📚 Colegial (Temas)")
-        temas = st.multiselect("Temas:", ["Frações", "Porcentagem", "Potenciação", "Radiciação"], ["Frações", "Porcentagem"])
-        num_ini = st.number_input("Começar do número:", 1)
-        qtd = st.number_input("Quantidade:", 4, 30, 10)
-        if st.button("Gerar Preview") and temas:
-            qs = [f"t. Exercícios Colegiais", f"{num_ini}. Resolva os itens:"]
-            for _ in range(qtd):
-                t = random.choice(temas)
-                if t == "Frações": qs.append(f"{random.randint(1,9)}/{random.randint(2,5)} + {random.randint(1,9)}/{random.randint(2,5)} =")
-                elif t == "Porcentagem": qs.append(f"{random.randint(5,95)}% de {random.randint(100,999)} =")
-                elif t == "Potenciação": qs.append(f"{random.randint(2,12)}^2 =")
-                elif t == "Radiciação": qs.append(f"√{random.choice([4, 9, 16, 25, 36, 49, 64, 81, 100])} =")
-            st.session_state.preview_questoes = qs
-
-    elif op_atual == "alg":
-        st.header("⚖️ Álgebra (Sistemas)")
-        tipos = st.multiselect("Tipos:", ["1º Grau", "2º Grau"], ["1º Grau"])
-        num_ini = st.number_input("Começar do número:", 1)
-        qtd = st.number_input("Quantidade:", 2, 10, 4)
-        if st.button("Gerar Preview") and tipos:
-            qs = ["t. Sistemas de Equações", f"{num_ini}. Resolva os sistemas abaixo:"]
-            for i in range(qtd):
-                t = random.choice(tipos)
-                if t == "1º Grau": qs.append(f"{random.randint(1,5)}x + {random.randint(1,5)}y = {random.randint(10,40)}")
-                else: qs.append(f"x^2 + y = {random.randint(10,30)} e x + y = {random.randint(2,10)}")
-            st.session_state.preview_questoes = qs
+            st.session_state.preview_questoes = [f"t. Equações de {grau}", "1. Resolva as equações:"] + qs
 
     elif op_atual == "man":
         st.header("📄 Módulo Manual")
-        txt_m = st.text_area("Digite ou cole suas questões aqui:", height=300)
+        txt_m = st.text_area("Cole suas questões aqui:", height=250)
         if st.button("Gerar Atividade Manual"):
             st.session_state.preview_questoes = txt_m.split('\n')
 
     elif op_atual == "calc_f":
         st.header("𝑓(x) Funções")
         f_in = st.text_input("Função:", "x**2 + 5*x + 6")
-        x_in = st.number_input("Valor de x:", value=1.0)
+        x_val = st.number_input("Valor de x:", value=2.0)
         if st.button("Calcular"):
             try:
-                res = eval(f_in.replace('x', f'({x_in})'))
-                st.success(f"Resultado: f({x_in}) = {res}")
-            except Exception as e: st.error(f"Erro: {e}")
+                res = eval(f_in.replace('x', f'({x_val})'))
+                st.success(f"Resultado: f({x_val}) = {res}")
+            except Exception as e: st.error(f"Erro na fórmula: {e}")
 
     elif op_atual == "pemdas":
         st.header("📊 PEMDAS")
-        expr = st.text_input("Expressão:", "2 + 3 * (10 / 2)")
+        expr = st.text_input("Expressão matemática:", "2 + 3 * (10 / 2)**2")
         if st.button("Resolver"):
             try: st.info(f"Resultado: {eval(expr)}")
             except: st.error("Expressão inválida.")
 
     elif op_atual == "fin":
-        st.header("💰 Financeira")
-        c1, c2, c3 = st.columns(3)
-        pv = c1.number_input("Capital (R$):", 0.0)
-        tx = c2.number_input("Taxa (%):", 0.0)
-        tp = c3.number_input("Tempo (meses):", 0)
-        if st.button("Calcular"):
+        st.header("💰 Matemática Financeira")
+        c_pv, c_tx, c_tp = st.columns(3)
+        pv = c_pv.number_input("Capital (R$):", 1000.0)
+        tx = c_tx.number_input("Taxa (% a.m.):", 1.0)
+        tp = c_tp.number_input("Tempo (meses):", 12)
+        if st.button("Calcular Montante (Juros Compostos)"):
             fv = pv * (1 + tx/100)**tp
             st.metric("Montante Final", f"R$ {fv:.2f}")
-# --- PDF ENGINE CORRIGIDO ---
+
+# --- 6. PDF ENGINE (AJUSTADO PARA COLUNAS PARALELAS) ---
 if st.session_state.preview_questoes:
-    def export_pdf(com_gab):
+    st.subheader("👁️ Preview da Atividade")
+    for item in st.session_state.preview_questoes:
+        st.write(item)
+
+    def export_pdf():
         try:
-            pdf = FPDF(orientation='P', unit='mm', format='A4')
-            pdf.set_auto_page_break(auto=True, margin=15)
+            pdf = FPDF()
             pdf.add_page()
+            y = 20
             
-            # Cabeçalho (Sempre no topo como você pediu)
-            y_coord = 20
-            if usar_cabecalho and os.path.exists("cabecalho.png"): 
+            if usar_cabecalho and os.path.exists("cabecalho.png"):
                 pdf.image("cabecalho.png", 10, 10, 190)
-                y_coord = 65 
-            
-            l_idx = 0
+                y = 65
+
             letras = "abcdefghijklmnopqrstuvwxyz"
+            l_idx = 0
             
-            for q in st.session_state.preview_questoes:
-                line = q.strip()
+            # Logica de colunas baseada na sua escolha
+            if "1 Coluna" in layout_colunas: n_cols = 1
+            elif "2 Colunas" in layout_colunas: n_cols = 2
+            else: n_cols = 3
+            
+            largura_col = 190 / n_cols
+            y_inicio_linha = y
+
+            for line in st.session_state.preview_questoes:
+                line = line.strip()
                 if not line: continue
-                
-                # Regra: Número ou Título -> Próxima linha é Letra
-                if line.lower().startswith("t.") or re.match(r'^\d+', line):
-                    pdf.set_font("Helvetica", 'B', 12)
-                    txt = line[2:].strip() if line.lower().startswith("t.") else line
-                    pdf.set_xy(10, y_coord)
-                    pdf.multi_cell(190, 8, tratar_texto_pdf(txt))
-                    y_coord = pdf.get_y() + 2
+
+                # TÍTULO (t.) ou QUESTÃO (1.) - Sempre ocupam a linha toda
+                if line.lower().startswith("t.") or re.match(r'^\d+\.', line):
+                    if l_idx > 0: y = pdf.get_y() + 5
+                    
+                    is_titulo = line.lower().startswith("t.")
+                    pdf.set_font("Helvetica", 'B', 14 if is_titulo else 12)
+                    pdf.set_xy(10, y)
+                    txt_final = line[2:].strip() if is_titulo else line
+                    pdf.multi_cell(190, 10, tratar_texto_pdf(txt_final), align='C' if is_titulo else 'L')
+                    y = pdf.get_y() + 2
+                    y_inicio_linha = y
                     l_idx = 0
+                
+                # ITENS (a, b, c) - Aqui entra o paralelo
                 else:
                     pdf.set_font("Helvetica", size=12)
-                    pdf.set_xy(15, y_coord)
-                    pdf.multi_cell(180, 7, f"{letras[l_idx % 26]}) {tratar_texto_pdf(line)}")
-                    y_coord = pdf.get_y()
+                    col_atual = l_idx % n_cols
+                    
+                    # Se voltar para a primeira coluna, atualiza o Y para a próxima "fileira"
+                    if col_atual == 0 and l_idx > 0:
+                        y_inicio_linha = pdf.get_y()
+                    
+                    x_pos = 10 + (col_atual * largura_col)
+                    pdf.set_xy(x_pos, y_inicio_linha)
+                    
+                    conteudo = re.sub(r'^[.\s]+', '', line)
+                    pdf.multi_cell(largura_col - 5, 7, f"{letras[l_idx % 26]}) {tratar_texto_pdf(conteudo)}", align='L')
                     l_idx += 1
             
-            # O truque para não dar TypeError:
-            # Retorna o buffer de saída como bytes diretamente
-            return pdf.output() 
-            
+            return bytes(pdf.output())
         except Exception as e:
-            st.error(f"Erro ao gerar PDF: {e}")
-            return b""
+            st.error(f"Erro no PDF: {e}")
+            return None
 
-    # Chame a função antes do botão para garantir que o dado existe
-    pdf_sem_gab = export_pdf(False)
-    
-    col_btn1, col_btn2 = st.columns(2)
-    with col_btn1:
-        st.download_button(
-            label="📥 Sem Gabarito",
-            data=pdf_sem_gab,
-            file_name="questoes.pdf",
-            mime="application/pdf",
-            key="btn_sem_gab"
-        )
+    pdf_data = export_pdf()
+    if pdf_data:
+        st.download_button("📥 Baixar PDF", data=pdf_data, file_name="atividade.pdf", mime="application/pdf")
