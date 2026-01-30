@@ -18,7 +18,7 @@ def clean_txt(text):
     if not text: return ""
     text = str(text)
     # Substitui símbolos para formatos legíveis que não quebram o PDF
-    text = text.replace("√", "Raiz de ").replace("²", "^2").replace("³", "^3")
+    text = text.replace("√", "V").replace("²", "^2").replace("³", "^3")
     return text.encode('latin-1', 'replace').decode('latin-1')
 
 def validar_acesso(pin_digitado):
