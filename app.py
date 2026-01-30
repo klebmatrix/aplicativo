@@ -8,12 +8,11 @@ from fpdf import FPDF
 # --- 1. CONFIGURAÇÃO ---
 st.set_page_config(page_title="Quantum Math Lab", layout="wide")
 
-# Inicialização de estados
 for key in ['perfil', 'sub_menu', 'preview_questoes', 'res_calc']:
     if key not in st.session_state:
         st.session_state[key] = [] if key == 'preview_questoes' else None
 
-# --- 2. LOGIN (Secrets Render) ---
+# --- 2. LOGIN ---
 def validar_acesso(pin):
     p_aluno = str(st.secrets.get("acesso_aluno", "123456")).strip()
     p_prof = str(st.secrets.get("chave_mestra", "chave_mestra")).strip().lower()
@@ -42,81 +41,85 @@ if st.sidebar.button("🚪 Sair", use_container_width=True):
 # --- 4. PAINEL DE COMANDO (8 BOTÕES) ---
 st.title("🛠️ Centro de Comando")
 g1, g2, g3, g4, g5 = st.columns(5)
-if g1.button("🔢 Operações", use_container_width=True): st.session_state.sub_menu = "op"
-if g2.button("📐 Equações", use_container_width=True): st.session_state.sub_menu = "eq"
-if g3.button("📚 Colegial", use_container_width=True): st.session_state.sub_menu = "col"
-if g4.button("⚖️ Álgebra", use_container_width=True): st.session_state.sub_menu = "alg"
-if g5.button("📄 Manual", use_container_width=True): st.session_state.sub_menu = "man"
+if g1.button("🔢 Operações"): st.session_state.sub_menu = "op"
+if g2.button("📐 Equações"): st.session_state.sub_menu = "eq"
+if g3.button("⛓️ Sistemas"): st.session_state.sub_menu = "sis"
+if g4.button("⚖️ Álgebra"): st.session_state.sub_menu = "alg"
+if g5.button("📄 Manual"): st.session_state.sub_menu = "man"
 
 c1, c2, c3 = st.columns(3)
-if c1.button("𝑓(x) Funções", use_container_width=True): st.session_state.sub_menu = "calc_f"
-if c2.button("📊 PEMDAS", use_container_width=True): st.session_state.sub_menu = "pemdas"
-if c3.button("💰 Financeira", use_container_width=True): st.session_state.sub_menu = "fin"
+if c1.button("𝑓(x) Funções"): st.session_state.sub_menu = "calc_f"
+if c2.button("📊 PEMDAS"): st.session_state.sub_menu = "pemdas"
+if c3.button("💰 Financeira"): st.session_state.sub_menu = "fin"
 
 st.divider()
 menu = st.session_state.sub_menu
 
-# --- 5. LÓGICAS FUNCIONAIS ---
+# --- 5. LÓGICAS DOS GERADORES ---
+
 if menu == "op":
+    st.subheader("🔢 Gerador de Operações")
+    tipo_op = st.radio("Escolha a Operação:", ["Soma", "Subtração", "Multiplicação", "Divisão"], horizontal=True)
     n_ini = st.number_input("Nº Inicial:", value=6)
-    if st.button("Gerar 15 Contas"):
-        ops = [f"{random.randint(10,999)} + {random.randint(10,999)} =" for _ in range(15)]
-        st.session_state.preview_questoes = [".M1", "t. OPERAÇÕES FUNDAMENTAIS", f"{n_ini}. Calcule as somas:"] + ops
+    if st.button("Gerar Atividade"):
+        simbolos = {"Soma": "+", "Subtração": "-", "Multiplicação": "x", "Divisão": "÷"}
+        s = simbolos[tipo_op]
+        questoes = [f"{random.randint(10,99)} {s} {random.randint(10,99)} =" for _ in range(12)]
+        st.session_state.preview_questoes = [".M1", f"t. ATIVIDADE DE {tipo_op.upper()}", f"{n_ini}. Resolva:"] + questoes
 
 elif menu == "eq":
-    n_ini = st.number_input("Nº Inicial:", value=1)
-    if st.button("Gerar 10 Equações"):
-        eqs = [f"{random.randint(2,10)}x {'+' if random.random()>0.5 else '-'} {random.randint(1,30)} = {random.randint(31,100)}" for _ in range(10)]
-        st.session_state.preview_questoes = [".M1", "t. EQUAÇÕES DE 1º GRAU", f"{n_ini}. Determine o x:"] + eqs
+    st.subheader("📐 Gerador de Equações")
+    tipo_eq = st.radio("Grau:", ["1º Grau", "2º Grau"], horizontal=True)
+    n_ini = st.number_input("Nº Inicial:", value=6)
+    if st.button("Gerar Equações"):
+        if tipo_eq == "1º Grau":
+            questoes = [f"{random.randint(2,9)}x {'+' if random.random()>0.5 else '-'} {random.randint(1,20)} = {random.randint(21,80)}" for _ in range(8)]
+        else:
+            questoes = [f"x² {'-' if random.random()>0.5 else '+'} {random.randint(2,10)}x {'+' if random.random()>0.5 else '-'} {random.randint(1,20)} = 0" for _ in range(6)]
+        st.session_state.preview_questoes = [".M1", f"t. EQUAÇÕES DE {tipo_eq.upper()}", f"{n_ini}. Determine o conjunto verdade:"] + questoes
 
-elif menu == "col":
-    if st.button("Gerar Radiciação"):
-        rads = [f"√{i**2} =" for i in range(2, 14)]
-        st.session_state.preview_questoes = [".M1", "t. RAÍZES QUADRADAS", "1. Calcule:"] + rads
+elif menu == "sis":
+    st.subheader("⛓️ Gerador de Sistemas")
+    tipo_sis = st.radio("Tipo:", ["1º Grau (x, y)", "2º Grau"], horizontal=True)
+    if st.button("Gerar Sistemas"):
+        if tipo_sis == "1º Grau (x, y)":
+            questoes = [f"{{ {random.randint(1,5)}x + {random.randint(1,5)}y = {random.randint(10,30)} \n {random.randint(1,5)}x - {random.randint(1,5)}y = {random.randint(1,10)}" for _ in range(4)]
+        else:
+            questoes = [f"{{ x + y = {random.randint(5,15)} \n x . y = {random.randint(6,50)}" for _ in range(3)]
+        st.session_state.preview_questoes = [".M1", "t. SISTEMAS DE EQUAÇÕES", "6. Resolva os sistemas abaixo:"] + questoes
 
 elif menu == "alg":
-    if st.button("Gerar Fatoração"):
-        st.session_state.preview_questoes = [".M1", "t. ÁLGEBRA", "1. Fatore:"] + ["x² - 4 =", "x² - 9 =", "x² + 2x + 1 ="]
+    if st.button("Gerar Produtos Notáveis"):
+        st.session_state.preview_questoes = [".M1", "t. ÁLGEBRA", "6. Desenvolva:"] + ["(x+3)² =", "(x-5)² =", "(2x+1)² =", "(a+b)(a-b) ="]
 
 elif menu == "man":
     txt = st.text_area("Texto Manual:")
     if st.button("Aplicar"): st.session_state.preview_questoes = txt.split("\n")
 
+# --- 6. CÁLCULOS ---
 elif menu == "calc_f":
-    st.subheader("𝑓(x) - Fórmula de Bhaskara")
-    col1, col2, col3 = st.columns(3)
-    a = col1.number_input("a", value=1.0)
-    b = col2.number_input("b", value=-5.0)
-    c = col3.number_input("c", value=6.0)
+    a = st.number_input("a", value=1.0)
+    b = st.number_input("b", value=-5.0)
+    c = st.number_input("c", value=6.0)
     if st.button("Calcular"):
-        delta = b**2 - 4*a*c
-        if delta < 0: st.error("Sem raízes reais.")
-        else:
-            x1 = (-b + math.sqrt(delta))/(2*a)
-            x2 = (-b - math.sqrt(delta))/(2*a)
-            st.session_state.res_calc = f"Delta: {delta} | x' = {x1} | x'' = {x2}"
+        d = b**2 - 4*a*c
+        if d >= 0: st.session_state.res_calc = f"x1: {(-b+math.sqrt(d))/(2*a)} | x2: {(-b-math.sqrt(d))/(2*a)}"
+        else: st.error("Sem raízes reais")
 
 elif menu == "pemdas":
-    exp = st.text_input("Expressão (Ex: 2+3*4):", "20 / (2+3) * 4")
-    if st.button("Resolver"):
-        try: st.session_state.res_calc = f"Resultado: {eval(exp)}"
-        except: st.error("Expressão inválida")
+    exp = st.text_input("Expressão:", "2 + 3 * 4")
+    if st.button("Resolver"): st.session_state.res_calc = f"Resultado: {eval(exp)}"
 
 elif menu == "fin":
-    p = st.number_input("Capital (R$):", value=1000.0)
-    i = st.number_input("Taxa (% ao mês):", value=5.0)
-    t = st.number_input("Tempo (meses):", value=12)
-    if st.button("Juros Simples"):
-        j = p * (i/100) * t
-        st.session_state.res_calc = f"Juros: R$ {j:.2f} | Total: R$ {p+j:.2f}"
+    cap = st.number_input("Capital", value=1000.0)
+    if st.button("Calcular"): st.session_state.res_calc = f"Total (+10%): R$ {cap * 1.1:.2f}"
 
-# Exibe resultado do cálculo se houver
 if st.session_state.res_calc:
     st.success(st.session_state.res_calc)
 
-# --- 6. VISUALIZAÇÃO E PDF ---
+# --- 7. PREVIEW E PDF ---
 if st.session_state.preview_questoes:
-    st.subheader("👁️ Visualização")
+    st.subheader("👁️ Preview")
     with st.container(border=True):
         for line in st.session_state.preview_questoes: st.write(line)
 
@@ -148,4 +151,4 @@ if st.session_state.preview_questoes:
                 l_idx += 1
         return pdf.output(dest='S').encode('latin-1')
 
-    st.download_button("📥 Baixar PDF", data=export_pdf(), file_name="atividade_quantum.pdf")
+    st.download_button("📥 Baixar PDF", data=export_pdf(), file_name="atividade.pdf")
