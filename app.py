@@ -8,7 +8,11 @@ from fpdf import FPDF
 # --- 1. CONFIGURAÇÃO E PERSISTÊNCIA ---
 st.set_page_config(page_title="Quantum Math Lab", layout="wide")
 
-for key in ['perfil', 'sub_menu', 'preview_questoes', 'res_calc']:
+# TRAVA PARA PEDIR LOGIN TODA VEZ (RECARREGA O PERFIL COMO NONE A CADA EXECUÇÃO)
+if 'logado' not in st.session_state:
+    st.session_state.perfil = None
+
+for key in ['sub_menu', 'preview_questoes', 'res_calc']:
     if key not in st.session_state:
         st.session_state[key] = [] if key == 'preview_questoes' else ""
 
@@ -23,7 +27,10 @@ if st.session_state.perfil is None:
     pin_input = st.text_input("PIN:", type="password")
     if st.button("Acessar"):
         res = validar_acesso(pin_input)
-        if res: st.session_state.perfil = res; st.rerun()
+        if res: 
+            st.session_state.perfil = res
+            st.session_state.logado = True # Marca que logou nesta rodada
+            st.rerun()
         else: st.error("PIN Incorreto")
     st.stop()
 
