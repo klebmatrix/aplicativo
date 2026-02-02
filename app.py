@@ -46,7 +46,7 @@ if st.sidebar.button("🚪 Sair / Logout", use_container_width=True):
     st.session_state.clear()
     st.rerun()
 
-# --- 4. CENTRO DE COMANDO ---
+# --- 4. CENTRO DE COMANDO (6 EM CIMA, 3 EMBAIXO) ---
 st.title("🛠️ Centro de Comando Quantum")
 g1, g2, g3, g4, g5, g6 = st.columns(6)
 if g1.button("🔢 Operações", use_container_width=True): st.session_state.sub_menu = "op"
@@ -64,7 +64,7 @@ if c3.button("💰 Financeira", use_container_width=True): st.session_state.sub_
 st.divider()
 menu = st.session_state.sub_menu
 
-# --- 5. LÓGICAS ---
+# --- 5. LÓGICAS DOS GERADORES ---
 if menu == "op":
     tipo = st.radio("Escolha:", ["Soma", "Subtração", "Multiplicação", "Divisão"], horizontal=True)
     if st.button("Gerar Atividade"):
@@ -94,7 +94,7 @@ elif menu == "alg":
     tipo = st.radio("Tipo:", ["Produtos Notáveis", "Fatoração"], horizontal=True)
     if st.button("Gerar Álgebra"):
         if tipo == "Produtos Notáveis":
-            qs = [f"({random.randint(2,5)}x + {random.randint(1,9)})^2 =", f"(x - {random.randint(2,8)})^2 =", "(a + b)(a - b) ="]
+            qs = [f"({random.randint(2,5)}x + {random.randint(1,9)})^2 =" for _ in range(4)]
         else:
             qs = ["x^2 - 64 =", "x^2 + 12x + 36 =", "x^2 - 4x + 4 ="]
         st.session_state.preview_questoes = [".M1", f"t. Álgebra: {tipo}", "1. Desenvolva:"] + qs
@@ -104,11 +104,18 @@ elif menu == "col":
     if st.button("Gerar Atividade Colegial"):
         if tipo == "Potenciação":
             qs = [f"{random.randint(2,12)}^2 =" for _ in range(12)]
-            st.session_state.preview_questoes = [".M1", "t. Potenciação", "1. Calcule:"] + qs
+            st.session_state.preview_questoes = [".M1", "t. Potenciação", "1. Calcule as potências:"] + qs
         elif tipo == "Radiciação":
-            bases = [4, 9, 16, 25, 36, 49, 64, 81, 100]
-            qs = [f"Raiz de {random.choice(bases)} =" for _ in range(10)]
-            st.session_state.preview_questoes = [".M1", "t. Radiciação", "1. Determine a raiz:"] + qs
+            qs = []
+            for _ in range(10):
+                indice = random.choice([2, 3])
+                if indice == 2:
+                    base = random.randint(2, 12)**2
+                    qs.append(f"Raiz Quadrada de {base} =")
+                else:
+                    base = random.randint(2, 5)**3
+                    qs.append(f"Raiz Cúbica de {base} =")
+            st.session_state.preview_questoes = [".M1", "t. Radiciação", "1. Determine o valor:"] + qs
         else:
             qs = [f"{random.choice([5,10,25,50])}% de {random.randint(10, 500)} =" for _ in range(10)]
             st.session_state.preview_questoes = [".M1", "t. Porcentagem", "1. Calcule:"] + qs
@@ -139,7 +146,7 @@ elif menu == "fin":
 
 if st.session_state.res_calc: st.success(st.session_state.res_calc)
 
-# --- 7. MOTOR PDF (FATORADO PARA BYTES) ---
+# --- 7. MOTOR PDF (BYTARRAY PARA DOWNLOAD SEGURO) ---
 if st.session_state.preview_questoes:
     st.subheader("👁️ Preview")
     with st.container(border=True):
@@ -172,7 +179,6 @@ if st.session_state.preview_questoes:
                 pdf.cell(larg_col, 8, f"{letras[l_idx%26]}) {line.lstrip('. ')}", ln=(col == int(layout_cols)-1))
                 l_idx += 1
         
-        # AQUI É A CHAVE: Converter o output para bytes que o Streamlit entende
         return bytes(pdf.output())
 
     st.download_button(
