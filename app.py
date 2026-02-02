@@ -90,46 +90,47 @@ elif menu == "fin":
         st.success(f"Juros: R$ {j:.2f} | Total: R$ {cap+j:.2f}")
 
 # --- 6. LÓGICAS DAS ATIVIDADES ---
-elif menu == "eq":
+if menu == "eq":
     t_eq = st.radio("Grau:", ["1º Grau", "2º Grau"], horizontal=True)
     if st.button("Gerar Equações"):
-        if t_eq == "1º Grau": qs = [f"{random.randint(2,10)}x + {random.randint(1,20)} = {random.randint(21,99)}" for _ in range(8)]
-        else: qs = [f"x² - {random.randint(2,12)}x + {random.randint(1,20)} = 0" for _ in range(5)]
+        if t_eq == "1º Grau": 
+            qs = [f"{random.randint(2,10)}x + {random.randint(1,20)} = {random.randint(21,99)}" for _ in range(8)]
+        else: 
+            qs = [f"x² - {random.randint(2,12)}x + {random.randint(1,20)} = 0" for _ in range(5)]
         st.session_state.preview_questoes = [".M1", f"t. Equações {t_eq}", "1. Resolva:"] + qs
 
 elif menu == "sis":
     t_sis = st.radio("Tipo:", ["1º Grau", "2º Grau"], horizontal=True)
     if st.button("Gerar Sistemas"):
-        if t_sis == "1º Grau": qs = [f"{{ x + y = {random.randint(10,30)} \n  {{ x - y = {random.randint(2,10)}" for _ in range(4)]
-        else: qs = [f"{{ x + y = {random.randint(5,15)} \n  x * y = {random.randint(6,50)}" for _ in range(3)]
+        if t_sis == "1º Grau": 
+            qs = [f"{{ x + y = {random.randint(10,30)} \n  {{ x - y = {random.randint(2,10)}" for _ in range(4)]
+        else: 
+            qs = [f"{{ x + y = {random.randint(5,15)} \n  x * y = {random.randint(6,50)}" for _ in range(3)]
         st.session_state.preview_questoes = [".M1", f"t. Sistemas {t_sis}", "1. Resolva:"] + qs
 
-if t == "Radiciação":
+elif menu == "col":
+    t_col = st.radio("Tema:", ["Radiciação", "Potenciação", "Porcentagem"], horizontal=True)
+    if t_col == "Radiciação":
         g = st.radio("Tipo:", ["Quadrada", "Cúbica"], horizontal=True)
         if st.button("Gerar Radiciação"):
             if g == "Quadrada":
-                # Símbolo √ direto para o preview
                 qs = [f"√{random.randint(2,15)**2} =" for _ in range(10)]
             else:
-                # Símbolo ³√ direto para o preview
                 qs = [f"³√{random.randint(2,10)**3} =" for _ in range(10)]
-            st.session_state.preview_questoes = [".M1", f"t. Radicacao {g}", "1. Calcule as raizes:"] + qs
+            st.session_state.preview_questoes = [".M1", f"t. Radicacao {g}", "1. Calcule:"] + qs
+    elif t_col == "Potenciação":
+        if st.button("Gerar Potenciação"):
+            qs = [f"{random.randint(2,12)}² =" for _ in range(10)]
+            st.session_state.preview_questoes = [".M1", "t. Potenciação", "1. Calcule:"] + qs
+    else:
+        if st.button("Gerar Porcentagem"):
+            qs = [f"{random.randint(1,15)*5}% de {random.randint(10,100)*10} =" for _ in range(10)]
+            st.session_state.preview_questoes = [".M1", "t. Porcentagem", "1. Calcule:"] + qs
 
-else:
-                pdf.set_font("Arial", size=12)
-                
-                # ESTA É A LINHA CHAVE:
-                # Troca os símbolos bonitos do preview por texto que o PDF entende
-                txt_pdf = line.replace("³√", "Raiz Cubica de ").replace("√", "v")
-                
-                txt_final = f"{letras[l_idx%26]}) {txt_pdf}"
-                # O .encode('latin-1', 'ignore') evita que o PDF dê erro de "bosta"
-                pdf.cell(larg_col, 8, txt_final.encode('latin-1', 'ignore').decode('latin-1'), 
-                         ln=(l_idx % int(layout_cols) == int(layout_cols)-1))
-                l_idx += 1
 elif menu == "man":
     txt = st.text_area("Digite as questões (uma por linha):")
-    if st.button("Aplicar"): st.session_state.preview_questoes = txt.split("\n")
+    if st.button("Aplicar"): 
+        st.session_state.preview_questoes = txt.split("\n")
 
 elif menu == "op":
     t_o = st.radio("Operação:", ["Soma", "Subtração", "Multiplicação", "Divisão"], horizontal=True)
@@ -144,18 +145,18 @@ elif menu == "op":
 if st.session_state.preview_questoes:
     st.divider()
     st.subheader("👁️ Preview")
-    for l in st.session_state.preview_questoes: st.write(l.replace("SQRT", "√"))
+    for l in st.session_state.preview_questoes: 
+        st.write(l)
     
     def export_pdf():
-        # Usando FPDF2
+        from fpdf import FPDF
         pdf = FPDF()
         pdf.add_page()
-        
-        # Usamos 'Symbol' ou configuramos a substituição manual
         pdf.set_font("Helvetica", size=12)
         
         if usar_cabecalho and os.path.exists("cabecalho.png"):
-            pdf.image("cabecalho.png", 10, 10, 190); pdf.set_y(55)
+            pdf.image("cabecalho.png", 10, 10, 190)
+            pdf.set_y(55)
         else:
             pdf.set_y(15)
             
@@ -167,9 +168,8 @@ if st.session_state.preview_questoes:
             line = line.strip()
             if not line: continue
             
-            # Tratamento de Símbolos para o PDF não quebrar
-            # Substituímos os códigos internos pelos símbolos visuais
-            line = line.replace("SQRT", "V").replace("3v", "3v")
+            # Converte símbolos para o PDF não dar erro
+            line_pdf = line.replace("³√", "Raiz Cubica de ").replace("√", "v ")
             
             if line.startswith(".M"):
                 pdf.set_font("Helvetica", size=10)
@@ -179,15 +179,14 @@ if st.session_state.preview_questoes:
                 pdf.cell(190, 10, line[2:].strip(), ln=True, align='C')
             elif re.match(r'^\d+\.', line):
                 pdf.set_font("Helvetica", 'B', 12)
-                pdf.cell(190, 10, line, ln=True); l_idx = 0
+                pdf.cell(190, 10, line, ln=True)
+                l_idx = 0
             else:
                 pdf.set_font("Helvetica", size=12)
-                # Aqui está o truque: usamos o caractere 'V' estilizado ou 
-                # a representação literal que o PDF aceita sem dar erro de encoding
-                txt = f"{letras[l_idx%26]}) {line}"
-                
-                # Encode latin-1 com 'ignore' evita que o PDF aborte se encontrar algo estranho
+                txt = f"{letras[l_idx%26]}) {line_pdf}"
                 pdf.cell(larg_col, 8, txt.encode('latin-1', 'ignore').decode('latin-1'), 
                          ln=(l_idx % int(layout_cols) == int(layout_cols)-1))
                 l_idx += 1
         return bytes(pdf.output())
+
+    st.download_button("📥 Baixar PDF", data=export_pdf(), file_name="atividade.pdf", mime="application/pdf")
