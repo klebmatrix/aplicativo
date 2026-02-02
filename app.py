@@ -56,7 +56,15 @@ menu = st.session_state.sub_menu
 
 # --- 5. LÓGICAS DOS GERADORES ---
 
-if menu == "col":
+if menu == "man":
+    st.subheader("Gerador Manual")
+    txt_input = st.text_area("Digite as questões (uma por linha):", placeholder="Ex: .MTexto de margem\nt.Título\n1.Questão numérica\nQuestão de letra")
+    if st.button("Gerar PDF do Manual"):
+        if txt_input:
+            st.session_state.preview_questoes = txt_input.split("\n")
+            st.success("Conteúdo manual carregado!")
+
+elif menu == "col":
     t_col = st.radio("Tema:", ["Radiciação", "Potenciação", "Porcentagem"], horizontal=True)
     if t_col == "Radiciação":
         m_r = st.selectbox("Raiz:", ["Quadrada", "Cúbica", "Misturada"])
@@ -67,38 +75,23 @@ if menu == "col":
                 if sel == "Quadrada": qs.append(f"SQRT({random.randint(2,12)**2}) =")
                 else: qs.append(f"CBRT({random.randint(2,5)**3}) =")
             st.session_state.preview_questoes = [".M1", "t. Radiciação", "1. Calcule:"] + qs
-    elif t_col == "Porcentagem":
-        if st.button("Gerar Porcentagem"):
-            qs = [f"{random.choice([5,10,15,20,25,50])}% de {random.randint(100, 1000)} =" for _ in range(10)]
-            st.session_state.preview_questoes = [".M1", "t. Porcentagem", "1. Calcule os valores:"] + qs
-    else: # Potenciação
-        if st.button("Gerar Potenciação"):
-            qs = [f"{random.randint(2,15)}² =" for _ in range(12)]
-            st.session_state.preview_questoes = [".M1", "t. Potenciação", "1. Calcule as potências:"] + qs
-
-elif menu == "op":
-    tipo_op = st.radio("Operação:", ["Soma", "Subtração", "Multiplicação", "Divisão"], horizontal=True)
-    if st.button("Gerar Operações"):
-        s = {"Soma":"+", "Subtração":"-", "Multiplicação":"x", "Divisão":"÷"}[tipo_op]
-        qs = [f"{random.randint(10,999)} {s} {random.randint(10,99)} =" for _ in range(12)]
-        st.session_state.preview_questoes = [".M1", f"t. {tipo_op}", "1. Calcule:"] + qs
 
 # --- 6. CALCULADORES ONLINE ---
-if menu == "fin":
-    st.subheader("Calculadora Financeira (Juros Simples)")
-    cap = st.number_input("Capital (R$):", value=1000.0)
-    tax = st.number_input("Taxa (% ao mês):", value=2.0)
-    tem = st.number_input("Tempo (meses):", value=12)
-    if st.button("Calcular Juros"):
-        j = cap * (tax/100) * tem
-        st.session_state.res_calc = f"Juros: R$ {j:.2f} | Total: R$ {cap + j:.2f}"
-
 if menu == "calc_f":
-    va = st.number_input("a", value=1.0); vb = st.number_input("b", value=-5.0); vc = st.number_input("c", value=6.0)
-    if st.button("Calcular Bhaskara"):
-        d = vb**2 - 4*va*vc
-        if d >= 0: st.session_state.res_calc = f"Delta: {d} | x1: {(-vb+math.sqrt(d))/(2*va)} | x2: {(-vb-math.sqrt(d))/(2*va)}"
-        else: st.session_state.res_calc = "Delta negativo (sem raízes reais)."
+    st.subheader("Calculadora de Bhaskara")
+    col1, col2, col3 = st.columns(3)
+    va = col1.number_input("Valor de a", value=1.0)
+    vb = col2.number_input("Valor de b", value=-5.0)
+    vc = col3.number_input("Valor de c", value=6.0)
+    
+    if st.button("Calcular Raízes"):
+        delta = (vb**2) - (4 * va * vc)
+        if delta < 0:
+            st.session_state.res_calc = f"Delta = {delta}. Não existem raízes reais."
+        else:
+            x1 = (-vb + math.sqrt(delta)) / (2 * va)
+            x2 = (-vb - math.sqrt(delta)) / (2 * va)
+            st.session_state.res_calc = f"Delta = {delta} | x1 = {x1} | x2 = {x2}"
 
 if st.session_state.res_calc:
     st.info(st.session_state.res_calc)
@@ -140,4 +133,4 @@ if st.session_state.preview_questoes:
                 else: pdf.set_x(pdf.get_x() + (larg_col - 40))
         return bytes(pdf.output())
 
-    st.download_button("📥 Baixar PDF", data=export_pdf(), file_name="atividade.pdf")
+    st.download_button("📥 Baixar PDF", data=export_pdf(), file_name="atividade_quantum.pdf")
