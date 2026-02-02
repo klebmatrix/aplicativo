@@ -27,11 +27,16 @@ if not st.session_state.perfil:
         else: st.error("PIN Incorreto")
     st.stop()
 
-# --- 3. SIDEBAR ---
+# --- 3. SIDEBAR (SAIR E LIMPAR FIXOS) ---
 st.sidebar.title(f"🚀 {st.session_state.perfil.upper()}")
+if st.sidebar.button("🚪 Sair / Logout", use_container_width=True):
+    st.session_state.clear(); st.rerun()
+
+st.sidebar.divider()
 usar_cabecalho = st.sidebar.checkbox("Ativar Cabeçalho", value=True)
 layout_cols = st.sidebar.selectbox("Colunas PDF:", [1, 2, 3], index=1)
-if st.sidebar.button("🧹 Limpar Tudo"):
+
+if st.sidebar.button("🧹 Limpar Atividade", use_container_width=True):
     st.session_state.preview_questoes = []; st.session_state.res_calc = ""; st.rerun()
 
 # --- 4. CENTRO DE COMANDO ---
@@ -39,7 +44,7 @@ st.title("🛠️ Centro de Comando Quantum")
 g1, g2, g3, g4, g5, g6 = st.columns(6)
 if g1.button("🔢 Operações"): st.session_state.sub_menu = "op"
 if g2.button("📐 Equações"): st.session_state.sub_menu = "eq"
-if g3.button("⛓️ Sistemas"): st.session_state.sub_menu = "sis"
+if g3.button("⛓️ Sistemas"): st.session_state.sub_menu = "sis" # SISTEMAS AQUI
 if g4.button("⚖️ Álgebra"): st.session_state.sub_menu = "alg"
 if g5.button("🎓 Colegial"): st.session_state.sub_menu = "col"
 if g6.button("📄 Manual"): st.session_state.sub_menu = "man"
@@ -53,27 +58,29 @@ if c3.button("💰 Financeira"): st.session_state.sub_menu = "fin"
 st.divider()
 menu = st.session_state.sub_menu
 
-# --- 5. LÓGICA DE OPERAÇÕES (CONSERTADA) ---
-if menu == "op":
-    st.subheader("🔢 Operações Básicas")
-    t_op = st.radio("Escolha a Operação:", ["Soma", "Subtração", "Multiplicação", "Divisão"], horizontal=True)
-    if st.button("Gerar Atividade de Operações"):
-        if t_op == "Soma":
-            qs = [f"{random.randint(100, 999)} + {random.randint(100, 999)} =" for _ in range(12)]
-        elif t_op == "Subtração":
-            qs = [f"{random.randint(500, 999)} - {random.randint(10, 499)} =" for _ in range(12)]
-        elif t_op == "Multiplicação":
-            qs = [f"{random.randint(10, 99)} x {random.randint(2, 9)} =" for _ in range(12)]
-        else: # Divisão
-            qs = []
-            for _ in range(12):
-                divisor = random.randint(2, 9)
-                quociente = random.randint(10, 50)
-                dividendo = divisor * quociente
-                qs.append(f"{dividendo} ÷ {divisor} =")
-        st.session_state.preview_questoes = [".M1", f"t. Atividade de {t_op}", "1. Resolva as operações abaixo:"] + qs
+# --- 5. LÓGICA DE SISTEMAS (RESTAURADA) ---
+if menu == "sis":
+    st.subheader("⛓️ Sistemas de Equações")
+    t_sis = st.radio("Grau do Sistema:", ["1º Grau", "2º Grau"], horizontal=True)
+    if st.button("Gerar Sistemas"):
+        if t_sis == "1º Grau":
+            qs = [f"{{ x + y = {random.randint(5,20)} \n  {{ x - y = {random.randint(1,10)}" for _ in range(4)]
+        else:
+            qs = [f"{{ x + y = {random.randint(5,15)} \n  x * y = {random.randint(6,50)}" for _ in range(3)]
+        st.session_state.preview_questoes = [".M1", f"t. Sistemas de {t_sis}", "1. Resolva os sistemas abaixo:"] + qs
 
-# --- 6. LÓGICA DO COLEGIAL ---
+# --- 6. LÓGICA DE OPERAÇÕES ---
+elif menu == "op":
+    st.subheader("🔢 Operações Básicas")
+    t_op = st.radio("Escolha:", ["Soma", "Subtração", "Multiplicação", "Divisão"], horizontal=True)
+    if st.button("Gerar Operações"):
+        if t_op == "Soma": qs = [f"{random.randint(100, 999)} + {random.randint(100, 999)} =" for _ in range(12)]
+        elif t_op == "Subtração": qs = [f"{random.randint(500, 999)} - {random.randint(10, 499)} =" for _ in range(12)]
+        elif t_op == "Multiplicação": qs = [f"{random.randint(10, 99)} x {random.randint(2, 9)} =" for _ in range(12)]
+        else: qs = [f"{random.randint(10, 50)*d} ÷ {d} =" for d in [random.randint(2,9) for _ in range(12)]]
+        st.session_state.preview_questoes = [".M1", f"t. Atividade de {t_op}", "1. Resolva:"] + qs
+
+# --- 7. LÓGICA DO COLEGIAL ---
 elif menu == "col":
     st.subheader("🎓 Módulo Colegial")
     t_col = st.radio("Tema:", ["Radiciação", "Potenciação", "Porcentagem"], horizontal=True)
@@ -92,26 +99,6 @@ elif menu == "col":
         if st.button("Gerar Porcentagem"):
             qs = [f"{random.randint(1,15)*5}% de {random.randint(10,100)*10} =" for _ in range(10)]
             st.session_state.preview_questoes = [".M1", "t. Porcentagem", "1. Calcule:"] + qs
-
-# --- 7. CALCULADORES ---
-elif menu == "calc_f":
-    a_v = st.number_input("a", value=1.0); b_v = st.number_input("b", value=-5.0); c_v = st.number_input("c", value=6.0)
-    if st.button("Calcular Bhaskara"):
-        delta = b_v**2 - 4*a_v*c_v
-        if delta >= 0:
-            st.success(f"Delta: {delta} | x1: {(-b_v+math.sqrt(delta))/(2*a_v):.2f} | x2: {(-b_v-math.sqrt(delta))/(2*a_v):.2f}")
-        else: st.error("Delta negativo.")
-
-elif menu == "pemdas":
-    exp_txt = st.text_input("Expressão (PEMDAS):")
-    if st.button("Resolver Expressão"):
-        try: st.success(f"Resultado: {eval(exp_txt.replace('x','*').replace(',','.'))}")
-        except: st.error("Erro na conta.")
-
-elif menu == "fin":
-    cap = st.number_input("Capital", value=1000.0); taxa = st.number_input("Taxa %", value=10.0); meses = st.number_input("Meses", value=12)
-    if st.button("Calcular Juros Simples"):
-        st.success(f"Juros: R$ {cap*(taxa/100)*meses:.2f}")
 
 # --- 8. MOTOR PDF ---
 if st.session_state.preview_questoes:
