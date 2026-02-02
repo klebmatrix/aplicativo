@@ -3,7 +3,7 @@ import random
 import re
 import os
 import math
-from fpdf import FPDF  # fpdf2 também usa esse comando de importação
+from fpdf import fpdf2  # fpdf2 também usa esse comando de importação
 
 # --- 1. CONFIGURAÇÃO ---
 st.set_page_config(page_title="Quantum Math Lab", layout="wide")
