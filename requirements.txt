@@ -1,6 +1,8 @@
 streamlit
 numpy
 cryptography
-fpdf
+fpdf2
 scipy
 pandas
+streamlit
+
