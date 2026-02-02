@@ -104,23 +104,29 @@ elif menu == "sis":
         else: qs = [f"{{ x + y = {random.randint(5,15)} \n  x * y = {random.randint(6,50)}" for _ in range(3)]
         st.session_state.preview_questoes = [".M1", f"t. Sistemas {t_sis}", "1. Resolva:"] + qs
 
-elif menu == "col":
-    t_col = st.radio("Tema:", ["Radiciação", "Potenciação", "Porcentagem"], horizontal=True)
-    if t_col == "Radiciação":
-        g_r = st.radio("Raiz:", ["Quadrada", "Cúbica"], horizontal=True)
-        if st.button("Gerar Radic."):
-            qs = [f"SQRT({random.randint(2,15)**2}) =" for _ in range(10)] if g_r == "Quadrada" else [f"3v({random.randint(2,10)**3}) =" for _ in range(10)]
-            st.session_state.preview_questoes = [".M1", f"t. Radicacao {g_r}", "1. Calcule:"] + qs
-    elif t_col == "Potenciação":
-        ex_p = st.selectbox("Expoente:", [2, 3, 4])
-        if st.button("Gerar Potênc."):
-            qs = [f"{random.randint(2,12)}^{ex_p} =" for _ in range(10)]
-            st.session_state.preview_questoes = [".M1", f"t. Potenciacao (Exp {ex_p})", "1. Calcule:"] + qs
-    else:
-        if st.button("Gerar Porcent."):
-            qs = [f"{random.randint(1,15)*5}% de {random.randint(10,100)*10} =" for _ in range(10)]
-            st.session_state.preview_questoes = [".M1", "t. Porcentagem", "1. Resolva:"] + qs
+if t == "Radiciação":
+        g = st.radio("Tipo:", ["Quadrada", "Cúbica"], horizontal=True)
+        if st.button("Gerar Radiciação"):
+            if g == "Quadrada":
+                # Símbolo √ direto para o preview
+                qs = [f"√{random.randint(2,15)**2} =" for _ in range(10)]
+            else:
+                # Símbolo ³√ direto para o preview
+                qs = [f"³√{random.randint(2,10)**3} =" for _ in range(10)]
+            st.session_state.preview_questoes = [".M1", f"t. Radicacao {g}", "1. Calcule as raizes:"] + qs
 
+else:
+                pdf.set_font("Arial", size=12)
+                
+                # ESTA É A LINHA CHAVE:
+                # Troca os símbolos bonitos do preview por texto que o PDF entende
+                txt_pdf = line.replace("³√", "Raiz Cubica de ").replace("√", "v")
+                
+                txt_final = f"{letras[l_idx%26]}) {txt_pdf}"
+                # O .encode('latin-1', 'ignore') evita que o PDF dê erro de "bosta"
+                pdf.cell(larg_col, 8, txt_final.encode('latin-1', 'ignore').decode('latin-1'), 
+                         ln=(l_idx % int(layout_cols) == int(layout_cols)-1))
+                l_idx += 1
 elif menu == "man":
     txt = st.text_area("Digite as questões (uma por linha):")
     if st.button("Aplicar"): st.session_state.preview_questoes = txt.split("\n")
