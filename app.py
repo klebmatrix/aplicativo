@@ -8,40 +8,38 @@ from fpdf import FPDF
 # --- 1. CONFIGURAÇÃO ---
 st.set_page_config(page_title="Quantum Math Lab", layout="wide")
 
-# Inicialização de variáveis de estado
-for key in ['perfil', 'sub_menu', 'preview_questoes', 'res_calc']:
-    if key not in st.session_state:
-        st.session_state[key] = [] if key == 'preview_questoes' else ""
+if 'perfil' not in st.session_state: st.session_state.perfil = ""
+if 'sub_menu' not in st.session_state: st.session_state.sub_menu = ""
+if 'preview_questoes' not in st.session_state: st.session_state.preview_questoes = []
 
 # --- 2. LOGIN ---
 def validar_acesso(pin):
     p_aluno = str(st.secrets.get("acesso_aluno", "123456")).strip()
     p_prof = str(st.secrets.get("chave_mestra", "chave_mestra")).strip().lower()
-    if pin == p_prof: return "admin"
-    if pin == p_aluno: return "aluno"
-    return None
+    return "admin" if pin == p_prof else "aluno" if pin == p_aluno else None
 
 if not st.session_state.perfil:
     st.title("🔐 Login Quantum")
     pin_input = st.text_input("PIN:", type="password")
     if st.button("Acessar"):
         res = validar_acesso(pin_input)
-        if res: 
-            st.session_state.perfil = res
-            st.rerun()
+        if res: st.session_state.perfil = res; st.rerun()
         else: st.error("PIN Incorreto")
     st.stop()
 
 # --- 3. SIDEBAR ---
 st.sidebar.title(f"🚀 {st.session_state.perfil.upper()}")
+# OPÇÃO DE CABEÇALHO AQUI
+usar_cabecalho = st.sidebar.checkbox("Ativar Cabeçalho (Imagem)", value=True)
 layout_cols = st.sidebar.selectbox("Colunas PDF:", [1, 2, 3], index=1)
+
 if st.sidebar.button("🧹 Limpar Tudo"):
-    st.session_state.preview_questoes = []; st.session_state.res_calc = ""; st.rerun()
+    st.session_state.preview_questoes = []; st.rerun()
 if st.sidebar.button("🚪 Sair"):
     st.session_state.clear(); st.rerun()
 
 # --- 4. CENTRO DE COMANDO ---
-st.title("🛠️ Centro de Comando Quantum")
+st.title("🛠️ Centro de Comando")
 g1, g2, g3, g4, g5, g6 = st.columns(6)
 if g1.button("🔢 Operações"): st.session_state.sub_menu = "op"
 if g2.button("📐 Equações"): st.session_state.sub_menu = "eq"
@@ -50,59 +48,48 @@ if g4.button("⚖️ Álgebra"): st.session_state.sub_menu = "alg"
 if g5.button("🎓 Colegial"): st.session_state.sub_menu = "col"
 if g6.button("📄 Manual"): st.session_state.sub_menu = "man"
 
-st.write("")
-c1, c2, c3 = st.columns(3)
-if c1.button("𝑓(x) Bhaskara"): st.session_state.sub_menu = "calc_f"
-if c2.button("📊 PEMDAS"): st.session_state.sub_menu = "pemdas"
-if c3.button("💰 Financeira"): st.session_state.sub_menu = "fin"
-
 st.divider()
 menu = st.session_state.sub_menu
 
-# --- 5. LÓGICAS DOS GERADORES ---
+# --- 5. LÓGICAS (COLEGIAL COM SELETORES) ---
 if menu == "col":
-    tipo = st.radio("Tema:", ["Radiciação", "Potenciação", "Porcentagem"], horizontal=True)
-    if tipo == "Radiciação":
-        grau = st.radio("Raiz:", ["Quadrada", "Cúbica"], horizontal=True)
-        if st.button("Gerar Radiciação"):
-            if grau == "Quadrada": qs = [f"SQRT({random.randint(2,12)**2}) =" for _ in range(10)]
-            else: qs = [f"³√({random.randint(2,6)**3}) =" for _ in range(10)]
-            st.session_state.preview_questoes = [".M1", f"t. Radiciação {grau}", "1. Calcule:"] + qs
-    elif tipo == "Potenciação":
-        exp = st.selectbox("Expoente:", [2, 3, 4])
-        if st.button("Gerar Potenciação"):
-            qs = [f"{random.randint(2,12)}^{exp} =" for _ in range(10)]
-            st.session_state.preview_questoes = [".M1", f"t. Potenciação (Exp {exp})", "1. Calcule:"] + qs
-    elif tipo == "Porcentagem":
-        if st.button("Gerar Porcentagem"):
-            qs = [f"{random.randint(1,15)*5}% de {random.randint(10,100)*10} =" for _ in range(10)]
-            st.session_state.preview_questoes = [".M1", "t. Porcentagem", "1. Resolva:"] + qs
+    t = st.radio("Tema:", ["Radiciação", "Potenciação", "Porcentagem"], horizontal=True)
+    if t == "Radiciação":
+        g = st.radio("Tipo:", ["Quadrada", "Cúbica"], horizontal=True)
+        if st.button("Gerar"):
+            if g == "Quadrada": qs = [f"SQRT({random.randint(2,15)**2}) =" for _ in range(10)]
+            else: qs = [f"3v({random.randint(2,10)**3}) =" for _ in range(10)]
+            st.session_state.preview_questoes = [".M1", f"t. Radicacao {g}", "1. Calcule:"] + qs
+    elif t == "Potenciação":
+        ex = st.selectbox("Expoente:", [2, 3, 4])
+        if st.button("Gerar"):
+            qs = [f"{random.randint(2,12)}^{ex} =" for _ in range(10)]
+            st.session_state.preview_questoes = [".M1", f"t. Potenciacao (Exp {ex})", "1. Calcule:"] + qs
+    elif t == "Porcentagem":
+        if st.button("Gerar"):
+            qs = [f"{random.randint(1,10)*5}% de {random.randint(10,100)*10} =" for _ in range(10)]
+            st.session_state.preview_questoes = [".M1", "t. Porcentagem", "1. Calcule:"] + qs
 
 elif menu == "op":
-    tipo_op = st.radio("Operação:", ["Soma", "Subtração", "Multiplicação", "Divisão"], horizontal=True)
     if st.button("Gerar Operações"):
-        s = {"Soma": "+", "Subtração": "-", "Multiplicação": "x", "Divisão": "÷"}[tipo_op]
-        qs = [f"{random.randint(10, 999)} {s} {random.randint(10, 99)} =" for _ in range(12)]
-        st.session_state.preview_questoes = [".M1", f"t. {tipo_op}", "1. Calcule:"] + qs
+        qs = [f"{random.randint(10,99)} + {random.randint(10,99)} =" for _ in range(12)]
+        st.session_state.preview_questoes = [".M1", "t. Operacoes", "1. Calcule:"] + qs
 
-elif menu == "man":
-    txt = st.text_area("Texto Manual:")
-    if st.button("Aplicar"): st.session_state.preview_questoes = txt.split("\n")
-
-# --- 6. MOTOR PDF (FIX) ---
+# --- 6. MOTOR PDF ---
 if st.session_state.preview_questoes:
     st.subheader("👁️ Preview")
-    for l in st.session_state.preview_questoes: st.write(l.replace("SQRT", "√"))
+    for l in st.session_state.preview_questoes: st.write(l)
 
     def export_pdf():
         pdf = FPDF()
         pdf.add_page()
-        # Header Image (Conforme sua instrução)
-        if os.path.exists("cabecalho.png"):
+        
+        # LÓGICA DO CABEÇALHO NO PDF
+        if usar_cabecalho and os.path.exists("cabecalho.png"):
             pdf.image("cabecalho.png", 10, 10, 190)
-            pdf.set_y(50)
+            pdf.set_y(55) # Espaço para a imagem
         else:
-            pdf.set_y(20)
+            pdf.set_y(15) # Começa do topo se estiver desligado
             
         letras = "abcdefghijklmnopqrstuvwxyz"
         l_idx = 0
@@ -121,22 +108,9 @@ if st.session_state.preview_questoes:
             else:
                 col = l_idx % int(layout_cols)
                 pdf.set_font("Arial", size=12)
-                # Formata item com letra: a), b), c)...
-                item_txt = f"{letras[l_idx%26]}) {line}".replace("SQRT", "V")
-                pdf.cell(larg_col, 8, item_txt.encode('latin-1', 'ignore').decode('latin-1'), ln=(col == int(layout_cols)-1))
+                txt = f"{letras[l_idx%26]}) {line}".encode('latin-1', 'ignore').decode('latin-1')
+                pdf.cell(larg_col, 8, txt, ln=(col == int(layout_cols)-1))
                 l_idx += 1
-        
-        # Retorna o PDF como bytes diretamente
         return bytes(pdf.output())
 
-    # Chamada segura do botão de download
-    try:
-        pdf_data = export_pdf()
-        st.download_button(
-            label="📥 Baixar PDF",
-            data=pdf_data,
-            file_name="atividade.pdf",
-            mime="application/pdf"
-        )
-    except Exception as e:
-        st.error(f"Erro ao gerar PDF: {e}")
+    st.download_button("📥 Baixar PDF", data=export_pdf(), file_name="atividade.pdf", mime="application/pdf")
