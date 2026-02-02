@@ -141,22 +141,47 @@ if st.session_state.preview_questoes:
     for l in st.session_state.preview_questoes: st.write(l.replace("SQRT", "√"))
     
     def export_pdf():
+        # Usando FPDF2
         pdf = FPDF()
         pdf.add_page()
+        
+        # Usamos 'Symbol' ou configuramos a substituição manual
+        pdf.set_font("Helvetica", size=12)
+        
         if usar_cabecalho and os.path.exists("cabecalho.png"):
             pdf.image("cabecalho.png", 10, 10, 190); pdf.set_y(55)
-        else: pdf.set_y(15)
-        letras = "abcdefghijklmnopqrstuvwxyz"; l_idx = 0; larg_col = 190 / int(layout_cols)
+        else:
+            pdf.set_y(15)
+            
+        letras = "abcdefghijklmnopqrstuvwxyz"
+        l_idx = 0
+        larg_col = 190 / int(layout_cols)
+        
         for line in st.session_state.preview_questoes:
             line = line.strip()
             if not line: continue
-            if line.startswith(".M"): pdf.set_font("Arial", size=10); pdf.cell(190, 8, line[1:], ln=True)
-            elif line.lower().startswith("t."): pdf.set_font("Arial", 'B', 14); pdf.cell(190, 10, line[2:].strip(), ln=True, align='C')
-            elif re.match(r'^\d+\.', line): pdf.set_font("Arial", 'B', 12); pdf.cell(190, 10, line, ln=True); l_idx = 0
+            
+            # Tratamento de Símbolos para o PDF não quebrar
+            # Substituímos os códigos internos pelos símbolos visuais
+            line = line.replace("SQRT", "V").replace("3v", "3v")
+            
+            if line.startswith(".M"):
+                pdf.set_font("Helvetica", size=10)
+                pdf.cell(190, 8, line[1:], ln=True)
+            elif line.lower().startswith("t."):
+                pdf.set_font("Helvetica", 'B', 14)
+                pdf.cell(190, 10, line[2:].strip(), ln=True, align='C')
+            elif re.match(r'^\d+\.', line):
+                pdf.set_font("Helvetica", 'B', 12)
+                pdf.cell(190, 10, line, ln=True); l_idx = 0
             else:
-                pdf.set_font("Arial", size=12)
-                txt = f"{letras[l_idx%26]}) {line}".encode('latin-1', 'ignore').decode('latin-1')
-                pdf.cell(larg_col, 8, txt, ln=(l_idx % int(layout_cols) == int(layout_cols)-1)); l_idx += 1
+                pdf.set_font("Helvetica", size=12)
+                # Aqui está o truque: usamos o caractere 'V' estilizado ou 
+                # a representação literal que o PDF aceita sem dar erro de encoding
+                txt = f"{letras[l_idx%26]}) {line}"
+                
+                # Encode latin-1 com 'ignore' evita que o PDF aborte se encontrar algo estranho
+                pdf.cell(larg_col, 8, txt.encode('latin-1', 'ignore').decode('latin-1'), 
+                         ln=(l_idx % int(layout_cols) == int(layout_cols)-1))
+                l_idx += 1
         return bytes(pdf.output())
-
-    st.download_button("📥 Baixar PDF", data=export_pdf(), file_name="atividade.pdf", mime="application/pdf")
