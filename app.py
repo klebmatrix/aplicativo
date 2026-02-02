@@ -3,25 +3,17 @@ import random
 import re
 import os
 import math
-from fpdf import FPDF  # Importação correta para fpdf2
+from fpdf import FPDF
 
 # --- 1. CONFIGURAÇÃO ---
 st.set_page_config(page_title="Quantum Math Lab", layout="wide")
 
-# Persistência do perfil e menus
-if 'perfil' not in st.session_state:
-    st.session_state.perfil = None
+# Inicialização de estados
+for key in ['perfil', 'sub_menu', 'preview_questoes', 'res_calc']:
+    if key not in st.session_state:
+        st.session_state[key] = [] if key == 'preview_questoes' else ""
 
-if 'sub_menu' not in st.session_state:
-    st.session_state.sub_menu = ""
-
-if 'preview_questoes' not in st.session_state:
-    st.session_state.preview_questoes = []
-
-if 'res_calc' not in st.session_state:
-    st.session_state.res_calc = ""
-
-# --- 2. LOGIN (USANDO CHAVE_MESTRA E PIN) ---
+# --- 2. LOGIN ---
 def validar_acesso(pin):
     p_aluno = str(st.secrets.get("acesso_aluno", "123456")).strip()
     p_prof = str(st.secrets.get("chave_mestra", "chave_mestra")).strip().lower()
@@ -29,131 +21,137 @@ def validar_acesso(pin):
     if pin == p_aluno: return "aluno"
     return None
 
-if st.session_state.perfil is None:
+if not st.session_state.perfil:
     st.title("🔐 Login Quantum")
-    pin_input = st.text_input("Digite seu PIN de acesso:", type="password")
+    pin_input = st.text_input("PIN:", type="password")
     if st.button("Acessar"):
         res = validar_acesso(pin_input)
         if res:
             st.session_state.perfil = res
             st.rerun()
-        else:
-            st.error("PIN Incorreto.")
+        else: st.error("PIN Incorreto")
     st.stop()
 
 # --- 3. SIDEBAR ---
 st.sidebar.title(f"🚀 {st.session_state.perfil.upper()}")
-usar_cabecalho = st.sidebar.checkbox("Usar cabecalho.png", value=True)
-recuo_cabecalho = st.sidebar.slider("Altura do Título (PDF):", 20, 80, 45)
-layout_cols = st.sidebar.selectbox("Colunas no PDF:", [1, 2, 3], index=1)
+usar_cabecalho = st.sidebar.checkbox("Usar cabeçalho", value=True)
+recuo_cabecalho = st.sidebar.slider("Altura Título:", 20, 80, 45)
+layout_cols = st.sidebar.selectbox("Colunas:", [1, 2, 3], index=1)
 
-if st.sidebar.button("🧹 Limpar Atividade"):
+if st.sidebar.button("🧹 Limpar Tudo"):
     st.session_state.preview_questoes = []
     st.session_state.res_calc = ""
     st.rerun()
 
-# --- 4. CENTRO DE COMANDO (6 GERADORES + 3 CALCULADORES) ---
+# --- 4. CENTRO DE COMANDO (6+3) ---
 st.title("🛠️ Centro de Comando")
 g1, g2, g3, g4, g5, g6 = st.columns(6)
-if g1.button("🔢 Operações"): st.session_state.sub_menu = "op"
-if g2.button("📐 Equações"): st.session_state.sub_menu = "eq"
-if g3.button("⛓️ Sistemas"): st.session_state.sub_menu = "sis"
-if g4.button("⚖️ Álgebra"): st.session_state.sub_menu = "alg"
-if g5.button("🎓 Colegial"): st.session_state.sub_menu = "col"
-if g6.button("📄 Manual"): st.session_state.sub_menu = "man"
+if g1.button("🔢 Operações", use_container_width=True): st.session_state.sub_menu = "op"
+if g2.button("📐 Equações", use_container_width=True): st.session_state.sub_menu = "eq"
+if g3.button("⛓️ Sistemas", use_container_width=True): st.session_state.sub_menu = "sis"
+if g4.button("⚖️ Álgebra", use_container_width=True): st.session_state.sub_menu = "alg"
+if g5.button("🎓 Colegial", use_container_width=True): st.session_state.sub_menu = "col"
+if g6.button("📄 Manual", use_container_width=True): st.session_state.sub_menu = "man"
 
 st.write("---")
 c1, c2, c3 = st.columns(3)
-if c1.button("𝑓(x) Bhaskara"): st.session_state.sub_menu = "calc_f"
-if c2.button("📊 PEMDAS"): st.session_state.sub_menu = "pemdas"
-if c3.button("💰 Financeira"): st.session_state.sub_menu = "fin"
+if c1.button("𝑓(x) Bhaskara", use_container_width=True): st.session_state.sub_menu = "calc_f"
+if c2.button("📊 PEMDAS", use_container_width=True): st.session_state.sub_menu = "pemdas"
+if c3.button("💰 Financeira", use_container_width=True): st.session_state.sub_menu = "fin"
 
 menu = st.session_state.sub_menu
 
-# --- 5. LÓGICA DO MENU COLEGIAL (RADICIAÇÃO) ---
+# --- 5. LÓGICAS DOS CALCULADORES (CORRIGIDAS) ---
+if menu == "calc_f":
+    st.subheader("Calculadora de Bhaskara")
+    col_a, col_b, col_c = st.columns(3)
+    va = col_a.number_input("a", value=1.0)
+    vb = col_b.number_input("b", value=-5.0)
+    vc = col_c.number_input("c", value=6.0)
+    if st.button("Calcular Raízes"):
+        delta = vb**2 - 4*va*vc
+        if delta < 0: st.session_state.res_calc = f"Delta: {delta} (Sem raízes reais)"
+        else:
+            x1 = (-vb + math.sqrt(delta))/(2*va)
+            x2 = (-vb - math.sqrt(delta))/(2*va)
+            st.session_state.res_calc = f"Delta: {delta} | x1: {x1} | x2: {x2}"
+
+elif menu == "pemdas":
+    st.subheader("Calculadora PEMDAS")
+    exp = st.text_input("Expressão (use * para multiplicar):", "2 + 3 * (10/2)")
+    if st.button("Resolver"):
+        try: st.session_state.res_calc = f"Resultado: {eval(exp)}"
+        except: st.session_state.res_calc = "Erro na expressão!"
+
+elif menu == "fin":
+    st.subheader("Juros Simples")
+    cap = st.number_input("Capital:", value=1000.0)
+    tax = st.number_input("Taxa (% ao mês):", value=2.0)
+    tem = st.number_input("Meses:", value=12)
+    if st.button("Calcular Montante"):
+        juros = cap * (tax/100) * tem
+        st.session_state.res_calc = f"Juros: R$ {juros:.2f} | Total: R$ {cap + juros:.2f}"
+
+# Exibe o resultado do cálculo se houver
+if st.session_state.res_calc:
+    st.info(st.session_state.res_calc)
+
+# --- 6. LÓGICA COLEGIAL ---
 if menu == "col":
-    tipo = st.radio("Escolha o tema:", ["Radiciação", "Potenciação", "Porcentagem"], horizontal=True)
-    
+    tipo = st.radio("Tema:", ["Radiciação", "Potenciação"], horizontal=True)
     if tipo == "Radiciação":
-        modo_raiz = st.selectbox("Tipo de Raiz:", ["Misturada", "Apenas Quadrada", "Apenas Cúbica"])
-        if st.button("Gerar Atividade"):
+        modo = st.selectbox("Tipo:", ["Quadrada", "Cúbica", "Misturada"])
+        if st.button("Gerar Questoes"):
             qs = []
             for _ in range(12):
-                # Decide se é quadrada ou cúbica
-                escolha = modo_raiz
-                if modo_raiz == "Misturada":
-                    escolha = random.choice(["Apenas Quadrada", "Apenas Cúbica"])
-                
-                if escolha == "Apenas Quadrada":
+                m = modo if modo != "Misturada" else random.choice(["Quadrada", "Cúbica"])
+                if m == "Quadrada":
                     n = random.randint(2, 12)
-                    qs.append(f"√{n**2} =")
+                    qs.append(f"sqrt({n**2}) =")
                 else:
                     n = random.randint(2, 5)
-                    qs.append(f"³√{n**3} =")
-            st.session_state.preview_questoes = [".M1", "t. Atividade de Radiciação", "1. Calcule as raízes abaixo:"] + qs
-
-# (Aqui você pode incluir as lógicas de 'op', 'eq', 'sis', 'alg', 'man' seguindo o mesmo padrão)
-
-# --- 6. CALCULADORES ---
-if menu == "calc_f":
-    a = st.number_input("a", value=1.0); b = st.number_input("b", value=-5.0); c = st.number_input("c", value=6.0)
-    if st.button("Calcular"):
-        delta = b**2 - 4*a*c
-        if delta < 0: st.session_state.res_calc = "Delta negativo, não há raízes reais."
-        else:
-            x1 = (-b + math.sqrt(delta)) / (2*a)
-            x2 = (-b - math.sqrt(delta)) / (2*a)
-            st.session_state.res_calc = f"Delta: {delta} | x1: {x1} | x2: {x2}"
-    if st.session_state.res_calc: st.success(st.session_state.res_calc)
+                    qs.append(f"cbrt({n**3}) =")
+            st.session_state.preview_questoes = [".M1", "t. Atividade de Radiciação", "1. Resolva:"] + qs
 
 # --- 7. MOTOR PDF ---
 if st.session_state.preview_questoes:
-    st.subheader("👁️ Preview da Atividade")
-    with st.container(border=True):
-        for line in st.session_state.preview_questoes:
-            st.write(line)
+    st.subheader("Preview")
+    for line in st.session_state.preview_questoes:
+        st.write(line.replace("sqrt", "√").replace("cbrt", "∛"))
 
     def export_pdf():
         pdf = FPDF()
         pdf.add_page()
-        
-        # Título e Cabeçalho
-        y_pos = 10
+        y = 10
         if usar_cabecalho and os.path.exists("cabecalho.png"):
             pdf.image("cabecalho.png", 10, 10, 190)
-            y_pos = recuo_cabecalho
-        pdf.set_y(y_pos)
-
+            y = recuo_cabecalho
+        pdf.set_y(y)
+        
         letras = "abcdefghijklmnopqrstuvwxyz"
         l_idx = 0
-        larg_col = 190 / int(layout_cols)
-
+        larg = 190 / int(layout_cols)
+        
         for line in st.session_state.preview_questoes:
             line = line.strip()
             if not line: continue
-
-            # AJUSTE DE SÍMBOLOS PARA O PDF (Evita o erro UnicodeException)
-            # Substituímos o símbolo real por um que a fonte padrão entenda ou por texto seguro
-            line_pdf = line.replace('³√', '3v').replace('√', 'v').replace('²', '^2')
-
+            
+            # Limpeza para evitar erro de Unicode no PDF
+            # Usamos nomes que o PDF entende 100%
+            line_pdf = line.replace("sqrt", "raiz").replace("cbrt", "raiz cubica")
+            
             if line.startswith(".M"):
-                pdf.set_font("Helvetica", size=10)
-                pdf.cell(190, 8, line[1:], ln=True)
+                pdf.set_font("Helvetica", size=10); pdf.cell(190, 8, line[1:], ln=True)
             elif line.startswith("t."):
-                pdf.set_font("Helvetica", 'B', 14)
-                pdf.cell(190, 10, line[2:].strip(), ln=True, align='C')
+                pdf.set_font("Helvetica", 'B', 14); pdf.cell(190, 10, line[2:], ln=True, align='C')
             elif re.match(r'^\d+\.', line):
-                pdf.set_font("Helvetica", 'B', 12)
-                pdf.cell(190, 10, line, ln=True)
-                l_idx = 0 # Reinicia letras para nova questão numérica
+                pdf.set_font("Helvetica", 'B', 12); pdf.cell(190, 10, line, ln=True); l_idx = 0
             else:
                 pdf.set_font("Helvetica", size=12)
                 col = l_idx % int(layout_cols)
-                # Regra: linha posterior começa com letra
-                item = f"{letras[l_idx % 26]}) {line_pdf}"
-                pdf.cell(larg_col, 8, item, ln=(col == int(layout_cols)-1))
+                txt = f"{letras[l_idx%26]}) {line_pdf}"
+                pdf.cell(larg, 8, txt, ln=(col == int(layout_cols)-1))
                 l_idx += 1
-        
         return bytes(pdf.output())
 
-    st.download_button("📥 Baixar PDF", data=export_pdf(), file_name="atividade_quantum.pdf", mime="application/pdf")
+    st.download_button("📥 Baixar PDF", data=export_pdf(), file_name="quantum.pdf")
