@@ -53,66 +53,69 @@ if c3.button("💰 Financeira"): st.session_state.sub_menu = "fin"
 st.divider()
 menu = st.session_state.sub_menu
 
-# --- 5. LÓGICAS DOS CALCULADORES (CORRIGIDAS) ---
-if menu == "calc_f":
-    st.subheader("𝑓(x) Bhaskara")
-    col1, col2, col3 = st.columns(3)
-    ca, cb, cc = col1.number_input("a", value=1.0), col2.number_input("b", value=-5.0), col3.number_input("c", value=6.0)
-    if st.button("Calcular"):
-        d = cb**2 - 4*ca*cc
-        if d < 0: st.error(f"Delta: {d} (Sem raízes reais)")
-        else:
-            x1 = (-cb + math.sqrt(d)) / (2*ca)
-            x2 = (-cb - math.sqrt(d)) / (2*ca)
-            st.success(f"Delta: {d} | x1 = {x1:.2f} | x2 = {x2:.2f}")
-
-elif menu == "pemdas":
-    st.subheader("📊 PEMDAS")
-    exp = st.text_input("Expressão:")
-    if st.button("Resolver"):
-        try:
-            res = eval(exp.replace('x', '*').replace(',', '.'))
-            st.success(f"Resultado: {res}")
-        except Exception:
-            st.error("Erro na expressão.")
-
-elif menu == "fin":
-    st.subheader("💰 Juros")
-    cap = st.number_input("Capital", value=1000.0)
-    tax = st.number_input("Taxa %", value=10.0)
-    tmp = st.number_input("Meses", value=12)
-    if st.button("Calcular"):
-        j = cap * (tax/100) * tmp
-        st.success(f"Juros: R$ {j:.2f} | Total: R$ {cap + j:.2f}")
+# --- 5. LÓGICA DE OPERAÇÕES (CONSERTADA) ---
+if menu == "op":
+    st.subheader("🔢 Operações Básicas")
+    t_op = st.radio("Escolha a Operação:", ["Soma", "Subtração", "Multiplicação", "Divisão"], horizontal=True)
+    if st.button("Gerar Atividade de Operações"):
+        if t_op == "Soma":
+            qs = [f"{random.randint(100, 999)} + {random.randint(100, 999)} =" for _ in range(12)]
+        elif t_op == "Subtração":
+            qs = [f"{random.randint(500, 999)} - {random.randint(10, 499)} =" for _ in range(12)]
+        elif t_op == "Multiplicação":
+            qs = [f"{random.randint(10, 99)} x {random.randint(2, 9)} =" for _ in range(12)]
+        else: # Divisão
+            qs = []
+            for _ in range(12):
+                divisor = random.randint(2, 9)
+                quociente = random.randint(10, 50)
+                dividendo = divisor * quociente
+                qs.append(f"{dividendo} ÷ {divisor} =")
+        st.session_state.preview_questoes = [".M1", f"t. Atividade de {t_op}", "1. Resolva as operações abaixo:"] + qs
 
 # --- 6. LÓGICA DO COLEGIAL ---
 elif menu == "col":
-    t = st.radio("Tema:", ["Radiciação", "Potenciação", "Porcentagem"], horizontal=True)
-    if t == "Radiciação":
-        g = st.radio("Tipo:", ["Quadrada", "Cúbica"], horizontal=True)
-        if st.button("Gerar Atividade"):
-            if g == "Quadrada": qs = [f"SQRT({random.randint(2,12)**2}) =" for _ in range(10)]
+    st.subheader("🎓 Módulo Colegial")
+    t_col = st.radio("Tema:", ["Radiciação", "Potenciação", "Porcentagem"], horizontal=True)
+    if t_col == "Radiciação":
+        g_raiz = st.radio("Tipo:", ["Quadrada", "Cúbica"], horizontal=True)
+        if st.button("Gerar Radiciação"):
+            if g_raiz == "Quadrada": qs = [f"SQRT({random.randint(2,15)**2}) =" for _ in range(10)]
             else: qs = [f"3v({random.randint(2,10)**3}) =" for _ in range(10)]
-            st.session_state.preview_questoes = [".M1", f"t. Radicacao {g}", "1. Calcule:"] + qs
-    elif t == "Potenciação":
-        ex = st.selectbox("Expoente:", [2, 3, 4])
-        if st.button("Gerar Atividade"):
-            qs = [f"{random.randint(2,12)}^{ex} =" for _ in range(10)]
-            st.session_state.preview_questoes = [".M1", f"t. Potenciacao (Exp {ex})", "1. Calcule:"] + qs
-    elif t == "Porcentagem":
-        if st.button("Gerar Atividade"):
+            st.session_state.preview_questoes = [".M1", f"t. Radicacao {g_raiz}", "1. Calcule:"] + qs
+    elif t_col == "Potenciação":
+        e_pot = st.selectbox("Expoente:", [2, 3, 4])
+        if st.button("Gerar Potenciação"):
+            qs = [f"{random.randint(2,12)}^{e_pot} =" for _ in range(10)]
+            st.session_state.preview_questoes = [".M1", f"t. Potenciacao (Exp {e_pot})", "1. Calcule:"] + qs
+    elif t_col == "Porcentagem":
+        if st.button("Gerar Porcentagem"):
             qs = [f"{random.randint(1,15)*5}% de {random.randint(10,100)*10} =" for _ in range(10)]
             st.session_state.preview_questoes = [".M1", "t. Porcentagem", "1. Calcule:"] + qs
 
-# ... (Operações e Manual) ...
-elif menu == "op":
-    if st.button("Gerar Operações"):
-        qs = [f"{random.randint(10,99)} + {random.randint(10,99)} =" for _ in range(12)]
-        st.session_state.preview_questoes = [".M1", "t. Operacoes", "1. Calcule:"] + qs
+# --- 7. CALCULADORES ---
+elif menu == "calc_f":
+    a_v = st.number_input("a", value=1.0); b_v = st.number_input("b", value=-5.0); c_v = st.number_input("c", value=6.0)
+    if st.button("Calcular Bhaskara"):
+        delta = b_v**2 - 4*a_v*c_v
+        if delta >= 0:
+            st.success(f"Delta: {delta} | x1: {(-b_v+math.sqrt(delta))/(2*a_v):.2f} | x2: {(-b_v-math.sqrt(delta))/(2*a_v):.2f}")
+        else: st.error("Delta negativo.")
 
-# --- 7. MOTOR PDF ---
+elif menu == "pemdas":
+    exp_txt = st.text_input("Expressão (PEMDAS):")
+    if st.button("Resolver Expressão"):
+        try: st.success(f"Resultado: {eval(exp_txt.replace('x','*').replace(',','.'))}")
+        except: st.error("Erro na conta.")
+
+elif menu == "fin":
+    cap = st.number_input("Capital", value=1000.0); taxa = st.number_input("Taxa %", value=10.0); meses = st.number_input("Meses", value=12)
+    if st.button("Calcular Juros Simples"):
+        st.success(f"Juros: R$ {cap*(taxa/100)*meses:.2f}")
+
+# --- 8. MOTOR PDF ---
 if st.session_state.preview_questoes:
-    st.subheader("👁️ Preview")
+    st.divider()
     for l in st.session_state.preview_questoes: st.write(l.replace("SQRT", "√"))
     def export_pdf():
         pdf = FPDF()
