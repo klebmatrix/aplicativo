@@ -8,6 +8,7 @@ from fpdf import FPDF
 # --- 1. CONFIGURAÇÃO ---
 st.set_page_config(page_title="Quantum Math Lab", layout="wide")
 
+# Inicializa as chaves para não dar erro de "KeyError"
 for key in ['perfil', 'sub_menu', 'preview_questoes', 'res_calc']:
     if key not in st.session_state:
         st.session_state[key] = [] if key == 'preview_questoes' else ""
@@ -23,7 +24,9 @@ if not st.session_state.perfil:
     pin_input = st.text_input("PIN:", type="password")
     if st.button("Acessar"):
         res = validar_acesso(pin_input)
-        if res: st.session_state.perfil = res; st.rerun()
+        if res: 
+            st.session_state.perfil = res
+            st.rerun()
         else: st.error("PIN Incorreto")
     st.stop()
 
@@ -36,7 +39,7 @@ if st.sidebar.button("🧹 Limpar Tudo"):
 if st.sidebar.button("🚪 Sair"):
     st.session_state.clear(); st.rerun()
 
-# --- 4. CENTRO DE COMANDO ---
+# --- 4. CENTRO DE COMANDO (6 GERADORES + 3 CALCULADORES) ---
 st.title("🛠️ Centro de Comando Quantum")
 g1, g2, g3, g4, g5, g6 = st.columns(6)
 if g1.button("🔢 Operações", use_container_width=True): st.session_state.sub_menu = "op"
@@ -57,48 +60,49 @@ menu = st.session_state.sub_menu
 # --- 5. LÓGICAS DOS GERADORES ---
 
 if menu == "man":
-    st.subheader("Gerador Manual")
-    txt_input = st.text_area("Digite as questões (uma por linha):", placeholder="Ex: .MTexto de margem\nt.Título\n1.Questão numérica\nQuestão de letra")
-    if st.button("Gerar PDF do Manual"):
+    st.subheader("✍️ Entrada Manual")
+    txt_input = st.text_area("Digite as questões (uma por linha):", height=200)
+    if st.button("Aplicar Texto Manual"):
         if txt_input:
             st.session_state.preview_questoes = txt_input.split("\n")
-            st.success("Conteúdo manual carregado!")
+            st.success("Texto carregado!")
 
 elif menu == "col":
     t_col = st.radio("Tema:", ["Radiciação", "Potenciação", "Porcentagem"], horizontal=True)
-    if t_col == "Radiciação":
-        m_r = st.selectbox("Raiz:", ["Quadrada", "Cúbica", "Misturada"])
-        if st.button("Gerar Radiciação"):
-            qs = []
-            for _ in range(12):
-                sel = m_r if m_r != "Misturada" else random.choice(["Quadrada", "Cúbica"])
-                if sel == "Quadrada": qs.append(f"SQRT({random.randint(2,12)**2}) =")
-                else: qs.append(f"CBRT({random.randint(2,5)**3}) =")
+    if st.button("Gerar Atividade Colegial"):
+        qs = []
+        if t_col == "Radiciação":
+            for _ in range(12): qs.append(f"SQRT({random.randint(2,12)**2}) =")
             st.session_state.preview_questoes = [".M1", "t. Radiciação", "1. Calcule:"] + qs
+        elif t_col == "Porcentagem":
+            for _ in range(10): qs.append(f"{random.randint(1,10)*5}% de {random.randint(10,100)*10} =")
+            st.session_state.preview_questoes = [".M1", "t. Porcentagem", "1. Calcule:"] + qs
+        else:
+            for _ in range(12): qs.append(f"{random.randint(2,15)}² =")
+            st.session_state.preview_questoes = [".M1", "t. Potenciação", "1. Calcule:"] + qs
 
-# --- 6. CALCULADORES ONLINE ---
+# --- 6. CALCULADORES ---
 if menu == "calc_f":
-    st.subheader("Calculadora de Bhaskara")
+    st.subheader("🧮 Calculadora de Bhaskara")
     col1, col2, col3 = st.columns(3)
-    va = col1.number_input("Valor de a", value=1.0)
-    vb = col2.number_input("Valor de b", value=-5.0)
-    vc = col3.number_input("Valor de c", value=6.0)
-    
-    if st.button("Calcular Raízes"):
+    va = col1.number_input("a", value=1.0)
+    vb = col2.number_input("b", value=-5.0)
+    vc = col3.number_input("c", value=6.0)
+    if st.button("Executar Cálculo"):
         delta = (vb**2) - (4 * va * vc)
         if delta < 0:
-            st.session_state.res_calc = f"Delta = {delta}. Não existem raízes reais."
+            st.session_state.res_calc = f"Delta = {delta} (Não existem raízes reais)"
         else:
             x1 = (-vb + math.sqrt(delta)) / (2 * va)
             x2 = (-vb - math.sqrt(delta)) / (2 * va)
-            st.session_state.res_calc = f"Delta = {delta} | x1 = {x1} | x2 = {x2}"
+            st.session_state.res_calc = f"Delta = {delta} | x1 = {x1:.2f} | x2 = {x2:.2f}"
 
 if st.session_state.res_calc:
     st.info(st.session_state.res_calc)
 
 # --- 7. MOTOR PDF ---
 if st.session_state.preview_questoes:
-    st.subheader("Preview")
+    st.subheader("👁️ Preview")
     for l in st.session_state.preview_questoes:
         st.write(l.replace("SQRT","√").replace("CBRT","∛"))
 
@@ -123,14 +127,10 @@ if st.session_state.preview_questoes:
                 if "SQRT" in line:
                     pdf.set_font("Symbol", size=12); pdf.write(8, chr(214))
                     pdf.set_font("Helvetica", size=12); pdf.write(8, line.replace("SQRT(","").replace(")",""))
-                elif "CBRT" in line:
-                    pdf.set_font("Helvetica", size=8); pdf.write(8, "3")
-                    pdf.set_font("Symbol", size=12); pdf.write(8, chr(214))
-                    pdf.set_font("Helvetica", size=12); pdf.write(8, line.replace("CBRT(","").replace(")",""))
                 else: pdf.write(8, line)
                 l_idx += 1
                 if col == int(layout_cols)-1: pdf.ln(12)
                 else: pdf.set_x(pdf.get_x() + (larg_col - 40))
         return bytes(pdf.output())
 
-    st.download_button("📥 Baixar PDF", data=export_pdf(), file_name="atividade_quantum.pdf")
+    st.download_button("📥 Baixar PDF", data=export_pdf(), file_name="atividade.pdf")
