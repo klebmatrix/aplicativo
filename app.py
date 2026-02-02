@@ -8,7 +8,6 @@ from fpdf import FPDF
 # --- 1. CONFIGURAÇÃO E PERSISTÊNCIA ---
 st.set_page_config(page_title="Quantum Math Lab", layout="wide")
 
-# TRAVA PARA PEDIR LOGIN TODA VEZ
 if 'logado' not in st.session_state:
     st.session_state.perfil = None
 
@@ -16,7 +15,7 @@ for key in ['sub_menu', 'preview_questoes', 'res_calc']:
     if key not in st.session_state:
         st.session_state[key] = [] if key == 'preview_questoes' else ""
 
-# --- 2. LOGIN (Secrets Render) ---
+# --- 2. LOGIN ---
 def validar_acesso(pin):
     p_aluno = str(st.secrets.get("acesso_aluno", "123456")).strip()
     p_prof = str(st.secrets.get("chave_mestra", "chave_mestra")).strip().lower()
@@ -49,7 +48,6 @@ if st.sidebar.button("🚪 Sair / Logout", use_container_width=True):
 
 # --- 4. CENTRO DE COMANDO (6 GERADORES + 3 CALCULADORES) ---
 st.title("🛠️ Centro de Comando Quantum")
-# Linha 1: Os 6 Geradores
 g1, g2, g3, g4, g5, g6 = st.columns(6)
 if g1.button("🔢 Operações", use_container_width=True): st.session_state.sub_menu = "op"
 if g2.button("📐 Equações", use_container_width=True): st.session_state.sub_menu = "eq"
@@ -58,7 +56,6 @@ if g4.button("⚖️ Álgebra", use_container_width=True): st.session_state.sub_
 if g5.button("🎓 Colegial", use_container_width=True): st.session_state.sub_menu = "col"
 if g6.button("📄 Manual", use_container_width=True): st.session_state.sub_menu = "man"
 
-# Linha 2: Os 3 Calculadores
 c1, c2, c3 = st.columns(3)
 if c1.button("𝑓(x) Bhaskara", use_container_width=True): st.session_state.sub_menu = "calc_f"
 if c2.button("📊 PEMDAS", use_container_width=True): st.session_state.sub_menu = "pemdas"
@@ -81,7 +78,7 @@ elif menu == "eq":
         if tipo == "1º Grau":
             qs = [f"{random.randint(2,10)}x {'+' if random.random()>0.5 else '-'} {random.randint(1,20)} = {random.randint(21,99)}" for _ in range(8)]
         else:
-            qs = [f"x² {'-' if random.random()>0.5 else '+'} {random.randint(2,10)}x + {random.randint(1,16)} = 0" for _ in range(5)]
+            qs = [f"x^2 {'-' if random.random()>0.5 else '+'} {random.randint(2,10)}x + {random.randint(1,16)} = 0" for _ in range(5)]
         st.session_state.preview_questoes = [".M1", f"t. Equações de {tipo}", "1. Resolva:"] + qs
 
 elif menu == "sis":
@@ -106,15 +103,15 @@ elif menu == "col":
     tipo = st.radio("Tema:", ["Potenciação", "Radiciação", "Porcentagem"], horizontal=True)
     if st.button("Gerar Atividade Colegial"):
         if tipo == "Potenciação":
-            qs = [f"{random.randint(2,12)}^{random.randint(2,3)} =" for _ in range(12)]
-            st.session_state.preview_questoes = [".M1", "t. Atividade: Potenciação", "1. Calcule:"] + qs
+            qs = [f"{random.randint(2,12)}^2 =" for _ in range(12)]
+            st.session_state.preview_questoes = [".M1", "t. Potenciação", "1. Calcule:"] + qs
         elif tipo == "Radiciação":
-            bases = [4, 9, 16, 25, 36, 49, 64, 81, 100, 144]
-            qs = [f"Raiz de {random.choice(bases)} =" for _ in range(10)]
-            st.session_state.preview_questoes = [".M1", "t. Atividade: Radiciação", "1. Determine a raiz:"] + qs
+            bases = [4, 9, 16, 25, 36, 49, 64, 81, 100]
+            qs = [f"v{random.choice(bases)} =" for _ in range(10)]
+            st.session_state.preview_questoes = [".M1", "t. Radiciação", "1. Determine a raiz:"] + qs
         else:
-            qs = [f"{random.choice([5,10,15,20,25,50])}% de {random.randint(10, 500)} =" for _ in range(10)]
-            st.session_state.preview_questoes = [".M1", "t. Atividade: Porcentagem", "1. Calcule:"] + qs
+            qs = [f"{random.choice([5,10,25,50])}% de {random.randint(10, 500)} =" for _ in range(10)]
+            st.session_state.preview_questoes = [".M1", "t. Porcentagem", "1. Calcule:"] + qs
 
 elif menu == "man":
     txt = st.text_area("Texto Manual:")
@@ -142,7 +139,7 @@ elif menu == "fin":
 
 if st.session_state.res_calc: st.success(st.session_state.res_calc)
 
-# --- 7. MOTOR PDF ---
+# --- 7. MOTOR PDF (CORRIGIDO PARA EVITAR ATTRIBUTEERROR) ---
 if st.session_state.preview_questoes:
     st.subheader("👁️ Preview")
     with st.container(border=True):
@@ -161,6 +158,9 @@ if st.session_state.preview_questoes:
         for line in st.session_state.preview_questoes:
             line = line.strip()
             if not line: continue
+            # Limpeza de caracteres para evitar erro de encoding no PDF
+            line = line.replace('√', 'v').replace('²', '^2')
+            
             if line.startswith(".M"):
                 pdf.set_font("Helvetica", size=12); pdf.cell(190, 10, line[1:], ln=True)
             elif line.lower().startswith("t."):
@@ -170,9 +170,9 @@ if st.session_state.preview_questoes:
             else:
                 pdf.set_font("Helvetica", size=12)
                 col = l_idx % int(layout_cols)
-                # Formatação por letras a), b), c) conforme sua regra salva
                 pdf.cell(larg_col, 8, f"{letras[l_idx%26]}) {line.lstrip('. ')}", ln=(col == int(layout_cols)-1))
                 l_idx += 1
-        return pdf.output(dest='S').encode('latin-1')
+        # CORREÇÃO DO ERRO: Retorna o output de forma que o Streamlit aceite
+        return pdf.output(dest='S').encode('latin-1', errors='ignore')
 
     st.download_button("📥 Baixar PDF", data=export_pdf(), file_name="atividade.pdf")
