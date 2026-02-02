@@ -8,7 +8,7 @@ from fpdf import FPDF
 # --- 1. CONFIGURAÇÃO E PERSISTÊNCIA ---
 st.set_page_config(page_title="Quantum Math Lab", layout="wide")
 
-# TRAVA PARA PEDIR LOGIN TODA VEZ (REINICIA O ESTADO AO RECARREGAR A PÁGINA)
+# TRAVA PARA PEDIR LOGIN TODA VEZ
 if 'logado' not in st.session_state:
     st.session_state.perfil = None
 
@@ -29,36 +29,36 @@ if st.session_state.perfil is None:
         res = validar_acesso(pin_input)
         if res: 
             st.session_state.perfil = res
-            st.session_state.logado = True # Marca login ativo nesta execução
+            st.session_state.logado = True 
             st.rerun()
-        else: 
-            st.error("PIN Incorreto")
+        else: st.error("PIN Incorreto")
     st.stop()
 
-# --- 3. SIDEBAR (CONFIGURAÇÕES E LOGOUT) ---
+# --- 3. SIDEBAR ---
 st.sidebar.title(f"🚀 {st.session_state.perfil.upper()}")
 usar_cabecalho = st.sidebar.checkbox("Usar cabecalho.png", value=True)
 recuo_cabecalho = st.sidebar.slider("Altura do Título:", 20, 80, 45)
 layout_cols = st.sidebar.selectbox("Colunas PDF:", [1, 2, 3], index=1)
 
-st.sidebar.divider()
 if st.sidebar.button("🧹 Limpar Atividade", use_container_width=True):
     st.session_state.preview_questoes = []; st.session_state.res_calc = ""; st.rerun()
 
-# BOTÃO SAIR REINSTALADO AQUI
 if st.sidebar.button("🚪 Sair / Logout", use_container_width=True):
     st.session_state.clear()
     st.rerun()
 
-# --- 4. CENTRO DE COMANDO (8 BOTÕES) ---
+# --- 4. CENTRO DE COMANDO (6 GERADORES + 3 CALCULADORES) ---
 st.title("🛠️ Centro de Comando Quantum")
-g1, g2, g3, g4, g5 = st.columns(5)
+# Linha 1: Os 6 Geradores
+g1, g2, g3, g4, g5, g6 = st.columns(6)
 if g1.button("🔢 Operações", use_container_width=True): st.session_state.sub_menu = "op"
 if g2.button("📐 Equações", use_container_width=True): st.session_state.sub_menu = "eq"
 if g3.button("⛓️ Sistemas", use_container_width=True): st.session_state.sub_menu = "sis"
 if g4.button("⚖️ Álgebra", use_container_width=True): st.session_state.sub_menu = "alg"
-if g5.button("📄 Manual", use_container_width=True): st.session_state.sub_menu = "man"
+if g5.button("🎓 Colegial", use_container_width=True): st.session_state.sub_menu = "col"
+if g6.button("📄 Manual", use_container_width=True): st.session_state.sub_menu = "man"
 
+# Linha 2: Os 3 Calculadores
 c1, c2, c3 = st.columns(3)
 if c1.button("𝑓(x) Bhaskara", use_container_width=True): st.session_state.sub_menu = "calc_f"
 if c2.button("📊 PEMDAS", use_container_width=True): st.session_state.sub_menu = "pemdas"
@@ -68,23 +68,6 @@ st.divider()
 menu = st.session_state.sub_menu
 
 # --- 5. LÓGICAS DOS GERADORES ---
-
-elif menu == "col": # Você pode definir o sub_menu como 'col' para este gerador
-    tipo = st.radio("Escolha o tema:", ["Potenciação", "Radiciação", "Porcentagem"], horizontal=True)
-    if st.button("Gerar Atividades Colegial"):
-        if tipo == "Potenciação":
-            qs = [f"{random.randint(2,15)}^{random.randint(2,3)} =" for _ in range(10)]
-            st.session_state.preview_questoes = [".M1", "t. Atividade: Potenciação", "1. Calcule as potências:"] + qs
-        
-        elif tipo == "Radiciação":
-            bases = [4, 9, 16, 25, 36, 49, 64, 81, 100, 121, 144]
-            qs = [f"√{random.choice(bases)} =" for _ in range(8)]
-            st.session_state.preview_questoes = [".M1", "t. Atividade: Radiciação", "1. Determine a raiz quadrada:"] + qs
-            
-        elif tipo == "Porcentagem":
-            qs = [f"{random.choice([10, 20, 25, 50, 75])}% de {random.randint(100, 1000)} =" for _ in range(8)]
-            st.session_state.preview_questoes = [".M1", "t. Atividade: Porcentagem", "1. Calcule as porcentagens abaixo:"] + qs
-
 if menu == "op":
     tipo = st.radio("Escolha:", ["Soma", "Subtração", "Multiplicação", "Divisão"], horizontal=True)
     if st.button("Gerar Atividade"):
@@ -114,16 +97,30 @@ elif menu == "alg":
     tipo = st.radio("Tipo:", ["Produtos Notáveis", "Fatoração"], horizontal=True)
     if st.button("Gerar Álgebra"):
         if tipo == "Produtos Notáveis":
-            qs = [f"({random.randint(2,5)}x + {random.randint(1,9)})² =", f"(x - {random.randint(2,8)})² =", "(a + b)(a - b) ="]
+            qs = [f"({random.randint(2,5)}x + {random.randint(1,9)})^2 =", f"(x - {random.randint(2,8)})^2 =", "(a + b)(a - b) ="]
         else:
-            qs = ["x² - 64 =", "x² + 12x + 36 =", "x² - 4x + 4 ="]
+            qs = ["x^2 - 64 =", "x^2 + 12x + 36 =", "x^2 - 4x + 4 ="]
         st.session_state.preview_questoes = [".M1", f"t. Álgebra: {tipo}", "1. Desenvolva:"] + qs
+
+elif menu == "col":
+    tipo = st.radio("Tema:", ["Potenciação", "Radiciação", "Porcentagem"], horizontal=True)
+    if st.button("Gerar Atividade Colegial"):
+        if tipo == "Potenciação":
+            qs = [f"{random.randint(2,12)}^{random.randint(2,3)} =" for _ in range(12)]
+            st.session_state.preview_questoes = [".M1", "t. Atividade: Potenciação", "1. Calcule:"] + qs
+        elif tipo == "Radiciação":
+            bases = [4, 9, 16, 25, 36, 49, 64, 81, 100, 144]
+            qs = [f"Raiz de {random.choice(bases)} =" for _ in range(10)]
+            st.session_state.preview_questoes = [".M1", "t. Atividade: Radiciação", "1. Determine a raiz:"] + qs
+        else:
+            qs = [f"{random.choice([5,10,15,20,25,50])}% de {random.randint(10, 500)} =" for _ in range(10)]
+            st.session_state.preview_questoes = [".M1", "t. Atividade: Porcentagem", "1. Calcule:"] + qs
 
 elif menu == "man":
     txt = st.text_area("Texto Manual:")
     if st.button("Aplicar"): st.session_state.preview_questoes = txt.split("\n")
 
-# --- 6. LÓGICAS DOS CALCULADORES ---
+# --- 6. CALCULADORES ---
 elif menu == "calc_f":
     a = st.number_input("a", value=1.0); b = st.number_input("b", value=-5.0); c = st.number_input("c", value=6.0)
     if st.button("Calcular"):
@@ -138,7 +135,7 @@ elif menu == "pemdas":
         except: st.error("Erro na expressão.")
 
 elif menu == "fin":
-    cap = st.number_input("Capital (R$):", value=1000.0); tax = st.number_input("Taxa (%):", value=10.0); tmp = st.number_input("Meses:", value=12)
+    cap = st.number_input("Capital:", value=1000.0); tax = st.number_input("Taxa:", value=10.0); tmp = st.number_input("Meses:", value=12)
     if st.button("Calcular Juros"):
         j = cap * (tax/100) * tmp
         st.session_state.res_calc = f"Juros: R$ {j:.2f} | Total: R$ {cap + j:.2f}"
@@ -173,6 +170,7 @@ if st.session_state.preview_questoes:
             else:
                 pdf.set_font("Helvetica", size=12)
                 col = l_idx % int(layout_cols)
+                # Formatação por letras a), b), c) conforme sua regra salva
                 pdf.cell(larg_col, 8, f"{letras[l_idx%26]}) {line.lstrip('. ')}", ln=(col == int(layout_cols)-1))
                 l_idx += 1
         return pdf.output(dest='S').encode('latin-1')
