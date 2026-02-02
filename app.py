@@ -29,8 +29,17 @@ if not st.session_state.perfil:
 
 # --- 3. SIDEBAR ---
 st.sidebar.title(f"🚀 {st.session_state.perfil.upper()}")
+
+# Botão de Sair (já existia)
 if st.sidebar.button("🚪 Sair", use_container_width=True):
     st.session_state.clear(); st.rerun()
+
+# NOVO: Botão Limpar Atividade (Adicionado aqui)
+if st.sidebar.button("🧹 Limpar Atividade", use_container_width=True):
+    st.session_state.preview_questoes = [] # Zera as questões
+    st.session_state.sub_menu = ""         # Reseta o menu
+    st.rerun()
+
 st.sidebar.divider()
 usar_cabecalho = st.sidebar.checkbox("Ativar Cabeçalho", value=True)
 layout_cols = st.sidebar.selectbox("Colunas PDF:", [1, 2, 3], index=1)
