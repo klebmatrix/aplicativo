@@ -65,61 +65,36 @@ st.divider()
 menu = st.session_state.sub_menu
 
 # --- 5. LÓGICAS DOS GERADORES ---
-if menu == "op":
-    tipo = st.radio("Escolha:", ["Soma", "Subtração", "Multiplicação", "Divisão"], horizontal=True)
-    if st.button("Gerar Atividade"):
-        s = {"Soma": "+", "Subtração": "-", "Multiplicação": "x", "Divisão": "/"}[tipo]
-        qs = [f"{random.randint(10, 999)} {s} {random.randint(10, 99)} =" for _ in range(12)]
-        st.session_state.preview_questoes = [".M1", f"t. Atividade de {tipo}", "1. Calcule:"] + qs
-
-elif menu == "eq":
-    tipo = st.radio("Grau:", ["1º Grau", "2º Grau"], horizontal=True)
-    if st.button("Gerar Equações"):
-        if tipo == "1º Grau":
-            qs = [f"{random.randint(2,10)}x {'+' if random.random()>0.5 else '-'} {random.randint(1,20)} = {random.randint(21,99)}" for _ in range(8)]
-        else:
-            qs = [f"x^2 {'-' if random.random()>0.5 else '+'} {random.randint(2,10)}x + {random.randint(1,16)} = 0" for _ in range(5)]
-        st.session_state.preview_questoes = [".M1", f"t. Equações de {tipo}", "1. Resolva:"] + qs
-
-elif menu == "col":
+if menu == "col":
     tipo = st.radio("Tema:", ["Potenciação", "Radiciação", "Porcentagem"], horizontal=True)
     if tipo == "Radiciação":
         modo_raiz = st.selectbox("Tipo de Raiz:", ["Misturada", "Quadrada", "Cúbica"])
         
     if st.button("Gerar Atividade Colegial"):
         if tipo == "Potenciação":
-            qs = [f"{random.randint(2,12)}^2 =" for _ in range(12)]
+            qs = [f"{random.randint(2,12)}² =" for _ in range(12)]
             st.session_state.preview_questoes = [".M1", "t. Potenciação", "1. Calcule:"] + qs
         elif tipo == "Radiciação":
             qs = []
-            for _ in range(10):
+            for _ in range(12):
                 escolha = modo_raiz if modo_raiz != "Misturada" else random.choice(["Quadrada", "Cúbica"])
                 if escolha == "Quadrada":
-                    qs.append(f"rad({random.randint(2, 12)**2}) =")
+                    qs.append(f"√{random.randint(2, 12)**2} =")
                 else:
-                    qs.append(f"cbrt({random.randint(2, 5)**3}) =")
+                    qs.append(f"³√{random.randint(2, 5)**3} =")
             st.session_state.preview_questoes = [".M1", "t. Radiciação", "1. Calcule as raízes:"] + qs
         else:
             qs = [f"{random.choice([10,25,50])}% de {random.randint(100, 500)} =" for _ in range(10)]
             st.session_state.preview_questoes = [".M1", "t. Porcentagem", "1. Calcule:"] + qs
 
-elif menu == "man":
-    txt = st.text_area("Texto Manual:")
-    if st.button("Aplicar"): st.session_state.preview_questoes = txt.split("\n")
-
-# --- 6. CALCULADORES ---
-if menu == "calc_f":
-    a = st.number_input("a", value=1.0); b = st.number_input("b", value=-5.0); c = st.number_input("c", value=6.0)
-    if st.button("Calcular"):
-        d = b**2 - 4*a*c
-        if d >= 0: st.session_state.res_calc = f"Delta: {d} | x1: {(-b+math.sqrt(d))/(2*a)} | x2: {(-b-math.sqrt(d))/(2*a)}"
-        else: st.session_state.res_calc = "Delta negativo."
-        st.success(st.session_state.res_calc)
-
-# --- 7. MOTOR PDF COM TRATAMENTO DE SÍMBOLOS ---
+# --- 7. MOTOR PDF (COM LIMPEZA DE UNICODE) ---
 if st.session_state.preview_questoes:
     st.subheader("👁️ Preview")
-    for line in st.session_state.preview_questoes: st.write(line.replace("rad", "√").replace("cbrt", "³√"))
+    for line in st.session_state.preview_questoes: st.write(line)
+
+    def limpar_para_pdf(texto):
+        # Esta função troca os símbolos problemáticos por versões aceitas pelo PDF padrão
+        return texto.replace('³√', 'Raiz Cubica de ').replace('√', 'Raiz de ').replace('²', '^2').replace('÷', '/')
 
     def export_pdf():
         pdf = FPDF()
@@ -129,6 +104,7 @@ if st.session_state.preview_questoes:
             pdf.image("cabecalho.png", 10, 10, 190)
             y_ini = recuo_cabecalho 
         pdf.set_y(y_ini)
+        
         letras, l_idx = "abcdefghijklmnopqrstuvwxyz", 0
         larg_col = 190 / int(layout_cols)
         
@@ -136,20 +112,20 @@ if st.session_state.preview_questoes:
             line = line.strip()
             if not line: continue
             
-            # TRATAMENTO ESPECIAL PARA O PDF (Sem quebrar a fonte)
-            line = line.replace('rad', 'R.Quad(').replace('cbrt', 'R.Cub(').replace('^2', ' ao quadrado')
+            # Limpamos o texto ANTES de enviar para o PDF
+            line_limpa = limpar_para_pdf(line)
             
-            if line.startswith(".M"):
-                pdf.set_font("Helvetica", size=12); pdf.cell(190, 10, line[1:], ln=True)
-            elif line.lower().startswith("t."):
-                pdf.set_font("Helvetica", 'B', 14); pdf.cell(190, 10, line[2:].strip(), ln=True, align='C')
-            elif re.match(r'^\d+\.', line):
-                pdf.set_font("Helvetica", size=12); pdf.cell(190, 10, line, ln=True); l_idx = 0
+            if line_limpa.startswith(".M"):
+                pdf.set_font("Helvetica", size=12); pdf.cell(190, 10, line_limpa[1:], ln=True)
+            elif line_limpa.lower().startswith("t."):
+                pdf.set_font("Helvetica", 'B', 14); pdf.cell(190, 10, line_limpa[2:].strip(), ln=True, align='C')
+            elif re.match(r'^\d+\.', line_limpa):
+                pdf.set_font("Helvetica", size=12); pdf.cell(190, 10, line_limpa, ln=True); l_idx = 0
             else:
                 pdf.set_font("Helvetica", size=12)
                 col = l_idx % int(layout_cols)
-                # Aplicando sua regra de a), b), c)
-                texto_item = f"{letras[l_idx%26]}) {line}"
+                # Sua regra: linha posterior com letra
+                texto_item = f"{letras[l_idx%26]}) {line_limpa}"
                 pdf.cell(larg_col, 8, texto_item, ln=(col == int(layout_cols)-1))
                 l_idx += 1
         
