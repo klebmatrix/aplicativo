@@ -3,7 +3,7 @@ import random
 import re
 import os
 import math
-from fpdf import FPDF
+from fpdf import FPDF # fpdf2 também usa este import
 
 # --- 1. CONFIGURAÇÃO ---
 st.set_page_config(page_title="Quantum Math Lab", layout="wide")
@@ -39,14 +39,7 @@ usar_cabecalho = st.sidebar.checkbox("Usar cabecalho.png", value=True)
 recuo_cabecalho = st.sidebar.slider("Altura do Título:", 20, 80, 45)
 layout_cols = st.sidebar.selectbox("Colunas PDF:", [1, 2, 3], index=1)
 
-if st.sidebar.button("🧹 Limpar Atividade", use_container_width=True):
-    st.session_state.preview_questoes = []; st.session_state.res_calc = ""; st.rerun()
-
-if st.sidebar.button("🚪 Sair / Logout", use_container_width=True):
-    st.session_state.clear()
-    st.rerun()
-
-# --- 4. CENTRO DE COMANDO (6 EM CIMA, 3 EMBAIXO) ---
+# --- 4. CENTRO DE COMANDO ---
 st.title("🛠️ Centro de Comando Quantum")
 g1, g2, g3, g4, g5, g6 = st.columns(6)
 if g1.button("🔢 Operações", use_container_width=True): st.session_state.sub_menu = "op"
@@ -56,49 +49,40 @@ if g4.button("⚖️ Álgebra", use_container_width=True): st.session_state.sub_
 if g5.button("🎓 Colegial", use_container_width=True): st.session_state.sub_menu = "col"
 if g6.button("📄 Manual", use_container_width=True): st.session_state.sub_menu = "man"
 
-c1, c2, c3 = st.columns(3)
-if c1.button("𝑓(x) Bhaskara", use_container_width=True): st.session_state.sub_menu = "calc_f"
-if c2.button("📊 PEMDAS", use_container_width=True): st.session_state.sub_menu = "pemdas"
-if c3.button("💰 Financeira", use_container_width=True): st.session_state.sub_menu = "fin"
-
 st.divider()
 menu = st.session_state.sub_menu
 
-# --- 5. LÓGICAS DOS GERADORES ---
+# --- 5. LÓGICA RADICIAÇÃO ---
 if menu == "col":
     tipo = st.radio("Tema:", ["Potenciação", "Radiciação", "Porcentagem"], horizontal=True)
     if tipo == "Radiciação":
         modo_raiz = st.selectbox("Tipo de Raiz:", ["Misturada", "Quadrada", "Cúbica"])
         
     if st.button("Gerar Atividade Colegial"):
-        if tipo == "Potenciação":
-            qs = [f"{random.randint(2,12)}² =" for _ in range(12)]
-            st.session_state.preview_questoes = [".M1", "t. Potenciação", "1. Calcule:"] + qs
-        elif tipo == "Radiciação":
+        if tipo == "Radiciação":
             qs = []
             for _ in range(12):
                 escolha = modo_raiz if modo_raiz != "Misturada" else random.choice(["Quadrada", "Cúbica"])
                 if escolha == "Quadrada":
                     qs.append(f"√{random.randint(2, 12)**2} =")
                 else:
-                    qs.append(f"³√{random.randint(2, 5)**3} =")
+                    qs.append(f"∛{random.randint(2, 5)**3} =") # Símbolo Unicode correto
             st.session_state.preview_questoes = [".M1", "t. Radiciação", "1. Calcule as raízes:"] + qs
-        else:
-            qs = [f"{random.choice([10,25,50])}% de {random.randint(100, 500)} =" for _ in range(10)]
-            st.session_state.preview_questoes = [".M1", "t. Porcentagem", "1. Calcule:"] + qs
 
-# --- 7. MOTOR PDF (COM LIMPEZA DE UNICODE) ---
+# --- 7. MOTOR PDF (COM SUPORTE A SÍMBOLOS UNICODE) ---
 if st.session_state.preview_questoes:
     st.subheader("👁️ Preview")
     for line in st.session_state.preview_questoes: st.write(line)
 
-    def limpar_para_pdf(texto):
-        # Esta função troca os símbolos problemáticos por versões aceitas pelo PDF padrão
-        return texto.replace('³√', 'Raiz Cubica de ').replace('√', 'Raiz de ').replace('²', '^2').replace('÷', '/')
-
     def export_pdf():
+        # ATENÇÃO: Ativamos o modo Unicode do FPDF2
         pdf = FPDF()
         pdf.add_page()
+        
+        # Usamos uma fonte que suporta os símbolos matemáticos
+        pdf.add_font("DejaVu", "", "DejaVuSans.ttf", uni=True) 
+        pdf.set_font("DejaVu", size=12)
+        
         y_ini = 10
         if usar_cabecalho and os.path.exists("cabecalho.png"):
             pdf.image("cabecalho.png", 10, 10, 190)
@@ -112,20 +96,15 @@ if st.session_state.preview_questoes:
             line = line.strip()
             if not line: continue
             
-            # Limpamos o texto ANTES de enviar para o PDF
-            line_limpa = limpar_para_pdf(line)
-            
-            if line_limpa.startswith(".M"):
-                pdf.set_font("Helvetica", size=12); pdf.cell(190, 10, line_limpa[1:], ln=True)
-            elif line_limpa.lower().startswith("t."):
-                pdf.set_font("Helvetica", 'B', 14); pdf.cell(190, 10, line_limpa[2:].strip(), ln=True, align='C')
-            elif re.match(r'^\d+\.', line_limpa):
-                pdf.set_font("Helvetica", size=12); pdf.cell(190, 10, line_limpa, ln=True); l_idx = 0
+            if line.startswith(".M"):
+                pdf.set_font("DejaVu", size=12); pdf.cell(190, 10, line[1:], ln=True)
+            elif line.lower().startswith("t."):
+                pdf.set_font("DejaVu", size=14); pdf.cell(190, 10, line[2:].strip(), ln=True, align='C')
+            elif re.match(r'^\d+\.', line):
+                pdf.set_font("DejaVu", size=12); pdf.cell(190, 10, line, ln=True); l_idx = 0
             else:
-                pdf.set_font("Helvetica", size=12)
                 col = l_idx % int(layout_cols)
-                # Sua regra: linha posterior com letra
-                texto_item = f"{letras[l_idx%26]}) {line_limpa}"
+                texto_item = f"{letras[l_idx%26]}) {line}"
                 pdf.cell(larg_col, 8, texto_item, ln=(col == int(layout_cols)-1))
                 l_idx += 1
         
