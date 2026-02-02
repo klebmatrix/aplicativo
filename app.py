@@ -31,10 +31,10 @@ if not st.session_state.perfil:
 st.sidebar.title(f"🚀 {st.session_state.perfil.upper()}")
 usar_cabecalho = st.sidebar.checkbox("Ativar Cabeçalho", value=True)
 layout_cols = st.sidebar.selectbox("Colunas PDF:", [1, 2, 3], index=1)
-if st.sidebar.button("🧹 Limpar Atividade"):
+if st.sidebar.button("🧹 Limpar Tudo"):
     st.session_state.preview_questoes = []; st.session_state.res_calc = ""; st.rerun()
 
-# --- 4. CENTRO DE COMANDO (GRID COMPLETO) ---
+# --- 4. CENTRO DE COMANDO ---
 st.title("🛠️ Centro de Comando Quantum")
 g1, g2, g3, g4, g5, g6 = st.columns(6)
 if g1.button("🔢 Operações"): st.session_state.sub_menu = "op"
@@ -45,7 +45,6 @@ if g5.button("🎓 Colegial"): st.session_state.sub_menu = "col"
 if g6.button("📄 Manual"): st.session_state.sub_menu = "man"
 
 st.write("---")
-# OS 3 CALCULADORES QUE VOCÊ PEDIU
 c1, c2, c3 = st.columns(3)
 if c1.button("𝑓(x) Bhaskara"): st.session_state.sub_menu = "calc_f"
 if c2.button("📊 PEMDAS"): st.session_state.sub_menu = "pemdas"
@@ -54,62 +53,67 @@ if c3.button("💰 Financeira"): st.session_state.sub_menu = "fin"
 st.divider()
 menu = st.session_state.sub_menu
 
-# --- 5. LÓGICAS DOS CALCULADORES ---
+# --- 5. LÓGICAS DOS CALCULADORES (CORRIGIDAS) ---
 if menu == "calc_f":
     st.subheader("𝑓(x) Bhaskara")
     col1, col2, col3 = st.columns(3)
-    a = col1.number_input("Valor de a", value=1.0)
-    b = col2.number_input("Valor de b", value=-5.0)
-    c = col3.number_input("Valor de c", value=6.0)
-    if st.button("Calcular Raízes"):
-        delta = b**2 - 4*a*c
-        if delta < 0: st.error(f"Delta: {delta} (Sem raízes reais)")
+    ca, cb, cc = col1.number_input("a", value=1.0), col2.number_input("b", value=-5.0), col3.number_input("c", value=6.0)
+    if st.button("Calcular"):
+        d = cb**2 - 4*ca*cc
+        if d < 0: st.error(f"Delta: {d} (Sem raízes reais)")
         else:
-            x1 = (-b + math.sqrt(delta)) / (2*a)
-            x2 = (-b - math.sqrt(delta)) / (2*a)
-            st.success(f"Delta: {delta} | x1 = {x1:.2f} | x2 = {x2:.2f}")
+            x1 = (-cb + math.sqrt(d)) / (2*ca)
+            x2 = (-cb - math.sqrt(d)) / (2*ca)
+            st.success(f"Delta: {d} | x1 = {x1:.2f} | x2 = {x2:.2f}")
 
 elif menu == "pemdas":
-    st.subheader("📊 Calculador PEMDAS")
-    exp = st.text_input("Digite a expressão (ex: 2 + 3 * 4):")
+    st.subheader("📊 PEMDAS")
+    exp = st.text_input("Expressão:")
     if st.button("Resolver"):
-        try: res = eval(exp.replace('x', '*').replace(',', '.'))
-        st.success(f"Resultado: {res}")
-        except: st.error("Expressão inválida")
+        try:
+            res = eval(exp.replace('x', '*').replace(',', '.'))
+            st.success(f"Resultado: {res}")
+        except Exception:
+            st.error("Erro na expressão.")
 
 elif menu == "fin":
-    st.subheader("💰 Juros Simples")
-    cap = st.number_input("Capital (R$)", value=1000.0)
-    tax = st.number_input("Taxa (%)", value=10.0)
-    tmp = st.number_input("Tempo (Meses)", value=12)
-    if st.button("Calcular Juros"):
-        juros = cap * (tax/100) * tmp
-        st.success(f"Juros: R$ {juros:.2f} | Total: R$ {cap + juros:.2f}")
+    st.subheader("💰 Juros")
+    cap = st.number_input("Capital", value=1000.0)
+    tax = st.number_input("Taxa %", value=10.0)
+    tmp = st.number_input("Meses", value=12)
+    if st.button("Calcular"):
+        j = cap * (tax/100) * tmp
+        st.success(f"Juros: R$ {j:.2f} | Total: R$ {cap + j:.2f}")
 
 # --- 6. LÓGICA DO COLEGIAL ---
 elif menu == "col":
-    tipo = st.radio("Tema:", ["Radiciação", "Potenciação", "Porcentagem"], horizontal=True)
-    if tipo == "Radiciação":
-        grau = st.radio("Tipo:", ["Quadrada", "Cúbica"], horizontal=True)
-        if st.button("Gerar"):
-            if grau == "Quadrada": qs = [f"SQRT({random.randint(2,12)**2}) =" for _ in range(10)]
+    t = st.radio("Tema:", ["Radiciação", "Potenciação", "Porcentagem"], horizontal=True)
+    if t == "Radiciação":
+        g = st.radio("Tipo:", ["Quadrada", "Cúbica"], horizontal=True)
+        if st.button("Gerar Atividade"):
+            if g == "Quadrada": qs = [f"SQRT({random.randint(2,12)**2}) =" for _ in range(10)]
             else: qs = [f"3v({random.randint(2,10)**3}) =" for _ in range(10)]
-            st.session_state.preview_questoes = [".M1", f"t. Radicacao {grau}", "1. Calcule:"] + qs
-    elif tipo == "Potenciação":
-        exp = st.selectbox("Expoente:", [2, 3, 4])
-        if st.button("Gerar"):
-            qs = [f"{random.randint(2,12)}^{exp} =" for _ in range(10)]
-            st.session_state.preview_questoes = [".M1", f"t. Potenciacao (Exp {exp})", "1. Calcule:"] + qs
-    elif tipo == "Porcentagem":
-        if st.button("Gerar"):
+            st.session_state.preview_questoes = [".M1", f"t. Radicacao {g}", "1. Calcule:"] + qs
+    elif t == "Potenciação":
+        ex = st.selectbox("Expoente:", [2, 3, 4])
+        if st.button("Gerar Atividade"):
+            qs = [f"{random.randint(2,12)}^{ex} =" for _ in range(10)]
+            st.session_state.preview_questoes = [".M1", f"t. Potenciacao (Exp {ex})", "1. Calcule:"] + qs
+    elif t == "Porcentagem":
+        if st.button("Gerar Atividade"):
             qs = [f"{random.randint(1,15)*5}% de {random.randint(10,100)*10} =" for _ in range(10)]
             st.session_state.preview_questoes = [".M1", "t. Porcentagem", "1. Calcule:"] + qs
+
+# ... (Operações e Manual) ...
+elif menu == "op":
+    if st.button("Gerar Operações"):
+        qs = [f"{random.randint(10,99)} + {random.randint(10,99)} =" for _ in range(12)]
+        st.session_state.preview_questoes = [".M1", "t. Operacoes", "1. Calcule:"] + qs
 
 # --- 7. MOTOR PDF ---
 if st.session_state.preview_questoes:
     st.subheader("👁️ Preview")
     for l in st.session_state.preview_questoes: st.write(l.replace("SQRT", "√"))
-
     def export_pdf():
         pdf = FPDF()
         pdf.add_page()
