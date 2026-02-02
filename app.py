@@ -3,7 +3,7 @@ import random
 import re
 import os
 import math
-from fpdf import FPDF
+from fpdf import FPDF # fpdf2 também usa este import
 
 # --- 1. CONFIGURAÇÃO E PERSISTÊNCIA ---
 st.set_page_config(page_title="Quantum Math Lab", layout="wide")
@@ -78,7 +78,7 @@ elif menu == "eq":
         if tipo == "1º Grau":
             qs = [f"{random.randint(2,10)}x {'+' if random.random()>0.5 else '-'} {random.randint(1,20)} = {random.randint(21,99)}" for _ in range(8)]
         else:
-            qs = [f"x^2 {'-' if random.random()>0.5 else '+'} {random.randint(2,10)}x + {random.randint(1,16)} = 0" for _ in range(5)]
+            qs = [f"x² {'-' if random.random()>0.5 else '+'} {random.randint(2,10)}x + {random.randint(1,16)} = 0" for _ in range(5)]
         st.session_state.preview_questoes = [".M1", f"t. Equações de {tipo}", "1. Resolva:"] + qs
 
 elif menu == "sis":
@@ -94,20 +94,20 @@ elif menu == "alg":
     tipo = st.radio("Tipo:", ["Produtos Notáveis", "Fatoração"], horizontal=True)
     if st.button("Gerar Álgebra"):
         if tipo == "Produtos Notáveis":
-            qs = [f"({random.randint(2,5)}x + {random.randint(1,9)})^2 =", f"(x - {random.randint(2,8)})^2 =", "(a + b)(a - b) ="]
+            qs = [f"({random.randint(2,5)}x + {random.randint(1,9)})² =", f"(x - {random.randint(2,8)})² =", "(a + b)(a - b) ="]
         else:
-            qs = ["x^2 - 64 =", "x^2 + 12x + 36 =", "x^2 - 4x + 4 ="]
+            qs = ["x² - 64 =", "x² + 12x + 36 =", "x² - 4x + 4 ="]
         st.session_state.preview_questoes = [".M1", f"t. Álgebra: {tipo}", "1. Desenvolva:"] + qs
 
 elif menu == "col":
     tipo = st.radio("Tema:", ["Potenciação", "Radiciação", "Porcentagem"], horizontal=True)
     if st.button("Gerar Atividade Colegial"):
         if tipo == "Potenciação":
-            qs = [f"{random.randint(2,12)}^2 =" for _ in range(12)]
+            qs = [f"{random.randint(2,12)}² =" for _ in range(12)]
             st.session_state.preview_questoes = [".M1", "t. Potenciação", "1. Calcule:"] + qs
         elif tipo == "Radiciação":
             bases = [4, 9, 16, 25, 36, 49, 64, 81, 100]
-            qs = [f"v{random.choice(bases)} =" for _ in range(10)]
+            qs = [f"√{random.choice(bases)} =" for _ in range(10)]
             st.session_state.preview_questoes = [".M1", "t. Radiciação", "1. Determine a raiz:"] + qs
         else:
             qs = [f"{random.choice([5,10,25,50])}% de {random.randint(10, 500)} =" for _ in range(10)]
@@ -139,7 +139,7 @@ elif menu == "fin":
 
 if st.session_state.res_calc: st.success(st.session_state.res_calc)
 
-# --- 7. MOTOR PDF (CORRIGIDO PARA EVITAR ATTRIBUTEERROR) ---
+# --- 7. MOTOR PDF (OTIMIZADO PARA FPDF2) ---
 if st.session_state.preview_questoes:
     st.subheader("👁️ Preview")
     with st.container(border=True):
@@ -155,11 +155,13 @@ if st.session_state.preview_questoes:
         pdf.set_y(y_ini)
         letras, l_idx = "abcdefghijklmnopqrstuvwxyz", 0
         larg_col = 190 / int(layout_cols)
+        
         for line in st.session_state.preview_questoes:
             line = line.strip()
             if not line: continue
-            # Limpeza de caracteres para evitar erro de encoding no PDF
-            line = line.replace('√', 'v').replace('²', '^2')
+            
+            # fpdf2 lida bem com latin-1, mas vamos garantir caracteres comuns
+            line = line.replace('√', 'V') # 'V' estilizado ou raiz se usar fonte especial
             
             if line.startswith(".M"):
                 pdf.set_font("Helvetica", size=12); pdf.cell(190, 10, line[1:], ln=True)
@@ -172,7 +174,8 @@ if st.session_state.preview_questoes:
                 col = l_idx % int(layout_cols)
                 pdf.cell(larg_col, 8, f"{letras[l_idx%26]}) {line.lstrip('. ')}", ln=(col == int(layout_cols)-1))
                 l_idx += 1
-        # CORREÇÃO DO ERRO: Retorna o output de forma que o Streamlit aceite
-        return pdf.output(dest='S').encode('latin-1', errors='ignore')
+        
+        # O FPDF2 retorna bytes diretamente com .output()
+        return pdf.output()
 
-    st.download_button("📥 Baixar PDF", data=export_pdf(), file_name="atividade.pdf")
+    st.download_button("📥 Baixar PDF", data=export_pdf(), file_name="atividade.pdf", mime="application/pdf")
