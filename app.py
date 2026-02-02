@@ -68,6 +68,23 @@ st.divider()
 menu = st.session_state.sub_menu
 
 # --- 5. LÓGICAS DOS GERADORES ---
+
+elif menu == "col": # Você pode definir o sub_menu como 'col' para este gerador
+    tipo = st.radio("Escolha o tema:", ["Potenciação", "Radiciação", "Porcentagem"], horizontal=True)
+    if st.button("Gerar Atividades Colegial"):
+        if tipo == "Potenciação":
+            qs = [f"{random.randint(2,15)}^{random.randint(2,3)} =" for _ in range(10)]
+            st.session_state.preview_questoes = [".M1", "t. Atividade: Potenciação", "1. Calcule as potências:"] + qs
+        
+        elif tipo == "Radiciação":
+            bases = [4, 9, 16, 25, 36, 49, 64, 81, 100, 121, 144]
+            qs = [f"√{random.choice(bases)} =" for _ in range(8)]
+            st.session_state.preview_questoes = [".M1", "t. Atividade: Radiciação", "1. Determine a raiz quadrada:"] + qs
+            
+        elif tipo == "Porcentagem":
+            qs = [f"{random.choice([10, 20, 25, 50, 75])}% de {random.randint(100, 1000)} =" for _ in range(8)]
+            st.session_state.preview_questoes = [".M1", "t. Atividade: Porcentagem", "1. Calcule as porcentagens abaixo:"] + qs
+
 if menu == "op":
     tipo = st.radio("Escolha:", ["Soma", "Subtração", "Multiplicação", "Divisão"], horizontal=True)
     if st.button("Gerar Atividade"):
