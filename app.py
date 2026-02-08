@@ -6,35 +6,35 @@ import ast
 import operator as op
 from fpdf import FPDF
 
-# =====================================================
+# ======================================================
 # CONFIG
-# =====================================================
+# ======================================================
 
 st.set_page_config(page_title="Quantum Math Lab", layout="wide")
 
-DEFAULT_STATE = {
+DEFAULTS = {
     "perfil": "",
     "menu": "",
     "preview": []
 }
 
-for k, v in DEFAULT_STATE.items():
+for k, v in DEFAULTS.items():
     if k not in st.session_state:
         st.session_state[k] = v
 
 
-# =====================================================
+# ======================================================
 # UTIL
-# =====================================================
+# ======================================================
 
 def limpar_txt(t: str) -> str:
-    """Remove caracteres que quebram o FPDF (unicode)."""
+    """Remove unicode que quebra o FPDF."""
     return t.encode("latin-1", "ignore").decode("latin-1")
 
 
-# =====================================================
+# ======================================================
 # CALCULADORA SEGURA (sem eval)
-# =====================================================
+# ======================================================
 
 OPS = {
     ast.Add: op.add,
@@ -54,13 +54,13 @@ def safe_eval(expr):
         elif isinstance(node, ast.UnaryOp):
             return OPS[type(node.op)](_eval(node.operand))
         else:
-            raise TypeError
+            raise TypeError("Expressão inválida")
     return _eval(ast.parse(expr, mode="eval").body)
 
 
-# =====================================================
+# ======================================================
 # LOGIN
-# =====================================================
+# ======================================================
 
 def validar(pin):
     aluno = str(st.secrets.get("acesso_aluno", "123456"))
@@ -87,9 +87,9 @@ if not st.session_state.perfil:
     st.stop()
 
 
-# =====================================================
+# ======================================================
 # SIDEBAR
-# =====================================================
+# ======================================================
 
 st.sidebar.title(f"🚀 {st.session_state.perfil.upper()}")
 
@@ -104,13 +104,14 @@ if st.sidebar.button("🧹 Limpar atividade", use_container_width=True):
 
 st.sidebar.divider()
 
-usar_cabecalho = st.sidebar.checkbox("Cabeçalho escolar no PDF", True)
+usar_logo = st.sidebar.checkbox("Logo no PDF", True)
+mostrar_campos = st.sidebar.checkbox("Nome / Turma / Data", True)
 layout_cols = st.sidebar.selectbox("Colunas PDF", [1, 2, 3], 1)
 
 
-# =====================================================
+# ======================================================
 # GERADORES
-# =====================================================
+# ======================================================
 
 def gerar_ops(tipo):
     if tipo == "Soma":
@@ -134,11 +135,11 @@ def gerar_rad(tipo):
     return [f"³√{random.randint(2,10)**3} =" for _ in range(10)]
 
 
-# =====================================================
-# PDF A4 PROFISSIONAL (VERSÃO ESTÁVEL)
-# =====================================================
+# ======================================================
+# PDF PROFISSIONAL
+# ======================================================
 
-def export_pdf(questoes, usar_cabecalho, cols):
+def export_pdf(questoes, usar_logo, mostrar_campos, cols):
 
     pdf = FPDF("P", "mm", "A4")
     pdf.set_auto_page_break(True, 15)
@@ -151,16 +152,17 @@ def export_pdf(questoes, usar_cabecalho, cols):
     pdf.set_right_margin(margem)
     pdf.set_font("Helvetica", size=11)
 
-    # Cabeçalho escolar
-    if usar_cabecalho and os.path.exists("cabecalho.png"):
+    # ---------- LOGO ----------
+    if usar_logo and os.path.exists("cabecalho.png"):
         pdf.image("cabecalho.png", margem, 10, largura)
         pdf.ln(40)
 
-    pdf.cell(largura/2, 8, "Nome: __________________________")
-    pdf.cell(largura/4, 8, "Turma: ____")
-    pdf.cell(largura/4, 8, "Data: ____/____/____", ln=True)
-
-    pdf.ln(8)
+    # ---------- CAMPOS OPCIONAIS ----------
+    if mostrar_campos:
+        pdf.cell(largura/2, 8, "Nome: __________________________")
+        pdf.cell(largura/4, 8, "Turma: ____")
+        pdf.cell(largura/4, 8, "Data: ____/____/____", ln=True)
+        pdf.ln(8)
 
     letras = "abcdefghijklmnopqrstuvwxyz"
     col_w = largura / cols
@@ -177,30 +179,25 @@ def export_pdf(questoes, usar_cabecalho, cols):
                 .replace("³√", "Raiz cubica de ")
         )
 
-        # -------- quebra manual ----------
         if line.startswith("---"):
             pdf.add_page()
             idx = 0
             continue
 
-        # -------- texto livre ----------
         elif line.startswith(".."):
             pdf.multi_cell(largura, 8, limpar_txt(line[2:]))
             idx = 0
 
-        # -------- título ----------
         elif line.lower().startswith("t."):
             pdf.set_font("Helvetica", "B", 16)
             pdf.cell(0, 10, limpar_txt(line[2:]), ln=True, align="C")
             idx = 0
 
-        # -------- seção ----------
         elif re.match(r'^\d+\.', line):
             pdf.set_font("Helvetica", "B", 12)
             pdf.cell(0, 8, limpar_txt(line), ln=True)
             idx = 0
 
-        # -------- questões ----------
         else:
             pdf.set_font("Helvetica", size=12)
             txt = limpar_txt(f"{letras[idx%26]}) {line}")
@@ -210,9 +207,9 @@ def export_pdf(questoes, usar_cabecalho, cols):
     return bytes(pdf.output())
 
 
-# =====================================================
+# ======================================================
 # INTERFACE
-# =====================================================
+# ======================================================
 
 st.title("🛠️ Centro de Comando Quantum")
 
@@ -224,11 +221,12 @@ if c3.button("🎓 Radiciação"): st.session_state.menu = "rad"
 if c4.button("✍️ Manual"): st.session_state.menu = "manual"
 
 
-# =====================================================
-# TELAS
-# =====================================================
-
 menu = st.session_state.menu
+
+
+# ======================================================
+# TELAS
+# ======================================================
 
 if menu == "op":
     t = st.radio("Operação", ["Soma","Subtração","Multiplicação","Divisão"])
@@ -251,9 +249,9 @@ elif menu == "manual":
         st.session_state.preview = txt.split("\n")
 
 
-# =====================================================
+# ======================================================
 # PREVIEW + DOWNLOAD
-# =====================================================
+# ======================================================
 
 if st.session_state.preview:
 
@@ -263,7 +261,12 @@ if st.session_state.preview:
     for l in st.session_state.preview:
         st.write(l)
 
-    pdf_bytes = export_pdf(st.session_state.preview, usar_cabecalho, layout_cols)
+    pdf_bytes = export_pdf(
+        st.session_state.preview,
+        usar_logo,
+        mostrar_campos,
+        layout_cols
+    )
 
     st.download_button(
         "📥 Baixar PDF A4",
