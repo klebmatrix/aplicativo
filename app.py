@@ -4,32 +4,33 @@ import os
 from fpdf import FPDF
 
 # =====================================================
-# CONFIG INICIAL
+# CONFIG
 # =====================================================
 
 st.set_page_config(page_title="Quantum Math Lab", layout="wide")
 
+# estado inicial
 if "perfil" not in st.session_state:
-    st.session_state.perfil = ""
-
+    st.session_state.perfil = None
 if "questoes" not in st.session_state:
     st.session_state.questoes = []
-
 if "gabarito" not in st.session_state:
     st.session_state.gabarito = []
 
 
 # =====================================================
-# LOGIN SIMPLES
-# aluno = 123
-# admin = admin
+# LOGIN (100% FUNCIONAL)
 # =====================================================
 
-def validar_login(pin):
+def login_ok(pin):
+    pin = str(pin).strip().lower()
+
     if pin == "123":
         return "aluno"
+
     if pin == "admin":
         return "admin"
+
     return None
 
 
@@ -37,16 +38,16 @@ if not st.session_state.perfil:
 
     st.title("🔐 Login Quantum")
 
-    pin = st.text_input("PIN", type="password")
+    senha = st.text_input("PIN", type="password")
 
     if st.button("Entrar"):
-        perfil = validar_login(pin)
+        perfil = login_ok(senha)
 
         if perfil:
             st.session_state.perfil = perfil
             st.rerun()
         else:
-            st.error("PIN incorreto")
+            st.error("Use 123 (aluno) ou admin (professor)")
 
     st.stop()
 
@@ -65,46 +66,32 @@ st.sidebar.divider()
 
 usar_logo = st.sidebar.checkbox("Logo no PDF", True)
 mostrar_campos = st.sidebar.checkbox("Nome / Turma / Data", True)
-espaco_resposta = st.sidebar.checkbox("Espaço para resposta", True)
-mostrar_gabarito = st.sidebar.checkbox("Gerar PDF Professor", True)
-colunas = st.sidebar.selectbox("Colunas PDF", [1, 2, 3], 1)
+espaco_resposta = st.sidebar.checkbox("Linha para resposta", True)
+mostrar_gabarito = st.sidebar.checkbox("Gerar gabarito", True)
+colunas = st.sidebar.selectbox("Colunas", [1, 2, 3], 1)
 
 
 # =====================================================
 # FUNÇÕES
 # =====================================================
 
-def limpar_txt(txt):
+def limpar(txt):
     return txt.encode("latin-1", "ignore").decode("latin-1")
 
 
-# -----------------------------------------------------
-# GERADOR DE OPERAÇÕES + GABARITO
-# -----------------------------------------------------
-
-def gerar_operacoes():
-
-    questoes = []
-    respostas = []
-
+def gerar_soma():
+    q, g = [], []
     for _ in range(12):
-
         a = random.randint(100, 999)
         b = random.randint(100, 999)
-
-        questoes.append(f"{a} + {b} =")
-        respostas.append(a + b)
-
-    return questoes, respostas
+        q.append(f"{a} + {b} =")
+        g.append(a + b)
+    return q, g
 
 
-# -----------------------------------------------------
-# EXPORTAR PDF
-# -----------------------------------------------------
+def exportar_pdf(questoes, respostas=None):
 
-def export_pdf(questoes, respostas=None):
-
-    pdf = FPDF("P", "mm", "A4")
+    pdf = FPDF()
     pdf.set_auto_page_break(True, 15)
     pdf.add_page()
 
@@ -112,15 +99,15 @@ def export_pdf(questoes, respostas=None):
     largura = 210 - (margem * 2)
     pdf.set_left_margin(margem)
 
-    # LOGO
+    # logo
     if usar_logo and os.path.exists("cabecalho.png"):
         pdf.image("cabecalho.png", margem, 10, largura)
         pdf.ln(40)
 
-    # CAMPOS
+    # campos
     if mostrar_campos:
         pdf.set_font("Helvetica", size=12)
-        pdf.cell(largura/2, 8, "Nome: __________________________")
+        pdf.cell(largura/2, 8, "Nome: ________________________")
         pdf.cell(largura/4, 8, "Turma: ____")
         pdf.cell(largura/4, 8, "Data: ____/____/____", ln=True)
         pdf.ln(8)
@@ -133,15 +120,14 @@ def export_pdf(questoes, respostas=None):
 
         texto = f"{letras[idx%26]}) {q}"
 
-        if espaco_resposta and respostas is None:
-            texto += " ________"
-
         if respostas:
             texto += f"   ({respostas[i]})"
+        elif espaco_resposta:
+            texto += " ________"
 
         pdf.set_font("Helvetica", size=12)
-        pdf.cell(largura_col, 8, limpar_txt(texto),
-                 ln=(idx % colunas == colunas - 1))
+        pdf.cell(largura_col, 8, limpar(texto),
+                 ln=(idx % colunas == colunas-1))
 
         idx += 1
 
@@ -155,9 +141,7 @@ def export_pdf(questoes, respostas=None):
 st.title("🛠️ Quantum Math Lab")
 
 if st.button("🔢 Gerar Operações de Soma"):
-
-    q, g = gerar_operacoes()
-
+    q, g = gerar_soma()
     st.session_state.questoes = q
     st.session_state.gabarito = g
 
@@ -168,7 +152,7 @@ if st.button("🔢 Gerar Operações de Soma"):
 
 if st.session_state.questoes:
 
-    st.subheader("👁️ Preview")
+    st.subheader("Preview")
 
     for q in st.session_state.questoes:
         st.write(q)
@@ -178,7 +162,7 @@ if st.session_state.questoes:
     with c1:
         st.download_button(
             "📥 PDF Aluno",
-            export_pdf(st.session_state.questoes),
+            exportar_pdf(st.session_state.questoes),
             "atividade_aluno.pdf"
         )
 
@@ -186,7 +170,7 @@ if st.session_state.questoes:
         with c2:
             st.download_button(
                 "🧠 PDF Professor",
-                export_pdf(
+                exportar_pdf(
                     st.session_state.questoes,
                     st.session_state.gabarito
                 ),
