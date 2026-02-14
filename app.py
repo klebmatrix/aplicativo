@@ -74,53 +74,73 @@ if menu == "op":
         st.session_state.preview_questoes = [".M1", f"t. Atividade de {tipo}", "1. Calcule:"] + qs
 # (Outras lógicas mantidas conforme seu original...)
 
-# --- 7. MOTOR PDF (VERSÃO FINAL CORRIGIDA) ---
-    def export_pdf():
-        pdf = FPDF()
-        pdf.add_page()
-        y_ini = 10
-        if usar_cabecalho and os.path.exists("cabecalho.png"):
-            pdf.image("cabecalho.png", 10, 10, 190)
-            y_ini = recuo_cabecalho 
-        
-        pdf.set_y(y_ini)
-        letras = "abcdefghijklmnopqrstuvwxyz"
-        l_idx = 0
-        larg_col = 190 / int(layout_cols)
-        
-        for line in st.session_state.preview_questoes:
-            line = line.strip()
-            if not line: continue
-            
-            if line.startswith(".M"):
-                pdf.set_font("Helvetica", size=12)
-                pdf.cell(190, 10, line[1:], ln=True)
-            elif line.lower().startswith("t."):
-                pdf.set_font("Helvetica", 'B', 14)
-                pdf.cell(190, 10, line[2:].strip(), ln=True, align='C')
-            elif re.match(r'^\d+\.', line):
-                pdf.set_font("Helvetica", size=12)
-                pdf.cell(190, 10, line, ln=True)
-                l_idx = 0
-            else:
-                pdf.set_font("Helvetica", size=12)
-                col = l_idx % int(layout_cols)
-                txt = f"{letras[l_idx%26]}) {line.lstrip('. ')}"
-                pdf.cell(larg_col, 8, txt, ln=(col == int(layout_cols)-1))
-                l_idx += 1
-        
-        # O fpdf2 retorna um bytearray. O Streamlit quer bytes puros.
-        return bytes(pdf.output())
+# --- 7. MOTOR PDF (VERSÃO À PROVA DE BALAS) ---
+if st.session_state.preview_questoes:
+    st.subheader("👁️ Preview")
+    with st.container(border=True):
+        for line in st.session_state.preview_questoes: 
+            st.write(line)
 
-    # Processamento e Botão
-    try:
-        pdf_output = export_pdf()
-        
+    def gerar_pdf_final():
+        try:
+            pdf = FPDF()
+            pdf.add_page()
+            
+            # Ajuste de Cabeçalho
+            y_ini = 10
+            if usar_cabecalho and os.path.exists("cabecalho.png"):
+                pdf.image("cabecalho.png", 10, 10, 190)
+                y_ini = recuo_cabecalho 
+            
+            pdf.set_y(y_ini)
+            letras = "abcdefghijklmnopqrstuvwxyz"
+            l_idx = 0
+            larg_col = 190 / int(layout_cols)
+            
+            # Processamento das questões do session_state
+            for line in st.session_state.preview_questoes:
+                line = line.strip()
+                if not line: continue
+                
+                if line.startswith(".M"):
+                    pdf.set_font("Helvetica", size=12)
+                    pdf.cell(190, 10, line[1:], ln=True)
+                elif line.lower().startswith("t."):
+                    pdf.set_font("Helvetica", 'B', 14)
+                    pdf.cell(190, 10, line[2:].strip(), ln=True, align='C')
+                elif re.match(r'^\d+\.', line):
+                    pdf.set_font("Helvetica", size=12)
+                    pdf.cell(190, 10, line, ln=True)
+                    l_idx = 0
+                else:
+                    pdf.set_font("Helvetica", size=12)
+                    col = l_idx % int(layout_cols)
+                    txt = f"{letras[l_idx%26]}) {line.lstrip('. ')}"
+                    pdf.cell(larg_col, 8, txt, ln=(col == int(layout_cols)-1))
+                    l_idx += 1
+            
+            # --- O PULO DO GATO ---
+            # 1. Gera o PDF como bytes
+            pdf_bytes = pdf.output() 
+            
+            # 2. Se for bytearray (comum no fpdf2), converte para bytes puros
+            if isinstance(pdf_bytes, bytearray):
+                pdf_bytes = bytes(pdf_bytes)
+            
+            return pdf_bytes
+            
+        except Exception as e:
+            st.error(f"Erro interno na geração: {e}")
+            return None
+
+    # Execução do botão
+    pdf_para_download = gerar_pdf_final()
+
+    if pdf_para_download:
         st.download_button(
-            label="📥 Baixar PDF",
-            data=pdf_output,
-            file_name="atividade.pdf",
-            mime="application/pdf"
+            label="📥 Baixar PDF Agora",
+            data=pdf_para_download,
+            file_name="atividade_quantum.pdf",
+            mime="application/pdf",
+            key="btn_download_final" # Chave única para evitar conflitos
         )
-    except Exception as e:
-        st.error(f"Erro ao processar binários: {e}")
