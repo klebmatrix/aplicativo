@@ -4,154 +4,156 @@ import re
 import os
 import math
 from fpdf import FPDF
-from io import BytesIO  # Importação necessária para lidar com memória
+from io import BytesIO
 
 # --- 1. CONFIGURAÇÃO E PERSISTÊNCIA ---
 st.set_page_config(page_title="Quantum Math Lab", layout="wide")
 
-# Inicializa estados se não existirem
-for key in ['perfil', 'sub_menu', 'preview_questoes', 'res_calc']:
-    if key not in st.session_state:
-        st.session_state[key] = [] if key == 'preview_questoes' else None if key == 'perfil' else ""
+# Inicialização robusta do Session State
+if 'perfil' not in st.session_state: st.session_state.perfil = None
+if 'sub_menu' not in st.session_state: st.session_state.sub_menu = ""
+if 'preview_questoes' not in st.session_state: st.session_state.preview_questoes = []
+if 'res_calc' not in st.session_state: st.session_state.res_calc = ""
 
-# --- 2. LOGIN (Secrets Render) ---
+# --- 2. LOGIN ---
 def validar_acesso(pin):
-    p_aluno = str(st.secrets.get("acesso_aluno", "123456")).strip()
-    p_prof = str(st.secrets.get("chave_mestra", "chave_mestra")).strip().lower()
+    p_aluno = str(st.secrets.get("acesso_aluno", "")).strip()
+    p_prof = str(st.secrets.get("chave_mestra", "")).strip().lower()
     return "admin" if pin == p_prof else "aluno" if pin == p_aluno else None
 
 if st.session_state.perfil is None:
-    st.title("🔐 Login")
-    pin_input = st.text_input("PIN:", type="password")
-    if st.button("Acessar"):
+    st.title("🔐 Login Quantum")
+    pin_input = st.text_input("Digite seu PIN:", type="password")
+    if st.button("Acessar Sistema"):
         res = validar_acesso(pin_input)
-        if res: 
+        if res:
             st.session_state.perfil = res
             st.rerun()
-        else: 
+        else:
             st.error("PIN Incorreto")
     st.stop()
 
-# --- 3. SIDEBAR (CONFIGURAÇÕES E LOGOUT) ---
-st.sidebar.title(f"🚀 {st.session_state.perfil.upper()}")
-usar_cabecalho = st.sidebar.checkbox("Usar cabecalho.png", value=True)
-recuo_cabecalho = st.sidebar.slider("Altura do Título:", 20, 80, 45)
-layout_cols = st.sidebar.selectbox("Colunas PDF:", [1, 2, 3], index=1)
+# --- 3. SIDEBAR ---
+st.sidebar.title(f"🚀 Painel {st.session_state.perfil.upper()}")
+usar_cabecalho = st.sidebar.checkbox("Exibir Cabeçalho (PNG)", value=True)
+recuo_cabecalho = st.sidebar.slider("Altura após cabeçalho:", 10, 100, 45)
+layout_cols = st.sidebar.selectbox("Colunas no PDF:", [1, 2, 3], index=1)
 
-st.sidebar.divider()
-if st.sidebar.button("🧹 Limpar Atividade", use_container_width=True):
+if st.sidebar.button("🧹 Limpar Tudo"):
     st.session_state.preview_questoes = []
     st.session_state.res_calc = ""
     st.rerun()
 
-if st.sidebar.button("🚪 Sair / Logout", use_container_width=True):
+if st.sidebar.button("🚪 Sair"):
     st.session_state.clear()
     st.rerun()
 
 # --- 4. CENTRO DE COMANDO ---
 st.title("🛠️ Centro de Comando Quantum")
-g1, g2, g3, g4, g5 = st.columns(5)
-if g1.button("🔢 Operações", use_container_width=True): st.session_state.sub_menu = "op"
-if g2.button("📐 Equações", use_container_width=True): st.session_state.sub_menu = "eq"
-if g3.button("⛓️ Sistemas", use_container_width=True): st.session_state.sub_menu = "sis"
-if g4.button("⚖️ Álgebra", use_container_width=True): st.session_state.sub_menu = "alg"
-if g5.button("📄 Manual", use_container_width=True): st.session_state.sub_menu = "man"
+cols = st.columns(5)
+botoes = ["🔢 Operações", "📐 Equações", "⛓️ Sistemas", "⚖️ Álgebra", "📄 Manual"]
+tags = ["op", "eq", "sis", "alg", "man"]
 
-c1, c2, c3 = st.columns(3)
-if c1.button("𝑓(x) Bhaskara", use_container_width=True): st.session_state.sub_menu = "calc_f"
-if c2.button("📊 PEMDAS", use_container_width=True): st.session_state.sub_menu = "pemdas"
-if c3.button("💰 Financeira", use_container_width=True): st.session_state.sub_menu = "fin"
+for col, nome, tag in zip(cols, botoes, tags):
+    if col.button(nome, use_container_width=True):
+        st.session_state.sub_menu = tag
+
+cols_calc = st.columns(3)
+if cols_calc[0].button("𝑓(x) Bhaskara", use_container_width=True): st.session_state.sub_menu = "calc_f"
+if cols_calc[1].button("📊 PEMDAS", use_container_width=True): st.session_state.sub_menu = "pemdas"
+if cols_calc[2].button("💰 Financeira", use_container_width=True): st.session_state.sub_menu = "fin"
 
 st.divider()
 menu = st.session_state.sub_menu
 
-# --- 5. LÓGICAS DOS GERADORES (Simplificado para o exemplo) ---
+# --- 5. LÓGICAS DOS GERADORES ---
 if menu == "op":
-    tipo = st.radio("Escolha:", ["Soma", "Subtração", "Multiplicação", "Divisão"], horizontal=True)
-    if st.button("Gerar Atividade"):
-        s = {"Soma": "+", "Subtração": "-", "Multiplicação": "x", "Divisão": "÷"}[tipo]
-        qs = [f"{random.randint(10, 999)} {s} {random.randint(10, 99)} =" for _ in range(12)]
-        st.session_state.preview_questoes = [".M1", f"t. Atividade de {tipo}", "1. Calcule:"] + qs
-# (Outras lógicas mantidas conforme seu original...)
+    tipo = st.radio("Operação:", ["Soma", "Subtração", "Multiplicação", "Divisão"], horizontal=True)
+    if st.button("Gerar Lista"):
+        simb = {"Soma": "+", "Subtração": "-", "Multiplicação": "x", "Divisão": "/"}[tipo]
+        qs = [f"{random.randint(10, 999)} {simb} {random.randint(10, 99)} =" for _ in range(12)]
+        st.session_state.preview_questoes = [f"t. Atividade de {tipo}", ".M Resolva as operações com atenção:", "1. Calcule:"] + qs
 
-# --- 7. MOTOR PDF (COM TÍTULO SEPARADO E SUPORTE A MANUAL) ---
+elif menu == "man":
+    txt = st.text_area("Editor Manual (Use 't.' para título e '.M' para instruções):", height=200)
+    if st.button("Lançar no Preview"):
+        st.session_state.preview_questoes = txt.split("\n")
+
+# --- 7. MOTOR PDF (REVISADO E BLINDADO) ---
 if st.session_state.preview_questoes:
-    st.subheader("👁️ Preview da Atividade")
+    st.subheader("👁️ Preview do Documento")
     with st.container(border=True):
-        for line in st.session_state.preview_questoes: 
-            st.write(line)
+        for line in st.session_state.preview_questoes:
+            if line.strip(): st.write(line)
 
-    def gerar_pdf_final():
+    def gerar_pdf_seguro():
         try:
-            # latin-1 é mais seguro para FPDF padrão, mas fpdf2 lida bem com UTF-8
             pdf = FPDF()
             pdf.add_page()
             
-            # 1. CABEÇALHO (IMAGEM)
-            y_atual = 10
+            y_start = 10
             if usar_cabecalho and os.path.exists("cabecalho.png"):
                 pdf.image("cabecalho.png", 10, 10, 190)
-                y_atual = recuo_cabecalho # Define onde o título começa após a imagem
+                y_start = recuo_cabecalho
             
-            pdf.set_y(y_atual)
+            pdf.set_y(y_start)
             letras = "abcdefghijklmnopqrstuvwxyz"
             l_idx = 0
-            larg_col = 190 / int(layout_cols)
-            
-            # 2. PROCESSAMENTO DAS LINHAS
+            cols_count = int(layout_cols)
+            larg_col = 190 / cols_count
+
             for line in st.session_state.preview_questoes:
-                line = line.strip()
-                if not line: continue
-                
-                # Identifica Título (t.)
-                if line.lower().startswith("t."):
+                # Limpeza de caracteres incompatíveis com Latin-1
+                raw_line = line.strip().encode('latin-1', 'replace').decode('latin-1')
+                if not raw_line: continue
+
+                # TÍTULO (t.)
+                if raw_line.lower().startswith("t."):
                     pdf.ln(5)
                     pdf.set_font("Helvetica", 'B', 16)
-                    pdf.cell(190, 10, line[2:].strip(), ln=True, align='C')
+                    pdf.cell(190, 10, raw_line[2:].strip(), ln=True, align='C')
                     pdf.ln(5)
                 
-                # Identifica Metadados ou Instruções (.M)
-                elif line.startswith(".M"):
+                # INSTRUÇÕES (.M)
+                elif raw_line.startswith(".M"):
                     pdf.set_font("Helvetica", 'I', 11)
-                    pdf.multi_cell(190, 8, line[2:].strip())
+                    pdf.multi_cell(190, 7, raw_line[2:].strip())
                     pdf.ln(2)
-                
-                # Identifica Questão Numerada (ex: 1. Calcule)
-                elif re.match(r'^\d+\.', line):
+
+                # QUESTÃO NUMERADA (1., 2...)
+                elif re.match(r'^\d+\.', raw_line):
                     pdf.ln(4)
                     pdf.set_font("Helvetica", 'B', 12)
-                    pdf.cell(190, 10, line, ln=True)
-                    l_idx = 0 # Reseta o contador de letras (a, b, c) para a nova questão
+                    pdf.cell(190, 9, raw_line, ln=True)
+                    l_idx = 0
                 
-                # Itens das Questões (Colunas) ou Texto do Manual
+                # CONTEÚDO / ITENS
                 else:
-                    pdf.set_font("Helvetica", size=12)
-                    if int(layout_cols) > 1:
-                        col = l_idx % int(layout_cols)
-                        txt = f"{letras[l_idx%26]}) {line.lstrip('. ')}"
-                        pdf.cell(larg_col, 8, txt, ln=(col == int(layout_cols)-1))
+                    pdf.set_font("Helvetica", size=11)
+                    if cols_count > 1 and menu != "man":
+                        col_atual = l_idx % cols_count
+                        txt_item = f"{letras[l_idx%26]}) {raw_line.lstrip('. ')}"
+                        pdf.cell(larg_col, 8, txt_item, ln=(col_atual == cols_count - 1))
                         l_idx += 1
                     else:
-                        # Se for 1 coluna, trata como texto corrido (Manual)
-                        pdf.multi_cell(190, 8, line)
+                        pdf.multi_cell(190, 7, raw_line)
             
-            # 3. CONVERSÃO SEGURA PARA BYTES
-            resultado_pdf = pdf.output()
-            if isinstance(resultado_pdf, (bytearray, bytes)):
-                return bytes(resultado_pdf)
-            return resultado_pdf.encode('latin-1')
-            
+            # Retorno em bytes puros para o Streamlit
+            return bytes(pdf.output())
         except Exception as e:
-            st.error(f"Erro na geração do PDF: {e}")
-            return None
+            return f"Erro: {str(e)}"
 
-    # Botão de Download
-    pdf_bytes = gerar_pdf_final()
-    if pdf_bytes:
+    # Geração e Botão de Download
+    pdf_final = gerar_pdf_seguro()
+    
+    if isinstance(pdf_final, bytes):
         st.download_button(
-            label="📥 Baixar PDF da Atividade",
-            data=pdf_bytes,
+            label="📥 Baixar PDF Corrigido",
+            data=pdf_final,
             file_name="atividade_quantum.pdf",
             mime="application/pdf",
-            key="download_pdf_final"
+            key="btn_pdf_v3"
         )
+    else:
+        st.error(pdf_final)
+
