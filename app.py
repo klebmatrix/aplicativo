@@ -73,8 +73,7 @@ if menu == "op":
         qs = [f"{random.randint(10, 999)} {s} {random.randint(10, 99)} =" for _ in range(12)]
         st.session_state.preview_questoes = [".M1", f"t. Atividade de {tipo}", "1. Calcule:"] + qs
 # (Outras lógicas mantidas conforme seu original...)
-
-# --- 7. MOTOR PDF (CORRIGIDO) ---
+# --- 7. MOTOR PDF ---
 if st.session_state.preview_questoes:
     st.subheader("👁️ Preview")
     with st.container(border=True):
@@ -115,17 +114,22 @@ if st.session_state.preview_questoes:
                 pdf.cell(larg_col, 8, txt, ln=(col == int(layout_cols)-1))
                 l_idx += 1
         
-        # A MUDANÇA ESTÁ AQUI:
-        pdf_output = pdf.output()
-        if isinstance(pdf_output, str):
-            # Para versões muito antigas que retornam string latin-1
-            return pdf_output.encode('latin-1')
-        return pdf_output # Retorna os bytes diretamente para o download_button
+        # Retorna os bytes diretamente
+        return pdf.output()
 
-    # Download Button atualizado
-    st.download_button(
-        label="📥 Baixar PDF",
-        data=export_pdf(),
-        file_name="atividade.pdf",
-        mime="application/pdf"
-    )
+    # CRUCIAL: Geramos os dados ANTES do botão
+    try:
+        pdf_data = export_pdf()
+        
+        # Se por algum motivo o fpdf retornar uma string (versões antigas), convertemos
+        if isinstance(pdf_data, str):
+            pdf_data = pdf_data.encode('latin-1')
+
+        st.download_button(
+            label="📥 Baixar PDF",
+            data=pdf_data, # Agora passamos os bytes puros
+            file_name="atividade.pdf",
+            mime="application/pdf"
+        )
+    except Exception as e:
+        st.error(f"Erro ao gerar PDF: {e}")
