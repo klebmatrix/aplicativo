@@ -3,80 +3,83 @@ import random
 import re
 import os
 from fpdf import FPDF
-from io import BytesIO
 
-# --- CONFIGURAÇÃO ---
-st.set_page_config(page_title="Quantum Math Lab", layout="wide")
-
+# --- 1. MEMÓRIA DO APP (O que impede de reduzir/sumir) ---
 if 'autenticado' not in st.session_state: st.session_state.autenticado = False
-if 'preview_questoes' not in st.session_state: st.session_state.preview_questoes = []
+if 'questoes' not in st.session_state: st.session_state.questoes = []
+if 'titulo' not in st.session_state: st.session_state.titulo = "Atividade Quantum"
 
-# --- LOGIN ---
+# --- 2. LOGIN COM CHAVE MESTRA ---
 if not st.session_state.autenticado:
-    st.title("🔐 Login")
+    st.title("🔐 Quantum Lab - Bloqueado")
     chave = str(st.secrets.get("chave_mestra", ""))
     pin = st.text_input("Chave Mestra:", type="password")
-    if st.button("ENTRAR"):
+    if st.button("DESBLOQUEAR"):
         if pin == chave:
             st.session_state.autenticado = True
             st.rerun()
-        else: st.error("Erro!")
+        else: st.error("Chave incorreta!")
     st.stop()
 
-# --- SIDEBAR ---
-st.sidebar.title("🚀 QUANTUM LAB")
-menu = st.sidebar.selectbox("MENU:", ["🔢 Operações", "📄 Manual"])
-layout_cols = st.sidebar.selectbox("Colunas:", [1, 2, 3], index=1)
+# --- 3. MENU LATERAL ---
+st.sidebar.title("🚀 CONFIGURAÇÕES")
+menu = st.sidebar.selectbox("FERRAMENTA:", ["Soma", "Subtração", "Multiplicação", "Manual"])
+cols = st.sidebar.selectbox("Colunas no PDF:", [1, 2, 3], index=1)
 
-if st.sidebar.button("🧹 LIMPAR"):
-    st.session_state.preview_questoes = []
+if st.sidebar.button("🧹 LIMPAR TUDO"):
+    st.session_state.questoes = []
     st.rerun()
 
-# --- LOGICA ---
-st.title(f"🛠️ {menu}")
+# --- 4. LÓGICA DE GERAÇÃO ---
+st.title(f"🛠️ Gerador: {menu}")
 
-if menu == "🔢 Operações":
-    tipo = st.radio("Escolha:", ["Soma", "Subtração", "Multiplicação", "Divisão"], horizontal=True)
-    if st.button("GERAR LISTA"):
-        s = {"Soma": "+", "Subtração": "-", "Multiplicação": "x", "Divisão": "/"}[tipo]
-        st.session_state.preview_questoes = [f"t. Lista de {tipo}", "Calcule:"] + \
-            [f"{random.randint(10, 999)} {s} {random.randint(10, 99)} =" for _ in range(12)]
+if menu != "Manual":
+    if st.button(f"GERAR NOVAS QUESTÕES DE {menu.upper()}"):
+        sinal = {"Soma": "+", "Subtração": "-", "Multiplicação": "x"}[menu]
+        # Salva na memória para não sumir depois
+        st.session_state.questoes = [f"{random.randint(10, 999)} {sinal} {random.randint(10, 99)} =" for _ in range(12)]
+        st.session_state.titulo = f"Lista de {menu}"
 
-# --- PREVIEW E PDF (O CONSERTO) ---
-if st.session_state.preview_questoes:
+elif menu == "Manual":
+    txt = st.text_area("Cole suas questões aqui:")
+    if st.button("SALVAR QUESTÕES"):
+        st.session_state.questoes = txt.split("\n")
+        st.session_state.titulo = "Atividade Manual"
+
+# --- 5. EXIBIÇÃO E PDF (SÓ APARECE SE TIVER DADOS) ---
+if st.session_state.questoes:
     st.divider()
-    for line in st.session_state.preview_questoes: st.write(line)
+    st.subheader(f"👁️ Preview: {st.session_state.titulo}")
+    
+    # Exibe as questões que estão na memória
+    for q in st.session_state.questoes:
+        if q.strip(): st.write(q)
 
-    def criar_pdf_bytes():
+    def criar_pdf():
         pdf = FPDF()
         pdf.add_page()
+        pdf.set_font("Arial", 'B', 16)
+        pdf.cell(190, 10, st.session_state.titulo, ln=True, align='C')
+        pdf.ln(10)
         pdf.set_font("Arial", size=12)
         
-        larg_col = 190 / layout_cols
-        l_idx = 0
-        letras = "abcdefghijklmnopqrstuvwxyz"
-
-        for line in st.session_state.preview_questoes:
-            clean = line.strip().encode('latin-1', 'replace').decode('latin-1')
-            if clean.startswith("t."):
-                pdf.ln(5); pdf.set_font("Arial", 'B', 14)
-                pdf.cell(190, 10, clean[2:].strip(), ln=True, align='C')
-                pdf.set_font("Arial", size=12); l_idx = 0
-            else:
-                col_at = l_idx % layout_cols
-                pdf.cell(larg_col, 8, f"{letras[l_idx%26]}) {clean}", ln=(col_at == layout_cols - 1))
-                l_idx += 1
+        larg_col = 190 / cols
+        for i, q in enumerate(st.session_state.questoes):
+            clean = q.strip().encode('latin-1', 'replace').decode('latin-1')
+            proxima_linha = (i + 1) % cols == 0
+            pdf.cell(larg_col, 10, f"{i+1}) {clean}", ln=proxima_linha)
         
-        # TRANSFORMA EM BYTESIO PARA NÃO DAR ERRO DE UNSUPPORTED
-        return BytesIO(pdf.output(dest='S').encode('latin-1'))
+        # O output direto resolve o erro de AttributeError se usar fpdf2
+        return pdf.output()
 
-    # GERA O OBJETO DE BUFFER
-    pdf_buffer = criar_pdf_bytes()
-
-    st.download_button(
-        label="📥 BAIXAR PDF",
-        data=pdf_buffer.getvalue(), # PEGA O VALOR EM BYTES PURO
-        file_name="quantum_lab.pdf",
-        mime="application/pdf"
-    )
-
+    # TRAVA DE SEGURANÇA PARA O DOWNLOAD_BUTTON
+    try:
+        pdf_bytes = criar_pdf()
+        st.download_button(
+            label="📥 BAIXAR PDF AGORA",
+            data=pdf_bytes,
+            file_name="quantum_lab.pdf",
+            mime="application/pdf"
+        )
+    except Exception as e:
+        st.error(f"Erro ao gerar: {e}")
