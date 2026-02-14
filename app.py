@@ -17,7 +17,7 @@ if 'res_calc' not in st.session_state: st.session_state.res_calc = ""
 def tela_login():
     st.title("🔐 Acesso Restrito")
     # Buscando a chave mestra dos Secrets ou usando o padrão 'admin'
-    chave_mestra = str(st.secrets.get("mestra", "")).strip().lower()
+    chave_mestra = str(st.secrets.get("chave_mestra", "")).strip().lower()
     
     with st.container(border=True):
         pin_input = st.text_input("Insira a Chave Mestra:", type="password")
