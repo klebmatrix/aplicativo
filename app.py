@@ -13,7 +13,7 @@ if 'perfil' not in st.session_state: st.session_state.perfil = None
 if 'preview_questoes' not in st.session_state: st.session_state.preview_questoes = []
 if 'res_calc' not in st.session_state: st.session_state.res_calc = ""
 
-# --- 2. LOGIN ---
+# --- 2. LOGIN (DEPENDENTE DE SECRETS OU PADRÃO) ---
 def validar_acesso(pin):
     try:
         p_aluno = str(st.secrets.get("acesso_aluno", "123")).strip()
@@ -34,11 +34,10 @@ if st.session_state.perfil is None:
         else: st.error("PIN INCORRETO!")
     st.stop()
 
-# --- 3. MENU LATERAL (ESTRUTURA FIXA) ---
+# --- 3. MENU LATERAL ---
 st.sidebar.title(f"🚀 {st.session_state.perfil.upper()}")
-
 menu = st.sidebar.selectbox(
-    "ESCOLHA A FERRAMENTA:",
+    "FERRAMENTA:",
     ["Início", "🔢 Operações", "📐 Equações", "⛓️ Sistemas", "𝑓(x) Bhaskara", "💰 Financeira", "📄 Manual"]
 )
 
@@ -47,19 +46,16 @@ usar_cabecalho = st.sidebar.checkbox("Usar cabeçalho.png", value=True)
 layout_cols = st.sidebar.selectbox("Colunas no PDF:", [1, 2, 3], index=1)
 
 if st.sidebar.button("🧹 LIMPAR TUDO", use_container_width=True):
-    st.session_state.preview_questoes = []
-    st.session_state.res_calc = ""
-    st.rerun()
+    st.session_state.preview_questoes = []; st.session_state.res_calc = ""; st.rerun()
 
 if st.sidebar.button("🚪 SAIR", use_container_width=True):
-    st.session_state.clear()
-    st.rerun()
+    st.session_state.clear(); st.rerun()
 
-# --- 4. LÓGICAS DE CONTEÚDO ---
+# --- 4. ÁREAS DE CONTEÚDO ---
 st.title(f"🛠️ {menu}")
 
 if menu == "Início":
-    st.info("Selecione uma ferramenta na barra lateral para começar.")
+    st.info("Selecione uma opção na barra lateral para começar.")
 
 elif menu == "🔢 Operações":
     tipo = st.radio("Operação:", ["Soma", "Subtração", "Multiplicação", "Divisão"], horizontal=True)
@@ -99,70 +95,60 @@ elif menu == "💰 Financeira":
     cap = st.number_input("Capital (R$):", value=1000.0)
     taxa = st.number_input("Taxa (% ao mês):", value=2.0)
     tempo = st.number_input("Tempo (meses):", value=12)
-    if st.button("CALCULAR JUROS"):
+    if st.button("CALCULAR"):
         juros = cap * (taxa/100) * tempo
-        st.session_state.res_calc = f"Juros Simples: R$ {juros:.2f} | Total: R$ {cap + juros:.2f}"
+        st.session_state.res_calc = f"Juros: R$ {juros:.2f} | Total: R$ {cap + juros:.2f}"
 
 elif menu == "📄 Manual":
     txt = st.text_area("Digite as questões (uma por linha):")
     if st.button("LANÇAR"):
         st.session_state.preview_questoes = txt.split("\n")
 
-# --- 5. EXIBIÇÃO E MOTOR PDF (VERSÃO FPDF2) ---
+# --- 5. EXIBIÇÃO E PDF (AQUI ESTÁ O CONSERTO) ---
 if st.session_state.res_calc:
     st.success(st.session_state.res_calc)
 
+# SÓ ENTRA AQUI SE TIVER QUESTÕES (IMPEDE O ERRO DE DOWNLOAD VAZIO)
 if st.session_state.preview_questoes:
     st.divider()
     st.subheader("👁️ Preview")
     for line in st.session_state.preview_questoes:
         if line.strip(): st.write(line)
 
-    def gerar_pdf_final():
+    # Função interna para gerar o PDF em bytes
+    def criar_pdf():
         pdf = FPDF(orientation='P', unit='mm', format='A4')
         pdf.add_page()
         pdf.set_font("helvetica", size=11)
-        
         y_pos = 50 if usar_cabecalho else 20
         if usar_cabecalho and os.path.exists("cabecalho.png"):
             pdf.image("cabecalho.png", x=10, y=10, w=190)
-        
         pdf.set_y(y_pos)
+        
         larg_col = 190 / layout_cols
         l_idx = 0
         letras = "abcdefghijklmnopqrstuvwxyz"
 
         for line in st.session_state.preview_questoes:
-            clean = line.strip()
+            clean = line.strip().encode('latin-1', 'replace').decode('latin-1')
             if not clean: continue
-            
-            # Cabeçalho de Título
             if clean.startswith("t."):
-                pdf.ln(5)
-                pdf.set_font("helvetica", style='B', size=14)
+                pdf.ln(5); pdf.set_font("helvetica", style='B', size=14)
                 pdf.cell(190, 10, clean[2:].strip(), ln=True, align='C')
-                pdf.set_font("helvetica", size=11)
-                l_idx = 0
-            # Enunciado Numérico
+                pdf.set_font("helvetica", size=11); l_idx = 0
             elif re.match(r'^\d+\.', clean):
-                pdf.ln(5)
-                pdf.set_font("helvetica", style='B', size=12)
-                pdf.cell(190, 8, clean, ln=True)
-                pdf.set_font("helvetica", size=11)
-                l_idx = 0
-            # Itens das questões
+                pdf.ln(5); pdf.set_font("helvetica", style='B', size=12)
+                pdf.cell(190, 8, clean, ln=True); pdf.set_font("helvetica", size=11); l_idx = 0
             else:
                 col_at = l_idx % layout_cols
-                txt_item = f"{letras[l_idx%26]}) {clean}"
-                pdf.cell(larg_col, 8, txt_item, ln=(col_at == layout_cols - 1))
+                pdf.cell(larg_col, 8, f"{letras[l_idx%26]}) {clean}", ln=(col_at == layout_cols - 1))
                 l_idx += 1
-        
-        # O fpdf2 retorna bytes diretamente com output()
         return pdf.output()
 
+    # O botão SÓ é criado se houver dados
     st.download_button(
         label="📥 BAIXAR PDF A4",
-        data=gerar_pdf_final(),
+        data=criar_pdf(),
         file_name="quantum_lab.pdf",
         mime="application/pdf"
     )
