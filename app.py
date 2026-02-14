@@ -73,13 +73,8 @@ if menu == "op":
         qs = [f"{random.randint(10, 999)} {s} {random.randint(10, 99)} =" for _ in range(12)]
         st.session_state.preview_questoes = [".M1", f"t. Atividade de {tipo}", "1. Calcule:"] + qs
 # (Outras lógicas mantidas conforme seu original...)
-# --- 7. MOTOR PDF ---
-if st.session_state.preview_questoes:
-    st.subheader("👁️ Preview")
-    with st.container(border=True):
-        for line in st.session_state.preview_questoes: 
-            st.write(line)
 
+# --- 7. MOTOR PDF (VERSÃO FINAL CORRIGIDA) ---
     def export_pdf():
         pdf = FPDF()
         pdf.add_page()
@@ -114,22 +109,18 @@ if st.session_state.preview_questoes:
                 pdf.cell(larg_col, 8, txt, ln=(col == int(layout_cols)-1))
                 l_idx += 1
         
-        # Retorna os bytes diretamente
-        return pdf.output()
+        # O fpdf2 retorna um bytearray. O Streamlit quer bytes puros.
+        return bytes(pdf.output())
 
-    # CRUCIAL: Geramos os dados ANTES do botão
+    # Processamento e Botão
     try:
-        pdf_data = export_pdf()
+        pdf_output = export_pdf()
         
-        # Se por algum motivo o fpdf retornar uma string (versões antigas), convertemos
-        if isinstance(pdf_data, str):
-            pdf_data = pdf_data.encode('latin-1')
-
         st.download_button(
             label="📥 Baixar PDF",
-            data=pdf_data, # Agora passamos os bytes puros
+            data=pdf_output,
             file_name="atividade.pdf",
             mime="application/pdf"
         )
     except Exception as e:
-        st.error(f"Erro ao gerar PDF: {e}")
+        st.error(f"Erro ao processar binários: {e}")
