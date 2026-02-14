@@ -5,87 +5,68 @@ import os
 import math
 from fpdf import FPDF
 
-# --- 1. CONFIGURAÇÃO E PERSISTÊNCIA ---
+# --- 1. CONFIGURAÇÃO ---
 st.set_page_config(page_title="Quantum Math Lab", layout="wide")
 
-# Inicializa as variáveis de estado se elas não existirem
+# Inicialização de estados
 if 'autenticado' not in st.session_state: st.session_state.autenticado = False
 if 'preview_questoes' not in st.session_state: st.session_state.preview_questoes = []
 if 'res_calc' not in st.session_state: st.session_state.res_calc = ""
 
-# --- 2. TELA DE LOGIN (CHAVE MESTRA) ---
-def tela_login():
-    st.title("🔐 Acesso Restrito")
-    # Buscando a chave mestra dos Secrets ou usando o padrão 'admin'
-    chave_mestra = str(st.secrets.get("chave_mestra", "")).strip().lower()
-    
-    with st.container(border=True):
-        pin_input = st.text_input("Insira a Chave Mestra:", type="password")
-        if st.button("DESBLOQUEAR SISTEMA", use_container_width=True):
-            if pin_input.lower() == chave_mestra:
-                st.session_state.autenticado = True
-                st.rerun()
-            else:
-                st.error("Chave Mestra Inválida!")
-    st.stop()
-
-# Só mostra o app se estiver autenticado
+# --- 2. LOGIN (CHAVE MESTRA) ---
 if not st.session_state.autenticado:
-    tela_login()
+    st.title("🔐 Acesso Restrito")
+    chave_mestra = str(st.secrets.get("chave_mestra", "")).strip().lower()
+    pin_input = st.text_input("Chave Mestra:", type="password")
+    if st.button("DESBLOQUEAR"):
+        if pin_input.lower() == chave_mestra:
+            st.session_state.autenticado = True
+            st.rerun()
+        else:
+            st.error("Incorreto!")
+    st.stop()
 
 # --- 3. MENU LATERAL ---
 st.sidebar.title("🚀 QUANTUM LAB")
-menu = st.sidebar.selectbox(
-    "FERRAMENTA:",
-    ["Início", "🔢 Operações", "📐 Equações", "𝑓(x) Bhaskara", "💰 Financeira (TP)", "📄 Manual"]
-)
+menu = st.sidebar.selectbox("FERRAMENTA:", ["Início", "🔢 Operações", "📐 Equações", "💰 Financeira", "📄 Manual"])
 
-st.sidebar.divider()
-
-# Funcionalidade Infinita Take Profit (Conforme sua instrução)
+# Instrução Personalizada: Take Profit Infinito Ativo
 st.sidebar.success("✅ Take Profit: INFINITO ATIVO")
 
 st.sidebar.divider()
 usar_cabecalho = st.sidebar.checkbox("Usar cabeçalho.png", value=False)
 layout_cols = st.sidebar.selectbox("Colunas no PDF:", [1, 2, 3], index=1)
 
-if st.sidebar.button("🧹 LIMPAR TUDO", use_container_width=True):
+if st.sidebar.button("🧹 LIMPAR TUDO"):
     st.session_state.preview_questoes = []; st.session_state.res_calc = ""; st.rerun()
-
-if st.sidebar.button("🚪 LOGOUT", use_container_width=True):
-    st.session_state.autenticado = False
-    st.rerun()
 
 # --- 4. ÁREAS DE CONTEÚDO ---
 st.title(f"🛠️ {menu}")
 
-if menu == "Início":
-    st.write("Bem-vindo à central Quantum. Sistema desbloqueado e Take Profit operacional.")
-
-elif menu == "🔢 Operações":
-    tipo = st.radio("Operação:", ["Soma", "Subtração", "Multiplicação", "Divisão"], horizontal=True)
+if menu == "🔢 Operações":
+    tipo = st.radio("Escolha:", ["Soma", "Subtração", "Multiplicação", "Divisão"], horizontal=True)
     if st.button("GERAR LISTA"):
         s = {"Soma": "+", "Subtração": "-", "Multiplicação": "x", "Divisão": "/"}[tipo]
-        st.session_state.preview_questoes = [f"t. Lista de {tipo}", "1. Resolva:"] + \
+        st.session_state.preview_questoes = [f"t. Lista de {tipo}", "1. Calcule:"] + \
                                            [f"{random.randint(10, 999)} {s} {random.randint(10, 99)} =" for _ in range(12)]
 
-elif menu == "💰 Financeira (TP)":
-    st.subheader("Cálculo Automático de Take Profit")
-    preco_entrada = st.number_input("Preço de Entrada:", value=100.0)
-    alvo_percent = st.number_input("Alvo de Lucro (%):", value=10.0)
-    
-    if st.button("CALCULAR VENDA"):
-        venda = preco_entrada * (1 + (alvo_percent/100))
-        st.session_state.res_calc = f"Venda Automática em: R$ {venda:.2f}"
+elif menu == "💰 Financeira":
+    # Lógica de Venda Automática (Take Profit)
+    entrada = st.number_input("Entrada:", value=100.0)
+    alvo = st.number_input("Alvo %:", value=10.0)
+    if st.button("CALCULAR TP"):
+        venda = entrada * (1 + (alvo/100))
+        st.session_state.res_calc = f"Venda Automática: R$ {venda:.2f}"
 
 elif menu == "📄 Manual":
-    txt = st.text_area("Digite as questões (uma por linha):")
+    txt = st.text_area("Questões (uma por linha):")
     if st.button("LANÇAR"): st.session_state.preview_questoes = txt.split("\n")
 
-# --- 5. MOTOR DE PDF ---
+# --- 5. MOTOR DE PDF (COM TRAVA DE SEGURANÇA) ---
 if st.session_state.res_calc:
     st.success(st.session_state.res_calc)
 
+# O BOTÃO DE DOWNLOAD SÓ APARECE SE EXISTIR CONTEÚDO NO PREVIEW
 if st.session_state.preview_questoes:
     st.divider()
     st.subheader("👁️ Preview")
@@ -119,4 +100,15 @@ if st.session_state.preview_questoes:
                 l_idx += 1
         return pdf.output()
 
-    st.download_button("📥 BAIXAR PDF", data=gerar_pdf(), file_name="quantum_lab.pdf", mime="application/pdf")
+    # ESSA É A LINHA QUE RESOLVE O ERRO:
+    # A função gerar_pdf() só é chamada se o componente for montado após a geração das questões.
+    pdf_final = gerar_pdf()
+    
+    st.download_button(
+        label="📥 BAIXAR PDF", 
+        data=pdf_final, 
+        file_name="quantum_lab.pdf", 
+        mime="application/pdf"
+    )
+else:
+    st.info("Nenhuma questão gerada. Use as ferramentas acima para criar o conteúdo do PDF.")
