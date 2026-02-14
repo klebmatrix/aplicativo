@@ -1,8 +1,3 @@
 streamlit
-numpy
-cryptography
 fpdf2
-scipy
-pandas
-streamlit
 
