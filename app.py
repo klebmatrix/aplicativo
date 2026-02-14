@@ -14,7 +14,7 @@ if 'preview_questoes' not in st.session_state: st.session_state.preview_questoes
 # --- LOGIN ---
 if not st.session_state.autenticado:
     st.title("🔐 Login")
-    chave = str(st.secrets.get("chave_mestra", "admin"))
+    chave = str(st.secrets.get("chave_mestra", ""))
     pin = st.text_input("Chave Mestra:", type="password")
     if st.button("ENTRAR"):
         if pin == chave:
@@ -79,3 +79,4 @@ if st.session_state.preview_questoes:
         file_name="quantum_lab.pdf",
         mime="application/pdf"
     )
+
