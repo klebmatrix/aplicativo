@@ -74,73 +74,84 @@ if menu == "op":
         st.session_state.preview_questoes = [".M1", f"t. Atividade de {tipo}", "1. Calcule:"] + qs
 # (Outras lógicas mantidas conforme seu original...)
 
-# --- 7. MOTOR PDF (VERSÃO À PROVA DE BALAS) ---
+# --- 7. MOTOR PDF (COM TÍTULO SEPARADO E SUPORTE A MANUAL) ---
 if st.session_state.preview_questoes:
-    st.subheader("👁️ Preview")
+    st.subheader("👁️ Preview da Atividade")
     with st.container(border=True):
         for line in st.session_state.preview_questoes: 
             st.write(line)
 
     def gerar_pdf_final():
         try:
+            # latin-1 é mais seguro para FPDF padrão, mas fpdf2 lida bem com UTF-8
             pdf = FPDF()
             pdf.add_page()
             
-            # Ajuste de Cabeçalho
-            y_ini = 10
+            # 1. CABEÇALHO (IMAGEM)
+            y_atual = 10
             if usar_cabecalho and os.path.exists("cabecalho.png"):
                 pdf.image("cabecalho.png", 10, 10, 190)
-                y_ini = recuo_cabecalho 
+                y_atual = recuo_cabecalho # Define onde o título começa após a imagem
             
-            pdf.set_y(y_ini)
+            pdf.set_y(y_atual)
             letras = "abcdefghijklmnopqrstuvwxyz"
             l_idx = 0
             larg_col = 190 / int(layout_cols)
             
-            # Processamento das questões do session_state
+            # 2. PROCESSAMENTO DAS LINHAS
             for line in st.session_state.preview_questoes:
                 line = line.strip()
                 if not line: continue
                 
-                if line.startswith(".M"):
-                    pdf.set_font("Helvetica", size=12)
-                    pdf.cell(190, 10, line[1:], ln=True)
-                elif line.lower().startswith("t."):
-                    pdf.set_font("Helvetica", 'B', 14)
+                # Identifica Título (t.)
+                if line.lower().startswith("t."):
+                    pdf.ln(5)
+                    pdf.set_font("Helvetica", 'B', 16)
                     pdf.cell(190, 10, line[2:].strip(), ln=True, align='C')
+                    pdf.ln(5)
+                
+                # Identifica Metadados ou Instruções (.M)
+                elif line.startswith(".M"):
+                    pdf.set_font("Helvetica", 'I', 11)
+                    pdf.multi_cell(190, 8, line[2:].strip())
+                    pdf.ln(2)
+                
+                # Identifica Questão Numerada (ex: 1. Calcule)
                 elif re.match(r'^\d+\.', line):
-                    pdf.set_font("Helvetica", size=12)
+                    pdf.ln(4)
+                    pdf.set_font("Helvetica", 'B', 12)
                     pdf.cell(190, 10, line, ln=True)
-                    l_idx = 0
+                    l_idx = 0 # Reseta o contador de letras (a, b, c) para a nova questão
+                
+                # Itens das Questões (Colunas) ou Texto do Manual
                 else:
                     pdf.set_font("Helvetica", size=12)
-                    col = l_idx % int(layout_cols)
-                    txt = f"{letras[l_idx%26]}) {line.lstrip('. ')}"
-                    pdf.cell(larg_col, 8, txt, ln=(col == int(layout_cols)-1))
-                    l_idx += 1
+                    if int(layout_cols) > 1:
+                        col = l_idx % int(layout_cols)
+                        txt = f"{letras[l_idx%26]}) {line.lstrip('. ')}"
+                        pdf.cell(larg_col, 8, txt, ln=(col == int(layout_cols)-1))
+                        l_idx += 1
+                    else:
+                        # Se for 1 coluna, trata como texto corrido (Manual)
+                        pdf.multi_cell(190, 8, line)
             
-            # --- O PULO DO GATO ---
-            # 1. Gera o PDF como bytes
-            pdf_bytes = pdf.output() 
-            
-            # 2. Se for bytearray (comum no fpdf2), converte para bytes puros
-            if isinstance(pdf_bytes, bytearray):
-                pdf_bytes = bytes(pdf_bytes)
-            
-            return pdf_bytes
+            # 3. CONVERSÃO SEGURA PARA BYTES
+            resultado_pdf = pdf.output()
+            if isinstance(resultado_pdf, (bytearray, bytes)):
+                return bytes(resultado_pdf)
+            return resultado_pdf.encode('latin-1')
             
         except Exception as e:
-            st.error(f"Erro interno na geração: {e}")
+            st.error(f"Erro na geração do PDF: {e}")
             return None
 
-    # Execução do botão
-    pdf_para_download = gerar_pdf_final()
-
-    if pdf_para_download:
+    # Botão de Download
+    pdf_bytes = gerar_pdf_final()
+    if pdf_bytes:
         st.download_button(
-            label="📥 Baixar PDF Agora",
-            data=pdf_para_download,
+            label="📥 Baixar PDF da Atividade",
+            data=pdf_bytes,
             file_name="atividade_quantum.pdf",
             mime="application/pdf",
-            key="btn_download_final" # Chave única para evitar conflitos
+            key="download_pdf_final"
         )
