@@ -93,13 +93,13 @@ if st.session_state.preview_questoes:
     st.divider()
     for line in st.session_state.preview_questoes:
         if line.strip(): st.write(line)
-
-    def gerar_pdf_bytes():
+def gerar_pdf_bytes():
         pdf = FPDF()
         pdf.add_page()
-        pdf.set_font("Arial", size=12)
+        pdf.set_auto_page_break(auto=True, margin=10)
         
-        y_pos = 50 if usar_cabecalho else 20
+        # Define posição inicial
+        y_pos = 45 if usar_cabecalho else 15
         if usar_cabecalho and os.path.exists("cabecalho.png"):
             pdf.image("cabecalho.png", 10, 10, 190)
         
@@ -109,36 +109,151 @@ if st.session_state.preview_questoes:
         letras = "abcdefghijklmnopqrstuvwxyz"
 
         for line in st.session_state.preview_questoes:
-            clean = line.strip().encode('latin-1', 'replace').decode('latin-1')
+            # Converte x2 para x² e limpa espaços extras
+            clean = line.strip().replace('x2', 'x²')
+            try:
+                clean = clean.encode('latin-1', 'replace').decode('latin-1')
+            except: pass
+	   # Converte v2 para ²√ e limpa espaços extras
+            clean = line.strip().replace('v2', '²√')
+            try:
+                clean = clean.encode('latin-1', 'replace').decode('latin-1')
+            except: pass
+            
+            
             if not clean: continue
             
+            # --- TÍTULO PRINCIPAL (Único com Negrito) ---
             if clean.startswith("t."):
-                pdf.ln(5); pdf.set_font("Arial", 'B', 14)
-                pdf.cell(190, 10, clean[2:].strip(), ln=True, align='C')
-                pdf.set_font("Arial", size=12); l_idx = 0
+                pdf.ln(4)
+                pdf.set_font("Arial", 'B', 13) # Negrito apenas aqui
+                pdf.cell(190, 8, clean[2:].strip().upper(), ln=True, align='C')
+                l_idx = 0 
+                
+            # --- INSTRUÇÃO (Texto simples, compacto) ---
+            elif clean.startswith("txt."):
+                pdf.ln(1)
+                pdf.set_font("Arial", size=10)
+                pdf.cell(190, 6, clean[4:].strip(), ln=True, align='L')
+                
+            # --- QUESTÕES (Texto simples, alinhamento firme) ---
             else:
+                pdf.set_font("Arial", size=10)
                 col_at = l_idx % layout_cols
-                pdf.cell(larg_col, 8, f"{letras[l_idx%26]}) {clean}", ln=(col_at == layout_cols - 1))
+                txt_quest = f"{letras[l_idx % 26]}) {clean}"
+                # Altura 7 para ficar compacto mas legível
+                pdf.cell(larg_col, 7, txt_quest, ln=(col_at == layout_cols - 1))
                 l_idx += 1
         
-        # TRANSFORMA EM BUFFER DE BYTES (Isso impede o erro de suporte)
+      def gerar_pdf_bytes():
+        pdf = FPDF()
+        pdf.add_page()
+        pdf.set_auto_page_break(auto=True, margin=10)
+        
+        # Define posição inicial
+        y_pos = 45 if usar_cabecalho else 15
+        if usar_cabecalho and os.path.exists("cabecalho.png"):
+            pdf.image("cabecalho.png", 10, 10, 190)
+        
+        pdf.set_y(y_pos)
+        larg_col = 190 / layout_cols
+        l_idx = 0
+        letras = "abcdefghijklmnopqrstuvwxyz"
+
+        for line in st.session_state.preview_questoes:
+            # Converte x2 para x² e limpa espaços extras
+            clean = line.strip().replace('x2', 'x²')
+            try:
+                clean = clean.encode('latin-1', 'replace').decode('latin-1')
+            except: pass
+	   # Converte v2 para ²√ e limpa espaços extras
+            clean = line.strip().replace('v2', '²√')
+            try:
+                clean = clean.encode('latin-1', 'replace').decode('latin-1')
+            except: pass
+            
+            
+            if not clean: continue
+            
+            # --- TÍTULO PRINCIPAL (Único com Negrito) ---
+            if clean.startswith("t."):
+                pdf.ln(4)
+                pdf.set_font("Arial", 'B', 13) # Negrito apenas aqui
+                pdf.cell(190, 8, clean[2:].strip().upper(), ln=True, align='C')
+                l_idx = 0 
+                
+            # --- INSTRUÇÃO (Texto simples, compacto) ---
+            elif clean.startswith("txt."):
+                pdf.ln(1)
+                pdf.set_font("Arial", size=10)
+                pdf.cell(190, 6, clean[4:].strip(), ln=True, align='L')
+                
+            # --- QUESTÕES (Texto simples, alinhamento firme) ---
+            else:
+                pdf.set_font("Arial", size=10)
+                col_at = l_idx % layout_cols
+                txt_quest = f"{letras[l_idx % 26]}) {clean}"
+                # Altura 7 para ficar compacto mas legível
+                pdf.cell(larg_col, 7, txt_quest, ln=(col_at == layout_cols - 1))
+                l_idx += 1
+      def gerar_pdf_bytes():
+        pdf = FPDF()
+        pdf.add_page()
+        pdf.set_auto_page_break(auto=True, margin=10)
+        
+        # Define posição inicial
+        y_pos = 45 if usar_cabecalho else 15
+        if usar_cabecalho and os.path.exists("cabecalho.png"):
+            pdf.image("cabecalho.png", 10, 10, 190)
+        
+        pdf.set_y(y_pos)
+        larg_col = 190 / layout_cols
+        l_idx = 0
+        letras = "abcdefghijklmnopqrstuvwxyz"
+
+        for line in st.session_state.preview_questoes:
+            # Converte x2 para x² e limpa espaços extras
+            clean = line.strip().replace('x2', 'x²')
+            try:
+                clean = clean.encode('latin-1', 'replace').decode('latin-1')
+            except: pass
+	   # Converte v2 para ²√ e limpa espaços extras
+            clean = line.strip().replace('v2', '²√')
+            try:
+                clean = clean.encode('latin-1', 'replace').decode('latin-1')
+            except: pass
+            
+            
+            if not clean: continue
+            
+            # --- TÍTULO PRINCIPAL (Único com Negrito) ---
+            if clean.startswith("t."):
+                pdf.ln(4)
+                pdf.set_font("Arial", 'B', 13) # Negrito apenas aqui
+                pdf.cell(190, 8, clean[2:].strip().upper(), ln=True, align='C')
+                l_idx = 0 
+                
+            # --- INSTRUÇÃO (Texto simples, compacto) ---
+            elif clean.startswith("txt."):
+                pdf.ln(1)
+                pdf.set_font("Arial", size=10)
+                pdf.cell(190, 6, clean[4:].strip(), ln=True, align='L')
+                
+            # --- QUESTÕES (Texto simples, alinhamento firme) ---
+            else:
+                pdf.set_font("Arial", size=10)
+                col_at = l_idx % layout_cols
+                txt_quest = f"{letras[l_idx % 26]}) {clean}"
+                # Altura 7 para ficar compacto mas legível
+                pdf.cell(larg_col, 7, txt_quest, ln=(col_at == layout_cols - 1))
+                l_idx += 1
+        
+        # Gerar o buffer final
+        pdf_bytes = pdf.output(dest='S')
         buffer = BytesIO()
-        pdf_str = pdf.output(dest='S')
-        if isinstance(pdf_str, str):
-            buffer.write(pdf_str.encode('latin-1'))
+        if isinstance(pdf_bytes, str):
+            buffer.write(pdf_bytes.encode('latin-1'))
         else:
-            buffer.write(pdf_str)
+            buffer.write(pdf_bytes)
         buffer.seek(0)
         return buffer
-
-    # SÓ EXECUTA O BOTÃO SE O BUFFER FOR CRIADO
-    try:
-        pdf_buffer = gerar_pdf_bytes()
-        st.download_button(
-            label="📥 BAIXAR PDF COMPLETO",
-            data=pdf_buffer, # Passa o objeto BytesIO direto
-            file_name="quantum_lab.pdf",
-            mime="application/pdf"
-        )
-    except Exception as e:
-        st.error(f"Erro na geração: {e}")
