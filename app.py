@@ -46,7 +46,7 @@ if st.sidebar.button("🧹 LIMPAR TUDO"):
     st.session_state.res_calc = ""
     st.rerun()
 
-# --- PDF ENGINE (TITULO NEGRITO 14 CENTRALIZADO) ---
+# --- ENGINE PDF (TITULO 14 NEGRITO CENTRALIZADO) ---
 def gerar_pdf_bytes():
     pdf = FPDF()
     pdf.add_page()
@@ -82,7 +82,7 @@ def gerar_pdf_bytes():
     buf.seek(0)
     return buf
 
-# --- FERRAMENTAS ---
+# --- INTERFACE ---
 st.title(f"🛠️ {menu}")
 
 if menu == "🎓 Colegial (Rad/Pot/%)":
@@ -103,42 +103,26 @@ elif menu == "💰 Financeira (Take Profit)":
 
 elif menu == "🧪 Bhaskara":
     c1, c2, c3 = st.columns(3)
-    a_val = c1.number_input("a", value=1.0)
-    b_val = c2.number_input("b", value=-5.0)
-    c_val = c3.number_input("c", value=6.0)
-    if st.button("Calcular"):
-        delta = b_val**2 - 4*a_val*c_val
+    a = c1.number_input("a", 1.0)
+    b = c2.number_input("b", -5.0)
+    c = c3.number_input("c", 6.0)
+    if st.button("CALCULAR"):
+        delta = b**2 - 4*a*c
         if delta >= 0:
-            x1 = (-b_val + math.sqrt(delta)) / (2*a_val)
-            x2 = (-b_val - math.sqrt(delta)) / (2*a_val)
-            st.session_state.res_calc = f"Delta: {delta} | x1: {x1:.2f} | x2: {x2:.2f}"
+            x1 = (-b + math.sqrt(delta)) / (2*a)
+            st.session_state.res_calc = f"Delta: {delta} | x1: {x1:.2f}"
         else:
-            st.session_state.res_calc = "Delta Negativo."
+            st.session_state.res_calc = "Sem raízes reais."
 
-elif menu == "🔢 Operações":
-    tipo = st.radio("Tipo:", ["Soma", "Subtração", "Multiplicação", "Divisão"], horizontal=True)
-    if st.button("GERAR LISTA"):
-        simbolo = {"Soma": "+", "Subtração": "-", "Multiplicação": "x", "Divisão": "/"}[tipo]
-        st.session_state.preview_questoes = [f"t. Lista de {tipo}", "txt. Resolva:"] + [f"{random.randint(10,999)} {simbolo} {random.randint(10,99)} =" for _ in range(12)]
-
-elif menu == "📐 Equações":
-    g = st.radio("Grau:", ["1º Grau", "2º Grau"], horizontal=True)
-    if st.button("GERAR"):
-        if g == "1º Grau":
-            st.session_state.preview_questoes = ["t. Equações 1º Grau", "txt. Resolva:"] + [f"{random.randint(2,9)}x + {random.randint(1,20)} = {random.randint(21,99)}" for _ in range(10)]
-        else:
-            st.session_state.preview_questoes = ["t. Equações 2º Grau", "txt. Resolva:"] + [f"x² - {random.randint(5,10)}x + {random.randint(1,6)} = 0" for _ in range(5)]
-
-elif menu == "📄 Manual":
-    txt = st.text_area("Comandos (t. para títulos):", height=150)
-    if st.button("LANÇAR"):
-        st.session_state.preview_questoes = txt.split("\n")
-
-# --- ÁREA DE DOWNLOAD ---
+# --- VISUALIZAÇÃO E DOWNLOAD ---
 if st.session_state.res_calc:
     st.info(st.session_state.res_calc)
 
 if st.session_state.preview_questoes:
+    st.subheader("👀 Visualização das Questões")
+    for q in st.session_state.preview_questoes:
+        st.text(q)
+    
     st.divider()
     try:
         buf = gerar_pdf_bytes()
