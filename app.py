@@ -36,7 +36,7 @@ layout_cols = st.sidebar.selectbox("Colunas no PDF:", [1, 2, 3], index=1)
 if st.sidebar.button("🧹 LIMPAR TUDO"):
 st.session_state.preview_questoes = []; st.session_state.res_calc = ""; st.rerun()
 
-4. FUNÇÃO PDF (ESTILO: TÍTULO NEGRITO 14 CENTRALIZADO)
+4. FUNÇÃO PDF (TÍTULO NEGRITO 14 CENTRALIZADO)
 def gerar_pdf_bytes():
 pdf = FPDF()
 pdf.add_page()
@@ -73,34 +73,27 @@ buffer.write(pdf_out.encode('latin-1') if isinstance(pdf_out, str) else pdf_out)
 buffer.seek(0)
 return buffer
 
-5. FERRAMENTAS (COLEGIAL INTEGRADO)
+5. FERRAMENTAS
 st.title(f"🛠️ {menu}")
 if menu == "🎓 Colegial (Rad/Pot/%)":
 sub = st.radio("Tema:", ["Potenciação", "Radiciação", "Porcentagem"], horizontal=True)
 if st.button("GERAR"):
 if sub == "Potenciação":
 qs = [f"{random.randint(2,12)}x2 =" for _ in range(12)]
-st.session_state.preview_questoes = ["t. Exercícios de Potenciação", "txt. 1. Calcule:"] + qs
+st.session_state.preview_questoes = ["t. Exercícios de Potenciação", "txt. Calcule:"] + qs
 elif sub == "Radiciação":
 bs = [4, 9, 16, 25, 36, 49, 64, 81, 100, 121, 144]
 qs = [f"v2({random.choice(bs)}) =" for _ in range(12)]
-st.session_state.preview_questoes = ["t. Exercícios de Radiciação", "txt. 1. Calcule a raiz:"] + qs
+st.session_state.preview_questoes = ["t. Exercícios de Radiciação", "txt. Calcule a raiz:"] + qs
 else:
 qs = [f"{random.randint(5,50)}% de {random.randint(100,1000)} =" for _ in range(12)]
-st.session_state.preview_questoes = ["t. Exercícios de Porcentagem", "txt. 1. Calcule:"] + qs
-elif menu == "🔢 Operações":
-tipo = st.radio("Tipo:", ["Soma", "Subtração", "Multiplicação", "Divisão"], horizontal=True)
-if st.button("GERAR"):
-s = {"Soma": "+", "Subtração": "-", "Multiplicação": "x", "Divisão": "/"}[tipo]
-st.session_state.preview_questoes = [f"t. Lista de {tipo}", "txt. Resolva:"] + [f"{random.randint(10,99)} {s} {random.randint(1,99)} =" for _ in range(12)]
+st.session_state.preview_questoes = ["t. Exercícios de Porcentagem", "txt. Calcule:"] + qs
+
 elif menu == "💰 Financeira (Take Profit)":
 v1 = st.number_input("Entrada:", value=100.0)
 p = st.number_input("Alvo %:", value=10.0)
 if st.button("CALCULAR"):
-st.session_state.res_calc = f"Take Profit Ativo: R$ {v1*(1+p/100):.2f}"
-elif menu == "📄 Manual":
-txt = st.text_area("Comandos: t. (título) | txt. (instrução)", height=150)
-if st.button("LANÇAR"): st.session_state.preview_questoes = txt.split("\n")
+st.session_state.res_calc = f"Take Profit: R$ {v1*(1+p/100):.2f}"
 
 6. DOWNLOAD
 if st.session_state.res_calc: st.info(st.session_state.res_calc)
