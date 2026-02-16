@@ -15,7 +15,6 @@ if 'res_calc' not in st.session_state: st.session_state.res_calc = ""
 # --- 2. LOGIN (CHAVE MESTRA) ---
 if not st.session_state.autenticado:
     st.title("🔐 Quantum Suite - Acesso")
-    # Tenta buscar dos secrets, se não existir usa 'admin'
     chave_mestra = str(st.secrets.get("chave_mestra", "admin")).strip().lower()
     pin = st.text_input("Chave Mestra:", type="password")
     if st.button("DESBLOQUEAR"):
@@ -44,13 +43,12 @@ if st.sidebar.button("🧹 LIMPAR TUDO"):
     st.session_state.res_calc = ""
     st.rerun()
 
-# --- 4. FUNÇÃO DE GERAÇÃO DE PDF ---
+# --- 4. FUNÇÃO DE GERAÇÃO DE PDF (FORMATO SOLICITADO) ---
 def gerar_pdf_bytes():
     pdf = FPDF()
     pdf.add_page()
     pdf.set_auto_page_break(auto=True, margin=10)
     
-    # Posição inicial ajustada
     y_pos = 45 if usar_cabecalho else 15
     if usar_cabecalho and os.path.exists("cabecalho.png"):
         pdf.image("cabecalho.png", 10, 10, 190)
@@ -61,39 +59,39 @@ def gerar_pdf_bytes():
     letras = "abcdefghijklmnopqrstuvwxyz"
 
     for line in st.session_state.preview_questoes:
+        original_line = line.strip()
+        if not original_line: continue
+
         # --- SUBSTITUIÇÕES MATEMÁTICAS ---
-        # Substitui x2 por x², v2 por √ e v3 por ³√
-        clean = line.strip().replace('x2', 'x²').replace('v2', '√').replace('v3', '³√')
+        clean = original_line.replace('x2', 'x²').replace('v2', '√').replace('v3', '³√')
         
         try:
-            # Encoding latin-1 suporta ², ³ e o símbolo de raiz em algumas variações
             clean = clean.encode('latin-1', 'replace').decode('latin-1')
         except:
             pass
-            
-        if not clean: continue
         
         # --- LÓGICA DE FORMATAÇÃO ---
-        if clean.startswith("t."): # TÍTULO
-            pdf.ln(4)
-            pdf.set_font("Arial", 'B', 12)
-            pdf.cell(190, 8, clean[2:].strip().upper(), ln=True, align='C')
-            l_idx = 0 # Reinicia letras para nova seção
+        if clean.startswith("t."): 
+            # TÍTULO: Negrito, Centralizado, Tamanho 14 (FA4)
+            pdf.ln(5)
+            pdf.set_font("Arial", 'B', 14)
+            pdf.cell(190, 10, clean[2:].strip(), ln=True, align='C')
+            l_idx = 0 
         
-        elif clean.startswith("txt."): # INSTRUÇÃO
-            pdf.ln(1)
+        elif clean.startswith("txt."): 
+            # INSTRUÇÃO: Sem Negrito, Esquerda, Tamanho 10
+            pdf.ln(2)
             pdf.set_font("Arial", size=10)
-            pdf.cell(190, 6, clean[4:].strip(), ln=True, align='L')
+            pdf.cell(190, 7, clean[4:].strip(), ln=True, align='L')
             
-        else: # QUESTÕES
+        else: 
+            # QUESTÕES: Sem Negrito, Com Letra, Tamanho 10
             pdf.set_font("Arial", size=10)
             col_at = l_idx % layout_cols
             txt_quest = f"{letras[l_idx % 26]}) {clean}"
-            # Altura 7 para economia máxima de papel
             pdf.cell(larg_col, 7, txt_quest, ln=(col_at == layout_cols - 1))
             l_idx += 1
     
-    # Preparação do Buffer para Download
     pdf_output = pdf.output(dest='S')
     buffer = BytesIO()
     if isinstance(pdf_output, str):
@@ -122,37 +120,30 @@ elif menu == "📐 Equações":
             qs = [f"x2 - {random.randint(5,10)}x + {random.randint(1,6)} = 0" for _ in range(5)]
         st.session_state.preview_questoes = [f"t. Equações de {grau}", "txt. 1. Resolva as equações:"] + qs
 
-elif menu == "⛓️ Sistemas":
-    if st.button("GERAR SISTEMAS"):
-        st.session_state.preview_questoes = ["t. Sistemas", "txt. 1. Determine os valores de x e y:"] + \
-            [f"{{ {random.randint(1,3)}x + y = {random.randint(5,15)} | x - y = {random.randint(1,5)}" for _ in range(4)]
-
 elif menu == "Bhaskara":
     c1, c2, c3 = st.columns(3)
     a, b, c = c1.number_input("a", 1.0), c2.number_input("b", -5.0), c3.number_input("c", 6.0)
     if st.button("CALCULAR"):
         d = b**2 - 4*a*c
         if d >= 0:
-            x1 = (-b+math.sqrt(d))/(2*a)
-            x2 = (-b-math.sqrt(d))/(2*a)
+            x1 = (-b+math.sqrt(d))/(2*a); x2 = (-b-math.sqrt(d))/(2*a)
             st.session_state.res_calc = f"Delta: {d} | x1: {x1:.2f} | x2: {x2:.2f}"
-        else: st.session_state.res_calc = "Delta negativo! Sem raízes reais."
+        else: st.session_state.res_calc = "Delta negativo!"
 
 elif menu == "💰 Financeira (Take Profit)":
     entrada = st.number_input("Valor de Entrada:", value=100.0)
     alvo = st.number_input("Alvo de Lucro %:", value=10.0)
     if st.button("CALCULAR TP"):
         venda = entrada * (1 + (alvo/100))
-        st.session_state.res_calc = f"Take Profit Ativo em: R$ {venda:.2f} (Venda Automática Ativa)"
+        st.session_state.res_calc = f"Take Profit Ativo: R$ {venda:.2f} (Venda Automática Ativa)"
 
 elif menu == "📄 Manual":
-    txt = st.text_area("Digite as questões (t. para título | txt. para instrução):", height=200)
+    txt = st.text_area("Digite as questões (t. título | txt. instrução):", height=200)
     if st.button("LANÇAR"): 
         st.session_state.preview_questoes = txt.split("\n")
 
 # --- 6. PREVIEW E DOWNLOAD ---
-if st.session_state.res_calc: 
-    st.info(st.session_state.res_calc)
+if st.session_state.res_calc: st.info(st.session_state.res_calc)
 
 if st.session_state.preview_questoes:
     st.divider()
@@ -162,11 +153,6 @@ if st.session_state.preview_questoes:
 
     try:
         pdf_buffer = gerar_pdf_bytes()
-        st.download_button(
-            label="📥 BAIXAR PDF COMPLETO",
-            data=pdf_buffer,
-            file_name="quantum_lab.pdf",
-            mime="application/pdf"
-        )
+        st.download_button(label="📥 BAIXAR PDF", data=pdf_buffer, file_name="quantum_lab.pdf", mime="application/pdf")
     except Exception as e:
-        st.error(f"Erro na geração do PDF: {e}")
+        st.error(f"Erro no PDF: {e}")
