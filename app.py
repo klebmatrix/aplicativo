@@ -18,7 +18,7 @@ if 'res_calc' not in st.session_state:
 # --- LOGIN ---
 if not st.session_state.autenticado:
     st.title("🔐 Quantum Suite - Acesso")
-    chave = str(st.secrets.get("chave_mestra", "admin")).strip().lower()
+    chave = str(st.secrets.get("chave_mestra", "")).strip().lower()
     pin = st.text_input("Chave Mestra:", type="password")
     if st.button("DESBLOQUEAR"):
         if pin.lower() == chave:
@@ -151,3 +151,4 @@ if st.session_state.preview_questoes:
         buf = gerar_pdf_bytes()
         st.download_button("📥 BAIXAR PDF", buf, "quantum.pdf", "application/pdf")
     except Exception as e: st.error(f"Erro no PDF: {e}")
+
