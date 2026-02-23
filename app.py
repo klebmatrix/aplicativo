@@ -18,7 +18,7 @@ if 'res_calc' not in st.session_state:
 # --- LOGIN ---
 if not st.session_state.autenticado:
     st.title("🔐 Quantum Suite - Acesso")
-    chave = str(st.secrets.get("chave_mestra", "")).strip().lower()
+    chave = str(st.secrets.get("chave_mestra", "admin")).strip().lower()
     pin = st.text_input("Chave Mestra:", type="password")
     if st.button("DESBLOQUEAR"):
         if pin.lower() == chave:
@@ -39,7 +39,6 @@ st.sidebar.divider()
 st.sidebar.success("✅ Take Profit: INFINITO ATIVO")
 st.sidebar.divider()
 
-# CONFIGURAÇÕES DO PDF
 usar_img = st.sidebar.checkbox("Ativar imagem 'cabeçalho' da pasta", value=True)
 layout_cols = st.sidebar.selectbox("Colunas no PDF:", [1, 2, 3], index=1)
 
@@ -52,18 +51,15 @@ def gerar_pdf_bytes():
     pdf.add_page()
     pdf.set_auto_page_break(auto=True, margin=10)
     
-    y_start = 10
     if usar_img:
         img_file = None
-        # Procura por cabeçalho com ou sem acento
         for f in ["cabeçalho.png", "cabeçalho.jpg", "cabecalho.png", "cabecalho.jpg"]:
             if os.path.exists(f):
                 img_file = f
                 break
-        
         if img_file:
             pdf.image(img_file, x=10, y=8, w=190)
-            pdf.set_y(50) # Espaço fixo após a imagem
+            pdf.set_y(50)
         else:
             pdf.set_y(15)
     else:
@@ -104,10 +100,22 @@ def gerar_pdf_bytes():
 # --- FERRAMENTAS ---
 st.title(f"🛠️ {menu}")
 
-if menu == "📄 Manual":
-    txt_input = st.text_area("Comandos: t. Titulo | txt. Instrução", "t. Título do Exercício\ntxt. Resolva as questões abaixo\nQuestão 01\nQuestão 02", height=250)
-    if st.button("LANÇAR"):
-        st.session_state.preview_questoes = txt_input.split("\n")
+if menu == "📐 Equações":
+    tipo_eq = st.radio("Escolha o Grau:", ["1º Grau", "2º Grau"], horizontal=True)
+    qtd_eq = st.slider("Quantidade:", 5, 30, 10)
+    if st.button("GERAR EQUAÇÕES"):
+        if tipo_eq == "1º Grau":
+            st.session_state.preview_questoes = ["t. Equações de 1º Grau", "txt. Resolva as equações lineares:"] + \
+                [f"{random.randint(2,10)}x {'+' if random.random()>0.5 else '-'} {random.randint(1,20)} = {random.randint(21,100)}" for _ in range(qtd_eq)]
+        else:
+            st.session_state.preview_questoes = ["t. Equações de 2º Grau", "txt. Determine as raízes (x' e x''):"] + \
+                [f"x2 {'-' if random.random()>0.5 else '+'} {random.randint(2,12)}x {'+' if random.random()>0.5 else '-'} {random.randint(1,20)} = 0" for _ in range(qtd_eq)]
+
+elif menu == "🔢 Operações":
+    tipo = st.radio("Operação:", ["Soma", "Subtração", "Multiplicação", "Divisão"], horizontal=True)
+    if st.button("GERAR"):
+        s = {"Soma": "+", "Subtração": "-", "Multiplicação": "x", "Divisão": "/"}[tipo]
+        st.session_state.preview_questoes = [f"t. Lista de {tipo}", "txt. Resolva:"] + [f"{random.randint(10,999)} {s} {random.randint(10,99)} =" for _ in range(12)]
 
 elif menu == "🎓 Colegial (Rad/Pot/%)":
     sub = st.radio("Tema:", ["Potenciação", "Radiciação", "Porcentagem"], horizontal=True)
@@ -115,15 +123,9 @@ elif menu == "🎓 Colegial (Rad/Pot/%)":
         if sub == "Potenciação":
             st.session_state.preview_questoes = ["t. Potenciação", "txt. Calcule:"] + [f"{random.randint(2,12)}² =" for _ in range(12)]
         elif sub == "Radiciação":
-            st.session_state.preview_questoes = ["t. Radiciação", "txt. Calcule:"] + [f"√{random.randint(4,144)} =" for _ in range(12)]
+            st.session_state.preview_questoes = ["t. Radiciação", "txt. Calcule:"] + [f"√{random.choice([4,9,16,25,36,49,64,81,100,121,144])} =" for _ in range(12)]
         else:
             st.session_state.preview_questoes = ["t. Porcentagem", "txt. Calcule:"] + [f"{random.randint(5,50)}% de {random.randint(100,1000)} =" for _ in range(12)]
-
-elif menu == "🔢 Operações":
-    tipo = st.radio("Operação:", ["Soma", "Subtração", "Multiplicação", "Divisão"], horizontal=True)
-    if st.button("GERAR"):
-        s = {"Soma": "+", "Subtração": "-", "Multiplicação": "x", "Divisão": "/"}[tipo]
-        st.session_state.preview_questoes = [f"t. Lista de {tipo}", "txt. Resolva:"] + [f"{random.randint(10,999)} {s} {random.randint(10,99)} =" for _ in range(12)]
 
 elif menu == "🧪 Bhaskara":
     c1, c2, c3 = st.columns(3)
@@ -140,6 +142,11 @@ elif menu == "💰 Financeira (Take Profit)":
     if st.button("CALCULAR"):
         st.session_state.res_calc = f"Take Profit: R$ {v1*(1+p1/100):.2f}"
 
+elif menu == "📄 Manual":
+    txt_input = st.text_area("Comandos: t. Titulo | txt. Instrução", "t. Título Personalizado\ntxt. Instruções aqui\nQuestão 01\nQuestão 02", height=250)
+    if st.button("LANÇAR"):
+        st.session_state.preview_questoes = txt_input.split("\n")
+
 # --- VISUALIZAÇÃO ---
 st.divider()
 if st.session_state.res_calc: st.info(st.session_state.res_calc)
@@ -151,4 +158,3 @@ if st.session_state.preview_questoes:
         buf = gerar_pdf_bytes()
         st.download_button("📥 BAIXAR PDF", buf, "quantum.pdf", "application/pdf")
     except Exception as e: st.error(f"Erro no PDF: {e}")
-
