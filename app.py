@@ -1,160 +1,312 @@
-import streamlit as st
-import random
+import time
+import threading
+import requests
+from fastapi import FastAPI
+from fastapi.responses import HTMLResponse
+from pydantic import BaseModel
 import os
-import math
-from fpdf import FPDF
-from io import BytesIO
 
-# --- SETUP ---
-st.set_page_config(page_title="Quantum Math Lab", layout="wide")
+app = FastAPI()
 
-if 'autenticado' not in st.session_state:
-    st.session_state.autenticado = False
-if 'preview_questoes' not in st.session_state:
-    st.session_state.preview_questoes = []
-if 'res_calc' not in st.session_state:
-    st.session_state.res_calc = ""
+CONFIG_ROBO = {
+    "ativo": False,
+    "take_profit_pct": 3.0,
+    "alavancagem": 10
+}
 
-# --- LOGIN ---
-if not st.session_state.autenticado:
-    st.title("🔐 Quantum Suite - Acesso")
-    chave = str(st.secrets.get("chave_mestra", "admin")).strip().lower()
-    pin = st.text_input("Chave Mestra:", type="password")
-    if st.button("DESBLOQUEAR"):
-        if pin.lower() == chave:
-            st.session_state.autenticado = True
-            st.rerun()
-        else:
-            st.error("Chave Inválida.")
-    st.stop()
+SIMBOLOS_FUTUROS = [
+    'BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'SOLUSDT', 'XRPUSDT',
+    'ADAUSDT', 'AVAXUSDT', 'LINKUSDT', 'DOTUSDT', 'NEARUSDT',
+    'POLUSDT', 'UNIUSDT', 'ICPUSDT', 'APTUSDT', 'RENDERUSDT',
+    'INJUSDT', 'ARUSDT', 'FTMUSDT', 'ATOMUSDT', 'OPUSDT',
+    'ARBUSDT', 'SUIUSDT', 'TIAUSDT', 'SEIUSDT', 'STXUSDT',
+    'IMXUSDT', 'GRTUSDT', 'RUNEUSDT', 'LDOUSDT', 'FETUSDT',
+    'AGIXUSDT', 'PEPEUSDT', 'WIFUSDT', 'FILUSDT', 'HBARUSDT',
+    'VETUSDT', 'MKRUSDT', 'AAVEUSDT', 'SNXUSDT', 'CRVUSDT',
+    'COMPUSDT', 'KASUSDT', 'ALGOUSDT', 'FTTUSDT', 'BCHUSDT',
+    'LTCUSDT', 'ETCUSDT', 'XLMUSDT', 'EOSUSDT', 'THETAUSDT',
+    'XTZUSDT', 'EGLDUSDT', 'KAVAUSDT', 'ZILUSDT', 'CHZUSDT',
+    'AXSUSDT', 'SANDUSDT', 'MANAUSDT', 'GALAUSDT', 'ENJUSDT'
+]
 
-# --- SIDEBAR ---
-st.sidebar.title("🚀 QUANTUM SUITE")
-menu = st.sidebar.selectbox("FERRAMENTA:", [
-    "🔢 Operações", "📐 Equações", "🎓 Colegial (Rad/Pot/%)", 
-    "🧪 Bhaskara", "💰 Financeira (Take Profit)", "📄 Manual"
-])
+dados_globais = {
+    "status_conexao": "Iniciando Blindagem...",
+    "saldo_usdt": 8.00,
+    "mercado": {},
+    "logs": []
+}
 
-st.sidebar.divider()
-st.sidebar.success("✅ Take Profit: INFINITO ATIVO")
-st.sidebar.divider()
+posicoes_abertas = {}
 
-usar_img = st.sidebar.checkbox("Ativar imagem 'cabeçalho' da pasta", value=True)
-layout_cols = st.sidebar.selectbox("Colunas no PDF:", [1, 2, 3], index=1)
+def adicionar_log(msg: str):
+    timestamp = time.strftime("[%H:%M:%S]")
+    entrada = f"{timestamp} {msg}"
+    dados_globais["logs"].insert(0, entrada)
+    if len(dados_globais["logs"]) > 50:
+        dados_globais["logs"].pop()
 
-if st.sidebar.button("🧹 LIMPAR TUDO"):
-    st.session_state.preview_questoes = []; st.session_state.res_calc = ""; st.rerun()
-
-# --- ENGINE PDF ---
-def gerar_pdf_bytes():
-    pdf = FPDF()
-    pdf.add_page()
-    pdf.set_auto_page_break(auto=True, margin=10)
+def background_loop():
+    global dados_globais, posicoes_abertas
+    adicionar_log("Motor Resiliente 24/365 iniciado.")
     
-    if usar_img:
-        img_file = None
-        for f in ["cabeçalho.png", "cabeçalho.jpg", "cabecalho.png", "cabecalho.jpg"]:
-            if os.path.exists(f):
-                img_file = f
-                break
-        if img_file:
-            pdf.image(img_file, x=10, y=8, w=190)
-            pdf.set_y(50)
-        else:
-            pdf.set_y(15)
-    else:
-        pdf.set_y(15)
-
-    larg_col = 190 / layout_cols
-    l_idx = 0
-    letras = "abcdefghijklmnopqrstuvwxyz"
-    
-    for line in st.session_state.preview_questoes:
-        if not line.strip(): continue
-        clean = line.strip().replace('x2', 'x²').replace('v2', '√')
-        try: clean = clean.encode('latin-1', 'replace').decode('latin-1')
-        except: pass
+    while True:
+        precos_atuais = {}
+        sucesso = False
         
-        if clean.startswith("t."):
-            pdf.ln(5)
-            pdf.set_font("Arial", 'B', 14)
-            pdf.cell(190, 10, clean[2:].strip(), ln=True, align='C')
-            l_idx = 0 
-        elif clean.startswith("txt."):
-            pdf.ln(2)
-            pdf.set_font("Arial", size=10)
-            pdf.cell(190, 7, clean[4:].strip(), ln=True, align='L')
+        # Tentativa 1: MEXC
+        try:
+            resp = requests.get("https://api.mexc.com/api/v3/ticker/price", timeout=6)
+            if resp.status_code == 200:
+                data = resp.json()
+                precos_atuais = {item['symbol']: float(item['price']) for item in data}
+                sucesso = True
+        except Exception:
+            pass
+
+        # Tentativa 2: Binance Spot (Fallback se MEXC falhar)
+        if not sucesso:
+            try:
+                resp = requests.get("https://api.binance.com/api/v3/ticker/price", timeout=6)
+                if resp.status_code == 200:
+                    data = resp.json()
+                    precos_atuais = {item['symbol']: float(item['price']) for item in data}
+                    sucesso = True
+            except Exception:
+                pass
+
+        if sucesso:
+            dados_globais["status_conexao"] = f"Online (Resiliente | {CONFIG_ROBO['alavancagem']}x)"
         else:
-            pdf.set_font("Arial", size=10)
-            col_at = l_idx % layout_cols
-            txt_quest = f"{letras[l_idx % 26]}) {clean}"
-            pdf.cell(larg_col, 7, txt_quest, ln=(col_at == layout_cols - 1))
-            l_idx += 1
+            dados_globais["status_conexao"] = "Aviso: Sincronizando rota..."
+
+        mercado_formatado = {}
+        lev = CONFIG_ROBO["alavancagem"]
+        tp_alvo = CONFIG_ROBO["take_profit_pct"]
+
+        for simbolo in SIMBOLOS_FUTUROS:
+            preco = precos_atuais.get(simbolo, 0.0)
+            par_legivel = f"{simbolo.replace('USDT', '')}/USDT"
             
-    out = pdf.output(dest='S')
-    buf = BytesIO()
-    buf.write(out.encode('latin-1') if isinstance(out, str) else out)
-    buf.seek(0)
-    return buf
+            preco_entrada = posicoes_abertas.get(simbolo, 0.0)
+            lucro_pct = 0.0
+            
+            if preco_entrada > 0 and preco > 0:
+                lucro_bruto = ((preco - preco_entrada) / preco_entrada) * 100
+                lucro_pct = lucro_bruto * lev
 
-# --- FERRAMENTAS ---
-st.title(f"🛠️ {menu}")
+                if lucro_pct >= tp_alvo and CONFIG_ROBO["ativo"]:
+                    adicionar_log(f"🚨 TAKE PROFIT ATINGIDO em {par_legivel}! Lucro Alavancado: {lucro_pct:.2f}%")
+                    posicoes_abertas.pop(simbolo, None)
 
-if menu == "📐 Equações":
-    tipo_eq = st.radio("Escolha o Grau:", ["1º Grau", "2º Grau"], horizontal=True)
-    qtd_eq = st.slider("Quantidade:", 5, 30, 10)
-    if st.button("GERAR EQUAÇÕES"):
-        if tipo_eq == "1º Grau":
-            st.session_state.preview_questoes = ["t. Equações de 1º Grau", "txt. Resolva as equações lineares:"] + \
-                [f"{random.randint(2,10)}x {'+' if random.random()>0.5 else '-'} {random.randint(1,20)} = {random.randint(21,100)}" for _ in range(qtd_eq)]
-        else:
-            st.session_state.preview_questoes = ["t. Equações de 2º Grau", "txt. Determine as raízes (x' e x''):"] + \
-                [f"x2 {'-' if random.random()>0.5 else '+'} {random.randint(2,12)}x {'+' if random.random()>0.5 else '-'} {random.randint(1,20)} = 0" for _ in range(qtd_eq)]
+            mercado_formatado[par_legivel] = {
+                "name": par_legivel,
+                "simbolo_bruto": simbolo,
+                "preco": preco,
+                "preco_str": f"{preco:,.4f} USDT" if preco < 1 else f"{preco:,.2f} USDT",
+                "preco_compra": preco_entrada,
+                "preco_compra_str": f"{preco_entrada:,.2f} USDT" if preco_entrada > 0 else "Sem Posição",
+                "lucro_pct": round(lucro_pct, 2),
+                "alerta": lucro_pct >= tp_alvo
+            }
 
-elif menu == "🔢 Operações":
-    tipo = st.radio("Operação:", ["Soma", "Subtração", "Multiplicação", "Divisão"], horizontal=True)
-    if st.button("GERAR"):
-        s = {"Soma": "+", "Subtração": "-", "Multiplicação": "x", "Divisão": "/"}[tipo]
-        st.session_state.preview_questoes = [f"t. Lista de {tipo}", "txt. Resolva:"] + [f"{random.randint(10,999)} {s} {random.randint(10,99)} =" for _ in range(12)]
+        dados_globais["mercado"] = mercado_formatado
+        time.sleep(5)
 
-elif menu == "🎓 Colegial (Rad/Pot/%)":
-    sub = st.radio("Tema:", ["Potenciação", "Radiciação", "Porcentagem"], horizontal=True)
-    if st.button("GERAR"):
-        if sub == "Potenciação":
-            st.session_state.preview_questoes = ["t. Potenciação", "txt. Calcule:"] + [f"{random.randint(2,12)}² =" for _ in range(12)]
-        elif sub == "Radiciação":
-            st.session_state.preview_questoes = ["t. Radiciação", "txt. Calcule:"] + [f"√{random.choice([4,9,16,25,36,49,64,81,100,121,144])} =" for _ in range(12)]
-        else:
-            st.session_state.preview_questoes = ["t. Porcentagem", "txt. Calcule:"] + [f"{random.randint(5,50)}% de {random.randint(100,1000)} =" for _ in range(12)]
+t = threading.Thread(target=background_loop, daemon=True)
+t.start()
 
-elif menu == "🧪 Bhaskara":
-    c1, c2, c3 = st.columns(3)
-    av, bv, cv = c1.number_input("a", 1.0), c2.number_input("b", -5.0), c3.number_input("c", 6.0)
-    if st.button("CALCULAR"):
-        delta = bv**2 - 4*av*cv
-        if delta >= 0:
-            x1 = (-bv + math.sqrt(delta)) / (2*av)
-            st.session_state.res_calc = f"Delta: {delta} | x1: {x1:.2f}"
-        else: st.session_state.res_calc = "Delta Negativo."
+class ConfigModel(BaseModel):
+    ativo: bool
+    take_profit_pct: float
+    alavancagem: int
 
-elif menu == "💰 Financeira (Take Profit)":
-    v1, p1 = st.number_input("Entrada:", 100.0), st.number_input("Alvo %:", 10.0)
-    if st.button("CALCULAR"):
-        st.session_state.res_calc = f"Take Profit: R$ {v1*(1+p1/100):.2f}"
+class AutonomiaModel(BaseModel):
+    simbolo: str
+    preco_entrada: float
 
-elif menu == "📄 Manual":
-    txt_input = st.text_area("Comandos: t. Titulo | txt. Instrução", "t. Título Personalizado\ntxt. Instruções aqui\nQuestão 01\nQuestão 02", height=250)
-    if st.button("LANÇAR"):
-        st.session_state.preview_questoes = txt_input.split("\n")
+@app.get("/ping")
+def ping_keep_alive():
+    return {"status": "alive", "time": time.strftime("%H:%M:%S")}
 
-# --- VISUALIZAÇÃO ---
-st.divider()
-if st.session_state.res_calc: st.info(st.session_state.res_calc)
-if st.session_state.preview_questoes:
-    st.subheader("👀 Preview")
-    with st.container(border=True):
-        for q in st.session_state.preview_questoes: st.text(q)
-    try:
-        buf = gerar_pdf_bytes()
-        st.download_button("📥 BAIXAR PDF", buf, "quantum.pdf", "application/pdf")
-    except Exception as e: st.error(f"Erro no PDF: {e}")
+@app.get("/api/dados")
+def pegar_dados():
+    return {
+        **dados_globais,
+        "robo": CONFIG_ROBO
+    }
+
+@app.post("/api/configurar")
+def configurar_robo(cfg: ConfigModel):
+    global CONFIG_ROBO
+    CONFIG_ROBO["ativo"] = cfg.ativo
+    CONFIG_ROBO["take_profit_pct"] = cfg.take_profit_pct
+    CONFIG_ROBO["alavancagem"] = cfg.alavancagem
+    adicionar_log(f"Config atualizada -> Status: {cfg.ativo} | TP: {cfg.take_profit_pct}% | {cfg.alavancagem}x")
+    return {"status": "ok", "robo": CONFIG_ROBO}
+
+@app.post("/api/registrar_posicao")
+def registrar_posicao(dados: AutonomiaModel):
+    posicoes_abertas[dados.simbolo] = dados.preco_entrada
+    adicionar_log(f"Posição registrada em {dados.simbolo} a {dados.preco_entrada} USDT")
+    return {"status": "ok"}
+
+@app.get("/", response_class=HTMLResponse)
+def dashboard():
+    html_content = """
+    <!DOCTYPE html>
+    <html lang="pt-BR">
+    <head>
+        <meta charset="UTF-8">
+        <title>OmniTechAI - Automação 8 USDT</title>
+        <style>
+            body { background-color: #0d1117; color: #c9d1d9; font-family: Arial, sans-serif; margin: 0; padding: 20px; }
+            h1, h2 { color: #58a6ff; }
+            .card { background: #161b22; border: 1px solid #30363d; border-radius: 6px; padding: 15px; margin-bottom: 20px; display: inline-block; vertical-align: top; width: 45%; margin-right: 2%; }
+            table { width: 100%; border-collapse: collapse; margin-top: 15px; background: #161b22; border-radius: 6px; overflow: hidden; }
+            th, td { padding: 10px; text-align: left; border-bottom: 1px solid #30363d; font-size: 14px; }
+            th { background: #21262d; color: #58a6ff; }
+            tr:hover { background: #1f242c; }
+            .alerta-pisca { background-color: #381313 !important; animation: pisca 1s infinite; }
+            @keyframes pisca { 0% { opacity: 1; } 50% { opacity: 0.4; } 100% { opacity: 1; } }
+            .btn { background: #238636; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-weight: bold; }
+            .btn-danger { background: #da3633; }
+            .log-box { background: #010409; border: 1px solid #30363d; padding: 10px; height: 140px; overflow-y: scroll; font-family: monospace; font-size: 12px; color: #8b949e; border-radius: 6px; margin-top: 5px; }
+            input, select { background: #0d1117; color: #fff; border: 1px solid #30363d; padding: 5px; border-radius: 4px; }
+        </style>
+    </head>
+    <body>
+        <h1>OmniTechAI - Robô Autônomo 8 USDT (24/365)</h1>
+        <div>
+            <div class="card">
+                <h3>Gerenciamento</h3>
+                <p>Status: <span id="status" style="color: #3fb950; font-weight: bold;">Carregando...</span></p>
+                <p>Capital: <span id="saldo" style="color: #3fb950; font-weight: bold;">8.00 USDT</span></p>
+            </div>
+            <div class="card">
+                <h3>Painel de Controle</h3>
+                <p>Modo: <span id="robo-status" style="font-weight: bold;">Desligado</span></p>
+                <label>Meta TP (%): <input type="number" id="input-tp" value="3.0" step="0.5" style="width: 60px;"></label>
+                <label style="margin-left: 10px;">Alavancagem: 
+                    <select id="input-lev">
+                        <option value="1">1x</option>
+                        <option value="5">5x</option>
+                        <option value="10" selected>10x</option>
+                        <option value="20">20x</option>
+                    </select>
+                </label>
+                <br><br>
+                <button id="btn-toggle" class="btn" onclick="alternarMonitor()">Ligar Robô</button>
+            </div>
+        </div>
+        <h2>Logs</h2>
+        <div id="log-box" class="log-box">Carregando...</div>
+        <h2>Ativos Monitorados</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Par</th>
+                    <th>Preço Atual</th>
+                    <th>Entrada</th>
+                    <th>Lucro Alavancado</th>
+                    <th>Ação</th>
+                </tr>
+            </thead>
+            <tbody id="tabela-corpo">
+                <tr><td colspan="5">Sincronizando...</td></tr>
+            </tbody>
+        </table>
+        <script>
+            let monitorAtivo = false;
+            let audioAlerta = new Audio('https://actions.google.com/sounds/v1/alarms/beep_short.ogg');
+
+            async function atualizarDados() {
+                try {
+                    let resposta = await fetch('/api/dados');
+                    let dados = await resposta.json();
+                    document.getElementById('status').innerText = dados.status_conexao;
+                    document.getElementById('saldo').innerText = dados.saldo_usdt.toFixed(2) + ' USDT';
+                    monitorAtivo = dados.robo.ativo;
+                    document.getElementById('input-lev').value = dados.robo.alavancagem;
+                    
+                    let statusEl = document.getElementById('robo-status');
+                    let btnEl = document.getElementById('btn-toggle');
+                    if (monitorAtivo) {
+                        statusEl.innerText = "LIGADO";
+                        statusEl.style.color = "#3fb950";
+                        btnEl.innerText = "Desligar Robô";
+                        btnEl.className = "btn btn-danger";
+                    } else {
+                        statusEl.innerText = "DESLIGADO";
+                        statusEl.style.color = "#f85149";
+                        btnEl.innerText = "Ligar Robô";
+                        btnEl.className = "btn";
+                    }
+
+                    document.getElementById('log-box').innerHTML = dados.logs.join('<br>');
+                    let tbody = document.getElementById('tabela-corpo');
+                    tbody.innerHTML = '';
+                    let temAlerta = false;
+
+                    for (let [simbolo, info] of Object.entries(dados.mercado)) {
+                        let tr = document.createElement('tr');
+                        if (info.alerta && monitorAtivo) {
+                            tr.className = "alerta-pisca";
+                            temAlerta = true;
+                        }
+                        let lucroCor = info.lucro_pct >= 0 ? '#3fb950' : '#f85149';
+                        tr.innerHTML = `
+                            <td><b>${info.name}</b></td>
+                            <td>${info.preco_str}</td>
+                            <td>${info.preco_compra_str}</td>
+                            <td style="color: ${lucroCor}; font-weight: bold;">${info.lucro_pct}%</td>
+                            <td>
+                                <button class="btn" style="padding: 4px 8px; font-size: 12px;" onclick="registrarPosicao('${info.simbolo_bruto}', ${info.preco})">Definir Entrada</button>
+                                ${info.alerta && monitorAtivo ? '<span style="color: #ff7b72; font-weight: bold; margin-left: 10px;">🚨 TP ATINGIDO!</span>' : ''}
+                            </td>
+                        `;
+                        tbody.appendChild(tr);
+                    }
+
+                    if (temAlerta && monitorAtivo) {
+                        audioAlerta.play().catch(e => console.log("Áudio bloqueado"));
+                    }
+                } catch (e) {
+                    console.error("Erro:", e);
+                }
+            }
+
+            async function alternarMonitor() {
+                let novoEstado = !monitorAtivo;
+                let tpValor = parseFloat(document.getElementById('input-tp').value);
+                let levValor = parseInt(document.getElementById('input-lev').value);
+                
+                await fetch('/api/configurar', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ ativo: novoEstado, take_profit_pct: tpValor, alavancagem: levValor })
+                });
+                atualizarDados();
+            }
+
+            async function registrarPosicao(simboloBruto, precoAtual) {
+                let precoInformado = prompt("Preço de entrada para " + simboloBruto + ":", precoAtual > 0 ? precoAtual : "");
+                if (precoInformado) {
+                    let precoFloat = parseFloat(precoInformado.replace(',', '.'));
+                    if (!isNaN(precoFloat) && precoFloat > 0) {
+                        await fetch('/api/registrar_posicao', {
+                            method: 'POST',
+                            headers: {'Content-Type': 'application/json'},
+                            body: JSON.stringify({ simbolo: simboloBruto, preco_entrada: precoFloat })
+                        });
+                        atualizarDados();
+                    }
+                }
+            }
+
+            setInterval(atualizarDados, 4000);
+            atualizarDados();
+        </script>
+    </body>
+    </html>
+    """
+    return html_content
